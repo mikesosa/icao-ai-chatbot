@@ -1,15 +1,15 @@
-'use client';
+'use client'
 
-import { motion } from 'framer-motion';
-import { Button } from './ui/button';
-import { memo } from 'react';
-import type { UseChatHelpers } from '@ai-sdk/react';
-import type { VisibilityType } from './visibility-selector';
+import { motion } from 'framer-motion'
+import { Button } from './ui/button'
+import { memo } from 'react'
+import type { UseChatHelpers } from '@ai-sdk/react'
+import type { VisibilityType } from './visibility-selector'
 
 interface SuggestedActionsProps {
-  chatId: string;
-  append: UseChatHelpers['append'];
-  selectedVisibilityType: VisibilityType;
+  chatId: string
+  append: UseChatHelpers['append']
+  selectedVisibilityType: VisibilityType
 }
 
 function PureSuggestedActions({
@@ -19,26 +19,29 @@ function PureSuggestedActions({
 }: SuggestedActionsProps) {
   const suggestedActions = [
     {
-      title: 'What are the advantages',
-      label: 'of using Next.js?',
-      action: 'What are the advantages of using Next.js?',
+      title: 'What are the advantages of',
+      label: 'getting certified by ICAO?',
+      action: 'What are the advantages of getting certified by ICAO?',
     },
     {
-      title: 'Write code to',
-      label: `demonstrate djikstra's algorithm`,
-      action: `Write code to demonstrate djikstra's algorithm`,
+      title: 'ICAO Exam Preparation',
+      label: 'Help me study for ICAO English test',
+      action:
+        'I need help preparing for my ICAO English language proficiency test. Can you provide study materials and practice questions?',
     },
     {
-      title: 'Help me write an essay',
-      label: `about silicon valley`,
-      action: `Help me write an essay about silicon valley`,
+      title: 'Aviation Communication',
+      label: 'Practice radio phraseology',
+      action:
+        'I want to practice standard ICAO radio phraseology for air traffic control communications. Can you help me with common phrases and procedures?',
     },
     {
-      title: 'What is the weather',
-      label: 'in San Francisco?',
-      action: 'What is the weather in San Francisco?',
+      title: 'Flight Planning',
+      label: 'Weather briefing assistance',
+      action:
+        'I need help understanding weather reports and NOTAMs for flight planning. Can you explain the key elements I should focus on?',
     },
-  ];
+  ]
 
   return (
     <div
@@ -57,12 +60,12 @@ function PureSuggestedActions({
           <Button
             variant="ghost"
             onClick={async () => {
-              window.history.replaceState({}, '', `/chat/${chatId}`);
+              window.history.replaceState({}, '', `/chat/${chatId}`)
 
               append({
                 role: 'user',
                 content: suggestedAction.action,
-              });
+              })
             }}
             className="text-left border rounded-xl px-4 py-3.5 text-sm flex-1 gap-1 sm:flex-col w-full h-auto justify-start items-start"
           >
@@ -74,16 +77,16 @@ function PureSuggestedActions({
         </motion.div>
       ))}
     </div>
-  );
+  )
 }
 
 export const SuggestedActions = memo(
   PureSuggestedActions,
   (prevProps, nextProps) => {
-    if (prevProps.chatId !== nextProps.chatId) return false;
+    if (prevProps.chatId !== nextProps.chatId) return false
     if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType)
-      return false;
+      return false
 
-    return true;
-  },
-);
+    return true
+  }
+)
