@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState, Suspense } from 'react';
 import { toast } from '@/components/toast';
 
 import { AuthForm } from '@/components/auth-form';
@@ -11,7 +11,8 @@ import { SubmitButton } from '@/components/submit-button';
 import { login, type LoginActionState } from '../actions';
 import { useSession } from 'next-auth/react';
 
-export default function Page() {
+// Componente que usa useSearchParams
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl');
@@ -78,5 +79,30 @@ export default function Page() {
         </AuthForm>
       </div>
     </div>
+  );
+}
+
+// Componente de carga mientras se resuelve useSearchParams
+function LoginFormSkeleton() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 px-4 text-center sm:px-16">
+      <div className="h-7 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+      <div className="h-4 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+      <div className="w-full mt-4">
+        <div className="space-y-4">
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Page() {
+  return (
+        <Suspense fallback={<LoginFormSkeleton />}>
+          <LoginForm />
+        </Suspense>
   );
 }

@@ -2,7 +2,7 @@
 
 import type { Attachment, UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat-header';
 import type { Vote } from '@/lib/db/schema';
@@ -21,7 +21,8 @@ import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { ChatSDKError } from '@/lib/errors';
 
-export function Chat({
+// Componente interno que usa useSearchParams
+function ChatWithSearchParams({
   id,
   initialMessages,
   initialChatModel,
@@ -176,5 +177,60 @@ export function Chat({
         selectedVisibilityType={visibilityType}
       />
     </>
+  );
+}
+
+// Componente de loading para el Suspense
+function ChatSkeleton() {
+  return (
+    <div className="flex flex-col min-w-0 h-dvh bg-background">
+      <div className="flex items-center justify-between w-full px-4 py-3 border-b">
+        <div className="h-6 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+      </div>
+      <div className="flex-1 overflow-hidden">
+        <div className="space-y-4 p-4">
+          <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        </div>
+      </div>
+      <div className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
+        <div className="flex-1 h-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+      </div>
+    </div>
+  );
+}
+
+// Componente principal exportado
+export function Chat({
+  id,
+  initialMessages,
+  initialChatModel,
+  initialVisibilityType,
+  isReadonly,
+  session,
+  autoResume,
+}: {
+  id: string;
+  initialMessages: Array<UIMessage>;
+  initialChatModel: string;
+  initialVisibilityType: VisibilityType;
+  isReadonly: boolean;
+  session: Session;
+  autoResume: boolean;
+}) {
+  return (
+    <Suspense fallback={<ChatSkeleton />}>
+      <ChatWithSearchParams
+        id={id}
+        initialMessages={initialMessages}
+        initialChatModel={initialChatModel}
+        initialVisibilityType={initialVisibilityType}
+        isReadonly={isReadonly}
+        session={session}
+        autoResume={autoResume}
+      />
+    </Suspense>
   );
 }
