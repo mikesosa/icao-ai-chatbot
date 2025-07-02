@@ -16,7 +16,7 @@ import {
 import { toast } from 'sonner';
 import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
-import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';
+import { ArrowUpIcon, PaperclipIcon, StopIcon, MicrophoneIcon } from './icons';
 import { PreviewAttachment } from './preview-attachment';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
@@ -305,6 +305,7 @@ function PureMultimodalInput({
             uploadQueue={uploadQueue}
           />
         )}
+        <VoiceButton status={status} />
       </div>
     </div>
   );
@@ -402,3 +403,37 @@ const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
   if (prevProps.input !== nextProps.input) return false;
   return true;
 });
+
+function PureVoiceButton({
+  status,
+}: {
+  status: UseChatHelpers['status'];
+}) {
+  const [isRecording, setIsRecording] = useState(false);
+
+  const handleVoiceClick = () => {
+    // TODO: Implement voice recording functionality
+    setIsRecording(!isRecording);
+    console.log('Voice button clicked, recording:', !isRecording);
+  };
+
+  return (
+    <Button
+      data-testid="voice-button"
+      className={cx(
+        "rounded-md rounded-br-lg p-[7px] h-fit dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200 ml-1",
+        isRecording ? "bg-red-100 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400" : ""
+      )}
+      onClick={(event) => {
+        event.preventDefault();
+        handleVoiceClick();
+      }}
+      disabled={status !== 'ready'}
+      variant="ghost"
+    >
+      <MicrophoneIcon size={14} />
+    </Button>
+  );
+}
+
+const VoiceButton = memo(PureVoiceButton);
