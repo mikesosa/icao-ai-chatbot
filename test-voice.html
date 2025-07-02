@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      .test-section {
+        margin: 20px 0;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background: #007bff;
+        color: white;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .recording {
+        background: #dc3545 !important;
+        animation: pulse 1s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      .status {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .info {
+        background: #d1ecf1;
+        color: #0c5460;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎤 Voice Functionality Test</h1>
+
+    <div class="test-section">
+      <h3>Browser Support Check</h3>
+      <div id="browser-support"></div>
+    </div>
+
+    <div class="test-section">
+      <h3>Speech Recognition Test</h3>
+      <button id="startBtn">🎤 Start Recording</button>
+      <button id="stopBtn" disabled>⏹️ Stop Recording</button>
+      <div id="status"></div>
+      <div id="transcript"></div>
+    </div>
+
+    <div class="test-section">
+      <h3>Speech Synthesis Test</h3>
+      <button id="speakBtn">🔊 Speak Test</button>
+      <div id="tts-status"></div>
+    </div>
+
+    <script>
+      // Browser support check
+      function checkBrowserSupport() {
+        const supportDiv = document.getElementById('browser-support');
+        const speechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
+        const speechSynthesis = 'speechSynthesis' in window;
+
+        let html = '<ul>';
+        html += `<li>Speech Recognition: ${
+          speechRecognition ? '✅ Supported' : '❌ Not Supported'
+        }</li>`;
+        html += `<li>Speech Synthesis: ${
+          speechSynthesis ? '✅ Supported' : '❌ Not Supported'
+        }</li>`;
+        html += `<li>HTTPS: ${
+          window.location.protocol === 'https:'
+            ? '✅ Secure'
+            : '⚠️ Not Secure (may not work)'
+        }</li>`;
+        html += `<li>Browser: ${navigator.userAgent}</li>`;
+        html += '</ul>';
+
+        supportDiv.innerHTML = html;
+      }
+
+      // Speech Recognition
+      let recognition = null;
+      let isRecording = false;
+
+      function initSpeechRecognition() {
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          showStatus(
+            'Speech recognition not supported in this browser',
+            'error',
+          );
+          return false;
+        }
+
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'es-ES';
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+          isRecording = true;
+          document.getElementById('startBtn').disabled = true;
+          document.getElementById('stopBtn').disabled = false;
+          document.getElementById('startBtn').classList.add('recording');
+          showStatus('🎤 Listening... Speak now', 'info');
+        };
+
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          document.getElementById(
+            'transcript',
+          ).innerHTML = `<strong>You said:</strong> "${transcript}"`;
+          showStatus('✅ Speech recognized successfully!', 'success');
+        };
+
+        recognition.onerror = (event) => {
+          showStatus(`❌ Error: ${event.error}`, 'error');
+          stopRecording();
+        };
+
+        recognition.onend = () => {
+          stopRecording();
+        };
+
+        return true;
+      }
+
+      function startRecording() {
+        if (!recognition && !initSpeechRecognition()) {
+          return;
+        }
+
+        try {
+          recognition.start();
+        } catch (error) {
+          showStatus(`❌ Failed to start: ${error.message}`, 'error');
+        }
+      }
+
+      function stopRecording() {
+        if (recognition) {
+          recognition.stop();
+        }
+        isRecording = false;
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('stopBtn').disabled = true;
+        document.getElementById('startBtn').classList.remove('recording');
+      }
+
+      function showStatus(message, type) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+      }
+
+      // Speech Synthesis
+      function testSpeechSynthesis() {
+        const ttsStatus = document.getElementById('tts-status');
+
+        if (!('speechSynthesis' in window)) {
+          ttsStatus.innerHTML =
+            '<div class="status error">❌ Speech synthesis not supported</div>';
+          return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(
+          'Hello, this is a test of the voice functionality for the ICAO exam evaluator.',
+        );
+        utterance.lang = 'es-ES';
+        utterance.rate = 0.8;
+
+        utterance.onstart = () => {
+          ttsStatus.innerHTML = '<div class="status info">🔊 Speaking...</div>';
+        };
+
+        utterance.onend = () => {
+          ttsStatus.innerHTML =
+            '<div class="status success">✅ Speech synthesis test completed!</div>';
+        };
+
+        utterance.onerror = (event) => {
+          ttsStatus.innerHTML = `<div class="status error">❌ Speech synthesis error: ${event.error}</div>`;
+        };
+
+        window.speechSynthesis.speak(utterance);
+      }
+
+      // Event listeners
+      document
+        .getElementById('startBtn')
+        .addEventListener('click', startRecording);
+      document
+        .getElementById('stopBtn')
+        .addEventListener('click', stopRecording);
+      document
+        .getElementById('speakBtn')
+        .addEventListener('click', testSpeechSynthesis);
+
+      // Initialize
+      checkBrowserSupport();
+    </script>
+  </body>
+</html>

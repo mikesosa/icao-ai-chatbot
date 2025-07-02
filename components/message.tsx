@@ -19,6 +19,8 @@ import { MessageEditor } from './message-editor';
 import { DocumentPreview } from './document-preview';
 import { MessageReasoning } from './message-reasoning';
 import type { UseChatHelpers } from '@ai-sdk/react';
+import { VoiceResponse } from './voice-response';
+import { useVoiceSettings } from './voice-settings';
 
 const PurePreviewMessage = ({
   chatId,
@@ -40,6 +42,7 @@ const PurePreviewMessage = ({
   requiresScrollPadding: boolean;
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const { voiceLanguage, autoRead, examMode } = useVoiceSettings();
 
   return (
     <AnimatePresence>
@@ -130,7 +133,19 @@ const PurePreviewMessage = ({
                             message.role === 'user',
                         })}
                       >
-                        <Markdown>{sanitizeText(part.text)}</Markdown>
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1">
+                            <Markdown>{sanitizeText(part.text)}</Markdown>
+                          </div>
+                          {/* {message.role === 'assistant' && !isReadonly && (
+                            <VoiceResponse 
+                              text={sanitizeText(part.text)}
+                              language={voiceLanguage}
+                              autoPlay={autoRead}
+                              className="mt-1"
+                            />
+                          )} */}
+                        </div>
                       </div>
                     </div>
                   );

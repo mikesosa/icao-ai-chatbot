@@ -27,6 +27,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
+import { useVoiceRecorder } from '@/hooks/use-voice';
 
 function PureMultimodalInput({
   chatId,
@@ -69,7 +70,9 @@ function PureMultimodalInput({
   const adjustHeight = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`;
+      textareaRef.current.style.height = `${
+        textareaRef.current.scrollHeight + 2
+      }px`;
     }
   };
 
@@ -305,7 +308,7 @@ function PureMultimodalInput({
             uploadQueue={uploadQueue}
           />
         )}
-        <VoiceButton status={status} />
+        <VoiceButton status={status} input={input} setInput={setInput} />
       </div>
     </div>
   );
@@ -406,23 +409,59 @@ const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
 
 function PureVoiceButton({
   status,
+  input,
+  setInput,
 }: {
   status: UseChatHelpers['status'];
+  input: string;
+  setInput: (value: string) => void;
 }) {
-  const [isRecording, setIsRecording] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const { isRecording, isSupported, startRecording, stopRecording } =
+    useVoiceRecorder({
+      onTranscription: (text) => {
+        // Append transcribed text to current input
+        const newInput = input + (input ? ' ' : '') + text;
+        setInput(newInput);
+        toast('Voice transcribed: "' + text + '"');
+      },
+      onSpeechStart: () => {
+        toast('🎤 Listening... Speak now');
+      },
+      onSpeechEnd: () => {
+        toast('🔇 Voice recording ended');
+      },
+      language: 'es-ES', // ICAO Spanish - can be made configurable
+    });
+
+  console.log('Voice button state:', { isRecording, isSupported });
+
+  // Ensure component is mounted on client before rendering
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleVoiceClick = () => {
-    // TODO: Implement voice recording functionality
-    setIsRecording(!isRecording);
-    console.log('Voice button clicked, recording:', !isRecording);
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
   };
+
+  // Don't render if not mounted or not supported
+  if (!mounted || !isSupported) {
+    return null;
+  }
 
   return (
     <Button
       data-testid="voice-button"
       className={cx(
-        "rounded-md rounded-br-lg p-[7px] h-fit dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200 ml-1",
-        isRecording ? "bg-red-100 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400" : ""
+        'rounded-md rounded-br-lg p-[7px] h-fit dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200 ml-1',
+        isRecording
+          ? 'bg-red-100 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 animate-pulse'
+          : '',
       )}
       onClick={(event) => {
         event.preventDefault();
@@ -430,6 +469,11 @@ function PureVoiceButton({
       }}
       disabled={status !== 'ready'}
       variant="ghost"
+      title={
+        isRecording
+          ? 'Stop recording (Click or speak to finish)'
+          : 'Start voice input'
+      }
     >
       <MicrophoneIcon size={14} />
     </Button>
