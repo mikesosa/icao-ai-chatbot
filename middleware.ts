@@ -23,18 +23,31 @@ export async function middleware(request: NextRequest) {
     secureCookie: !isDevelopmentEnvironment,
   });
 
-  if (!token) {
-    const redirectUrl = encodeURIComponent(request.url);
+  // Allow access to auth pages for unauthenticated users
+  if (['/login', '/register'].includes(pathname)) {
+    // If user is already authenticated (and not a guest), redirect to home
+    if (token && !guestRegex.test(token?.email ?? '')) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    return NextResponse.next();
+  }
 
+  // For all other routes, require authentication
+  if (!token) {
+    // Store the attempted URL to redirect back after login
+    const redirectUrl = encodeURIComponent(request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(
-      new URL(`/api/auth/guest?redirectUrl=${redirectUrl}`, request.url),
+      new URL(`/login?callbackUrl=${redirectUrl}`, request.url),
     );
   }
 
+  // If user is a guest, redirect to login (guests are no longer allowed to access the app)
   const isGuest = guestRegex.test(token?.email ?? '');
-
-  if (token && !isGuest && ['/login', '/register'].includes(pathname)) {
-    return NextResponse.redirect(new URL('/', request.url));
+  if (isGuest) {
+    const redirectUrl = encodeURIComponent(request.nextUrl.pathname + request.nextUrl.search);
+    return NextResponse.redirect(
+      new URL(`/login?callbackUrl=${redirectUrl}`, request.url),
+    );
   }
 
   return NextResponse.next();

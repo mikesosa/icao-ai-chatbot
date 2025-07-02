@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
 import { toast } from '@/components/toast';
 
@@ -13,6 +13,8 @@ import { useSession } from 'next-auth/react';
 
 export default function Page() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl');
 
   const [email, setEmail] = useState('');
   const [isSuccessful, setIsSuccessful] = useState(false);
@@ -40,9 +42,12 @@ export default function Page() {
     } else if (state.status === 'success') {
       setIsSuccessful(true);
       updateSession();
-      router.refresh();
+      // Redirect to callback URL if provided, otherwise to home
+      const redirectTo = callbackUrl ? decodeURIComponent(callbackUrl) : '/';
+      router.push(redirectTo);
     }
-  }, [state.status]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status, router, callbackUrl]);
 
   const handleSubmit = (formData: FormData) => {
     setEmail(formData.get('email') as string);
