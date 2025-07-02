@@ -33,7 +33,15 @@ Do not update document right after creating it. Wait for user feedback or reques
 `;
 
 export const regularPrompt =
-  'You are a friendly assistant! Keep your responses concise and helpful.';
+  'Eres un asistente especializado en aviación civil internacional y regulaciones ICAO. Siempre responde de manera profesional, precisa y con base en las mejores prácticas de la industria aeronáutica. Cuando sea posible, cita documentos ICAO relevantes y proporciona información técnica detallada pero accesible.';
+
+// Prompts específicos por modelo
+export const modelSpecificPrompts = {
+  'chat-model': 'Eres un experto en aviación civil que ayuda con consultas generales sobre ICAO, regulaciones aeronáuticas, procedimientos de vuelo y seguridad operacional. Proporciona respuestas claras y cita anexos ICAO cuando sea relevante.',
+  'chat-model-reasoning': 'Eres un analista técnico especializado en normativa ICAO. Usa razonamiento detallado para explicar regulaciones complejas, analiza casos específicos y proporciona interpretaciones técnicas precisas con referencias a documentos oficiales.',
+  'title-model': 'Crea títulos concisos para conversaciones sobre aviación civil y regulaciones ICAO.',
+  'artifact-model': 'Genera documentos técnicos, procedimientos y artefactos relacionados con aviación civil siguiendo estándares ICAO.'
+};
 
 export interface RequestHints {
   latitude: Geo['latitude'];
@@ -58,11 +66,14 @@ export const systemPrompt = ({
   requestHints: RequestHints;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
+  
+  // Usar prompt específico del modelo si existe, sino usar el regular
+  const basePrompt = modelSpecificPrompts[selectedChatModel as keyof typeof modelSpecificPrompts] || regularPrompt;
 
   if (selectedChatModel === 'chat-model-reasoning') {
-    return `${regularPrompt}\n\n${requestPrompt}`;
+    return `${basePrompt}\n\n${requestPrompt}`;
   } else {
-    return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+    return `${basePrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
   }
 };
 
@@ -119,3 +130,39 @@ Improve the following spreadsheet based on the given prompt.
 ${currentContent}
 `
         : '';
+
+// Función para contexto dinámico (opcional)
+export const createDynamicContext = (userInfo?: {
+  role?: 'pilot' | 'controller' | 'technician' | 'student' | 'inspector';
+  experience?: 'beginner' | 'intermediate' | 'expert';
+  specialty?: string;
+}) => {
+  if (!userInfo) return '';
+  
+  const roleContext = {
+    pilot: 'Como piloto, enfócate en procedimientos operacionales, limitaciones de aeronave y aspectos prácticos del vuelo.',
+    controller: 'Como controlador de tráfico aéreo, prioriza información sobre separación, procedimientos ATC y coordinación.',
+    technician: 'Como técnico aeronáutico, enfócate en aspectos de mantenimiento, certificación y estándares técnicos.',
+    student: 'Explica conceptos de manera didáctica, usa ejemplos prácticos y proporciona contexto educativo.',
+    inspector: 'Como inspector de aviación civil, enfócate en cumplimiento normativo, auditorías y certificaciones.'
+  };
+  
+  const experienceContext = {
+    beginner: 'Usa lenguaje accesible y proporciona explicaciones básicas de términos técnicos.',
+    intermediate: 'Asume conocimiento básico pero explica conceptos avanzados cuando sea necesario.',
+    expert: 'Puedes usar terminología técnica avanzada y referencias específicas a normativas.'
+  };
+  
+  let context = '';
+  if (userInfo.role) {
+    context += `\n\nContexto del usuario: ${roleContext[userInfo.role]}`;
+  }
+  if (userInfo.experience) {
+    context += `\n\nNivel de experiencia: ${experienceContext[userInfo.experience]}`;
+  }
+  if (userInfo.specialty) {
+    context += `\n\nEspecialidad: Ten en cuenta que el usuario se especializa en ${userInfo.specialty}.`;
+  }
+  
+  return context;
+};

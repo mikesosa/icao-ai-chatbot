@@ -43,6 +43,20 @@ let globalStreamContext: ResumableStreamContext | null = null;
 
 function getStreamContext() {
   if (!globalStreamContext) {
+    const redisUrl = process.env.REDIS_URL;
+    
+    if (!redisUrl) {
+      console.log(' > Resumable streams are disabled: REDIS_URL not configured');
+      return null;
+    }
+    
+    try {
+      new URL(redisUrl);
+    } catch {
+      console.log(' > Resumable streams are disabled: REDIS_URL has invalid format');
+      return null;
+    }
+    
     try {
       globalStreamContext = createResumableStreamContext({
         waitUntil: after,
@@ -52,9 +66,18 @@ function getStreamContext() {
         console.log(
           ' > Resumable streams are disabled due to missing REDIS_URL',
         );
+      } else if (error.code === 'ERR_INVALID_URL' || error.message.includes('Invalid URL')) {
+        console.log(
+          ' > Resumable streams are disabled due to invalid REDIS_URL configuration',
+        );
       } else {
+        console.log(
+          ' > Resumable streams are disabled due to configuration error:',
+          error.message
+        );
         console.error(error);
       }
+      globalStreamContext = null;
     }
   }
 
