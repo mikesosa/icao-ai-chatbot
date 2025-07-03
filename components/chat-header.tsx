@@ -57,7 +57,7 @@ function PureChatHeader({
         </Tooltip>
       )}
 
-      {!isReadonly && !hideControls && (
+      {!isReadonly && (
         <ModelSelector
           session={session}
           selectedModelId={selectedModelId}

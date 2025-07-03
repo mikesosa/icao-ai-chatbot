@@ -10,6 +10,7 @@ import {
   chatModel,
   reasoningModel,
   titleModel,
+  teaEvaluatorModel,
 } from './models.test';
 
 export const myProvider = isTestEnvironment
@@ -19,6 +20,7 @@ export const myProvider = isTestEnvironment
         'chat-model-reasoning': reasoningModel,
         'title-model': titleModel,
         'artifact-model': artifactModel,
+        'tea-evaluator': teaEvaluatorModel,
       },
     })
   : customProvider({
@@ -30,6 +32,7 @@ export const myProvider = isTestEnvironment
         }),
         'title-model': xai('grok-2-1212'),
         'artifact-model': xai('grok-2-1212'),
+        'tea-evaluator': xai('grok-2-1212'),
       },
       imageModels: {
         'small-model': xai.image('grok-2-image'),
