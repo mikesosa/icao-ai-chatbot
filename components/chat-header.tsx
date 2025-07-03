@@ -20,12 +20,14 @@ function PureChatHeader({
   selectedVisibilityType,
   isReadonly,
   session,
+  hideControls,
 }: {
   chatId: string;
   selectedModelId: string;
   selectedVisibilityType: VisibilityType;
   isReadonly: boolean;
   session: Session;
+  hideControls?: boolean;
 }) {
   const router = useRouter();
   const { open } = useSidebar();
@@ -36,7 +38,7 @@ function PureChatHeader({
     <header className="flex sticky top-0 bg-background py-1.5 items-center px-2 md:px-2 gap-2">
       <SidebarToggle />
 
-      {(!open || windowWidth < 768) && (
+      {(!open || windowWidth < 768) && !hideControls && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -55,7 +57,7 @@ function PureChatHeader({
         </Tooltip>
       )}
 
-      {!isReadonly && (
+      {!isReadonly && !hideControls && (
         <ModelSelector
           session={session}
           selectedModelId={selectedModelId}
@@ -63,7 +65,7 @@ function PureChatHeader({
         />
       )}
 
-      {!isReadonly && (
+      {!isReadonly && !hideControls && (
         <VisibilitySelector
           chatId={chatId}
           selectedVisibilityType={selectedVisibilityType}

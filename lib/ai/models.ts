@@ -17,4 +17,9 @@ export const chatModels: Array<ChatModel> = [
     name: 'Reasoning model',
     description: 'Uses advanced reasoning',
   },
+  {
+    id: 'tea-evaluator',
+    name: 'TEA Evaluator',
+    description: 'Specialized evaluator for Test of English for Aviation (TEA) exams',
+  },
 ];

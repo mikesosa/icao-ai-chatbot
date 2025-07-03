@@ -29,6 +29,7 @@ const PurePreviewMessage = ({
   reload,
   isReadonly,
   requiresScrollPadding,
+  hideControls,
 }: {
   chatId: string;
   message: UIMessage;
@@ -38,6 +39,7 @@ const PurePreviewMessage = ({
   reload: UseChatHelpers['reload'];
   isReadonly: boolean;
   requiresScrollPadding: boolean;
+  hideControls?: boolean;
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
 
@@ -221,7 +223,7 @@ const PurePreviewMessage = ({
               }
             })}
 
-            {!isReadonly && (
+            {!isReadonly && !hideControls && (
               <MessageActions
                 key={`action-${message.id}`}
                 chatId={chatId}

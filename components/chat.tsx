@@ -30,6 +30,7 @@ function ChatWithSearchParams({
   isReadonly,
   session,
   autoResume,
+  hideControls,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -38,6 +39,7 @@ function ChatWithSearchParams({
   isReadonly: boolean;
   session: Session;
   autoResume: boolean;
+  hideControls?: boolean;
 }) {
   const { mutate } = useSWRConfig();
 
@@ -126,6 +128,7 @@ function ChatWithSearchParams({
           selectedVisibilityType={initialVisibilityType}
           isReadonly={isReadonly}
           session={session}
+          hideControls={hideControls}
         />
 
         <Messages
@@ -137,6 +140,7 @@ function ChatWithSearchParams({
           reload={reload}
           isReadonly={isReadonly}
           isArtifactVisible={isArtifactVisible}
+          hideControls={hideControls}
         />
 
         <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
@@ -154,6 +158,7 @@ function ChatWithSearchParams({
               setMessages={setMessages}
               append={append}
               selectedVisibilityType={visibilityType}
+              hideControls={hideControls}
             />
           )}
         </form>
@@ -211,6 +216,7 @@ export function Chat({
   isReadonly,
   session,
   autoResume,
+  hideControls,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -219,6 +225,7 @@ export function Chat({
   isReadonly: boolean;
   session: Session;
   autoResume: boolean;
+  hideControls?: boolean;
 }) {
   return (
     <Suspense fallback={<ChatSkeleton />}>
@@ -230,6 +237,7 @@ export function Chat({
         isReadonly={isReadonly}
         session={session}
         autoResume={autoResume}
+        hideControls={hideControls}
       />
     </Suspense>
   );
