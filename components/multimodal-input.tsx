@@ -114,7 +114,12 @@ function PureMultimodalInput({
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
   const submitForm = useCallback(() => {
-    window.history.replaceState({}, '', `/chat/${chatId}`);
+    // Check if we're in TEA mode by looking at the current URL path
+    const isTeaMode = window.location.pathname.includes('/tea');
+    console.log('window.location.pathname --->', window.location.pathname);
+    console.log('isTeaMode --->', isTeaMode);
+    const redirectPath = isTeaMode ? `/tea/${chatId}` : `/chat/${chatId}`;
+    window.history.replaceState({}, '', redirectPath);
 
     handleSubmit(undefined, {
       experimental_attachments: attachments,

@@ -12,6 +12,7 @@ import { AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 import type { Session } from 'next-auth';
 import type { UIMessage } from 'ai';
 import { DataStreamHandler } from './data-stream-handler';
+import { TeaHistory } from './tea-history';
 
 interface TeaExamInterfaceProps {
   chatId: string;
@@ -229,9 +230,11 @@ Ahora procederé a evaluar su desempeño según los criterios ICAO y le proporci
         <DataStreamHandler id={chatId} />
       </div>
 
-      {/* <div className="w-80 bg-white border-r flex flex-col"> */}
+      {/* TEA History Sidebar */}
       <div className="flex flex-col min-w-0 h-dvh bg-sidebar">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* TEA History */}
+          <TeaHistory user={session.user} />
           {examStarted && (
             <TeaTimer
               currentSection={currentSection}

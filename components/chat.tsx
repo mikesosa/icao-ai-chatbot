@@ -99,7 +99,11 @@ function ChatWithSearchParams({
       });
 
       setHasAppendedQuery(true);
-      window.history.replaceState({}, '', `/chat/${id}`);
+      // Check if we're in TEA mode by looking at the current URL path
+      const isTeaMode = window.location.pathname.includes('/tea/');
+      console.log('isTeaMode --->', isTeaMode);
+      const redirectPath = isTeaMode ? `/tea/${id}` : `/chat/${id}`;
+      window.history.replaceState({}, '', redirectPath);
     }
   }, [query, append, hasAppendedQuery, id]);
 
