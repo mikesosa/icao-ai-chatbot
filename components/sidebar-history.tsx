@@ -391,10 +391,25 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                   (modelType) => hasChatsInGroup(groupedChats[modelType]),
                 );
 
+                // Sort model types to put general chat at the end
+                const sortedModelTypes = availableModelTypes.sort((a, b) => {
+                  if (a === MODEL_TYPES.GENERAL && b !== MODEL_TYPES.GENERAL) {
+                    return 1;
+                  }
+                  if (b === MODEL_TYPES.GENERAL && a !== MODEL_TYPES.GENERAL) {
+                    return -1;
+                  }
+                  return 0;
+                });
+
                 return (
                   <div className="flex flex-col gap-4">
-                    {availableModelTypes.map((modelType) => (
-                      <details key={modelType} className="group" open>
+                    {sortedModelTypes.map((modelType) => (
+                      <details
+                        key={modelType}
+                        className="group"
+                        open={modelType !== MODEL_TYPES.GENERAL}
+                      >
                         <summary className="px-2 py-1 text-xs text-sidebar-foreground/50 cursor-pointer hover:text-sidebar-foreground/70 list-none">
                           <span className="inline-flex items-center gap-2">
                             <svg
