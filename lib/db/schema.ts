@@ -10,6 +10,7 @@ import {
   foreignKey,
   boolean,
 } from 'drizzle-orm/pg-core';
+import { MODEL_TYPE_VALUES } from '@/lib/types';
 
 export const user = pgTable('User', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
@@ -29,7 +30,7 @@ export const chat = pgTable('Chat', {
   visibility: varchar('visibility', { enum: ['public', 'private'] })
     .notNull()
     .default('private'),
-  examType: varchar('examType', { enum: ['general', 'tea'] })
+  modelType: varchar('modelType', { enum: MODEL_TYPE_VALUES })
     .default('general'),
 });
 

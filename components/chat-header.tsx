@@ -11,11 +11,12 @@ import { PlusIcon, VercelIcon } from './icons';
 import { useSidebar } from './ui/sidebar';
 import { memo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { type VisibilityType, VisibilitySelector } from './visibility-selector';
+import { type VisibilityType } from './visibility-selector';
 import type { Session } from 'next-auth';
 
 function PureChatHeader({
   chatId,
+  modelType,
   selectedModelId,
   selectedVisibilityType,
   isReadonly,
@@ -23,6 +24,7 @@ function PureChatHeader({
   hideControls,
 }: {
   chatId: string;
+  modelType?: string;
   selectedModelId: string;
   selectedVisibilityType: VisibilityType;
   isReadonly: boolean;
@@ -38,7 +40,7 @@ function PureChatHeader({
     <header className="flex sticky top-0 bg-background py-1.5 items-center px-2 md:px-2 gap-2">
       <SidebarToggle />
 
-      {(!open || windowWidth < 768) && !hideControls && (
+      {/* {(!open || windowWidth < 768) && !hideControls && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -55,23 +57,24 @@ function PureChatHeader({
           </TooltipTrigger>
           <TooltipContent>New Chat</TooltipContent>
         </Tooltip>
-      )}
+      )} */}
 
       {!isReadonly && (
         <ModelSelector
           session={session}
+          modelType={modelType}
           selectedModelId={selectedModelId}
           className="order-1 md:order-2"
         />
       )}
 
-      {!isReadonly && !hideControls && (
+      {/* {!isReadonly && !hideControls && (
         <VisibilitySelector
           chatId={chatId}
           selectedVisibilityType={selectedVisibilityType}
           className="order-1 md:order-3"
         />
-      )}
+      )} */}
     </header>
   );
 }

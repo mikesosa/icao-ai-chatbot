@@ -27,14 +27,18 @@ import { fetcher } from '@/lib/utils';
 import { ChatItem } from './sidebar-history-item';
 import useSWRInfinite from 'swr/infinite';
 import { LoaderIcon } from './icons';
+import { MODEL_TYPES, MODEL_ID_TO_TYPE_MAP } from '@/lib/types';
+import { chatModels } from '@/lib/ai/models';
 
-type GroupedChats = {
+type DateGroupedChats = {
   today: Chat[];
   yesterday: Chat[];
   lastWeek: Chat[];
   lastMonth: Chat[];
   older: Chat[];
 };
+
+type ModelGroupedChats = Record<string, DateGroupedChats>;
 
 export interface ChatHistory {
   chats: Array<Chat>;
@@ -43,7 +47,7 @@ export interface ChatHistory {
 
 const PAGE_SIZE = 20;
 
-const groupChatsByDate = (chats: Chat[]): GroupedChats => {
+const groupChatsByDate = (chats: Chat[]): DateGroupedChats => {
   const now = new Date();
   const oneWeekAgo = subWeeks(now, 1);
   const oneMonthAgo = subMonths(now, 1);
@@ -72,8 +76,46 @@ const groupChatsByDate = (chats: Chat[]): GroupedChats => {
       lastWeek: [],
       lastMonth: [],
       older: [],
-    } as GroupedChats,
+    } as DateGroupedChats,
   );
+};
+
+const groupChatsByModelAndDate = (chats: Chat[]): ModelGroupedChats => {
+  // Get all available model types from the chatModels array
+  const availableModelTypes = new Set([
+    MODEL_TYPES.GENERAL, // Always include general
+    ...chatModels.map(
+      (model) =>
+        MODEL_ID_TO_TYPE_MAP[model.id as keyof typeof MODEL_ID_TO_TYPE_MAP],
+    ),
+  ]);
+
+  // Initialize groups for all available model types
+  const initialGroups: Record<string, Chat[]> = {};
+  availableModelTypes.forEach((modelType) => {
+    if (modelType) {
+      initialGroups[modelType] = [];
+    }
+  });
+
+  // Group chats by model type
+  const modelGroups = chats.reduce((groups, chat) => {
+    const modelType = chat.modelType || MODEL_TYPES.GENERAL;
+
+    if (groups[modelType]) {
+      groups[modelType].push(chat);
+    }
+
+    return groups;
+  }, initialGroups);
+
+  // Then, group each model type's chats by date
+  const result: ModelGroupedChats = {};
+  Object.keys(modelGroups).forEach((modelType) => {
+    result[modelType] = groupChatsByDate(modelGroups[modelType]);
+  });
+
+  return result;
 };
 
 export function getChatHistoryPaginationKey(
@@ -164,7 +206,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
     return (
       <SidebarGroup>
         <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
-          Today
+          Chat History
         </div>
         <SidebarGroupContent>
           <div className="flex flex-col">
@@ -212,16 +254,16 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                   (paginatedChatHistory) => paginatedChatHistory.chats,
                 );
 
-                const groupedChats = groupChatsByDate(chatsFromHistory);
+                const groupedChats = groupChatsByModelAndDate(chatsFromHistory);
 
-                return (
-                  <div className="flex flex-col gap-6">
-                    {groupedChats.today.length > 0 && (
+                const renderDateGroups = (dateGroups: DateGroupedChats) => (
+                  <div className="flex flex-col gap-4">
+                    {dateGroups.today.length > 0 && (
                       <div>
                         <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
                           Today
                         </div>
-                        {groupedChats.today.map((chat) => (
+                        {dateGroups.today.map((chat) => (
                           <ChatItem
                             key={chat.id}
                             chat={chat}
@@ -236,12 +278,12 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                       </div>
                     )}
 
-                    {groupedChats.yesterday.length > 0 && (
+                    {dateGroups.yesterday.length > 0 && (
                       <div>
                         <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
                           Yesterday
                         </div>
-                        {groupedChats.yesterday.map((chat) => (
+                        {dateGroups.yesterday.map((chat) => (
                           <ChatItem
                             key={chat.id}
                             chat={chat}
@@ -256,12 +298,12 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                       </div>
                     )}
 
-                    {groupedChats.lastWeek.length > 0 && (
+                    {dateGroups.lastWeek.length > 0 && (
                       <div>
                         <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
                           Last 7 days
                         </div>
-                        {groupedChats.lastWeek.map((chat) => (
+                        {dateGroups.lastWeek.map((chat) => (
                           <ChatItem
                             key={chat.id}
                             chat={chat}
@@ -276,12 +318,12 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                       </div>
                     )}
 
-                    {groupedChats.lastMonth.length > 0 && (
+                    {dateGroups.lastMonth.length > 0 && (
                       <div>
                         <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
                           Last 30 days
                         </div>
-                        {groupedChats.lastMonth.map((chat) => (
+                        {dateGroups.lastMonth.map((chat) => (
                           <ChatItem
                             key={chat.id}
                             chat={chat}
@@ -296,12 +338,12 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                       </div>
                     )}
 
-                    {groupedChats.older.length > 0 && (
+                    {dateGroups.older.length > 0 && (
                       <div>
                         <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
                           Older than last month
                         </div>
-                        {groupedChats.older.map((chat) => (
+                        {dateGroups.older.map((chat) => (
                           <ChatItem
                             key={chat.id}
                             chat={chat}
@@ -315,6 +357,67 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                         ))}
                       </div>
                     )}
+                  </div>
+                );
+
+                const hasChatsInGroup = (dateGroups: DateGroupedChats) => {
+                  return (
+                    dateGroups.today.length > 0 ||
+                    dateGroups.yesterday.length > 0 ||
+                    dateGroups.lastWeek.length > 0 ||
+                    dateGroups.lastMonth.length > 0 ||
+                    dateGroups.older.length > 0
+                  );
+                };
+
+                // Get display name for model type
+                const getModelDisplayName = (modelType: string) => {
+                  if (modelType === MODEL_TYPES.GENERAL) {
+                    return 'General Chat';
+                  }
+
+                  // Find the model in chatModels array
+                  const model = chatModels.find(
+                    (m) =>
+                      MODEL_ID_TO_TYPE_MAP[
+                        m.id as keyof typeof MODEL_ID_TO_TYPE_MAP
+                      ] === modelType,
+                  );
+                  return model ? model.name : modelType;
+                };
+
+                // Get available model types that have chats
+                const availableModelTypes = Object.keys(groupedChats).filter(
+                  (modelType) => hasChatsInGroup(groupedChats[modelType]),
+                );
+
+                return (
+                  <div className="flex flex-col gap-4">
+                    {availableModelTypes.map((modelType) => (
+                      <details key={modelType} className="group" open>
+                        <summary className="px-2 py-1 text-xs text-sidebar-foreground/50 cursor-pointer hover:text-sidebar-foreground/70 list-none">
+                          <span className="inline-flex items-center gap-2">
+                            <svg
+                              className="size-3 transition-transform group-open:rotate-90"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                            {getModelDisplayName(modelType)}
+                          </span>
+                        </summary>
+                        <div className="ml-4 mt-2">
+                          {renderDateGroups(groupedChats[modelType])}
+                        </div>
+                      </details>
+                    ))}
                   </div>
                 );
               })()}

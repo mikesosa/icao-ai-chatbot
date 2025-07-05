@@ -11,6 +11,7 @@ import type { Session } from 'next-auth';
 import type { UIMessage } from 'ai';
 import { DataStreamHandler } from './data-stream-handler';
 import { TeaHistory } from './tea-history';
+import { MODEL_IDS } from '@/lib/types';
 
 interface TeaExamInterfaceProps {
   chatId: string;
@@ -218,7 +219,7 @@ Ahora procederé a evaluar su desempeño según los criterios ICAO y le proporci
           key={chatId}
           id={chatId}
           initialMessages={messages}
-          initialChatModel="tea-evaluator"
+          initialChatModel={MODEL_IDS.TEA_EVALUATOR}
           initialVisibilityType="private"
           autoResume={false}
           isReadonly={false}
