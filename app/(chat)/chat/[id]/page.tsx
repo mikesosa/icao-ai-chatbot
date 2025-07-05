@@ -8,6 +8,7 @@ import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import type { DBMessage } from '@/lib/db/schema';
 import type { Attachment, UIMessage } from 'ai';
+import { ExamSidebar } from '@/components/exam-interface';
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -54,37 +55,28 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   const cookieStore = await cookies();
   const chatModelFromCookie = cookieStore.get('chat-model');
 
-  if (!chatModelFromCookie) {
-    return (
-      <>
+  return (
+    <div className="flex">
+      <div className="flex-1 flex flex-col">
         <Chat
           id={chat.id}
           modelType={chat.modelType ?? undefined}
           initialMessages={convertToUIMessages(messagesFromDb)}
-          initialChatModel={DEFAULT_CHAT_MODEL}
+          initialChatModel={
+            !chatModelFromCookie
+              ? DEFAULT_CHAT_MODEL
+              : chatModelFromCookie.value
+          }
           initialVisibilityType={chat.visibility}
           isReadonly={session?.user?.id !== chat.userId}
           session={session}
           autoResume={true}
         />
         <DataStreamHandler id={id} />
-      </>
-    );
-  }
-
-  return (
-    <>
-      <Chat
-        id={chat.id}
-        modelType={chat.modelType ?? undefined}
-        initialMessages={convertToUIMessages(messagesFromDb)}
-        initialChatModel={chatModelFromCookie.value}
-        initialVisibilityType={chat.visibility}
-        isReadonly={session?.user?.id !== chat.userId}
-        session={session}
-        autoResume={true}
-      />
-      <DataStreamHandler id={id} />
-    </>
+      </div>
+      <div className="flex flex-col min-w-0 h-dvh bg-sidebar">
+        <ExamSidebar initialMessages={convertToUIMessages(messagesFromDb)} />
+      </div>
+    </div>
   );
 }

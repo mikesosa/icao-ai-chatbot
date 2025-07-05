@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Phone } from 'lucide-react';
 import { Button } from './ui/button';
 import { MODEL_IDS } from '@/lib/types';
+import { useExamContext } from '@/hooks/use-exam-context';
 
 interface GreetingProps {
   selectedModel?: string;
@@ -10,6 +11,7 @@ interface GreetingProps {
 export const Greeting = ({
   selectedModel = MODEL_IDS.CHAT_MODEL,
 }: GreetingProps) => {
+  const { readyToStartExam } = useExamContext();
   const getGreetingContent = () => {
     switch (selectedModel) {
       case MODEL_IDS.TEA_EVALUATOR:
@@ -68,7 +70,10 @@ export const Greeting = ({
           transition={{ delay: 0.7 }}
           className="text-sm text-zinc-500 mt-4 max-w-2xl flex justify-center"
         >
-          <Button className="flex items-center gap-1 rounded-full">
+          <Button
+            className="flex items-center gap-1 rounded-full"
+            onClick={() => readyToStartExam(selectedModel)}
+          >
             {description}
           </Button>
         </motion.div>

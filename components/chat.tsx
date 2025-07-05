@@ -25,6 +25,7 @@ import { useSearchParams } from 'next/navigation';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { ChatSDKError } from '@/lib/errors';
+import { useExamContext } from '@/hooks/use-exam-context';
 
 // Componente interno que usa useSearchParams
 function ChatWithSearchParams({
@@ -49,7 +50,7 @@ function ChatWithSearchParams({
   hideControls?: boolean;
 }) {
   const { mutate } = useSWRConfig();
-
+  const { examType } = useExamContext();
   const { visibilityType } = useChatVisibility({
     chatId: id,
     initialVisibilityType,
@@ -152,7 +153,7 @@ function ChatWithSearchParams({
         />
 
         <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
-          {!isReadonly && (
+          {!isReadonly && examType && (
             <MultimodalInput
               chatId={id}
               input={input}
