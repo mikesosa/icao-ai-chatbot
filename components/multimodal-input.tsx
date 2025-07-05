@@ -27,6 +27,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
+import AudioControls from './audio-controls';
 
 function PureMultimodalInput({
   chatId,
@@ -59,6 +60,7 @@ function PureMultimodalInput({
   selectedVisibilityType: VisibilityType;
   hideControls?: boolean;
 }) {
+  const [isRecording, setIsRecording] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
 
@@ -201,6 +203,11 @@ function PureMultimodalInput({
       scrollToBottom();
     }
   }, [status, scrollToBottom]);
+
+  // TODO: Implement audio controls
+  if (isRecording) {
+    return <AudioControls />;
+  }
 
   return (
     <div className="relative w-full flex flex-col gap-4">

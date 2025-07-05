@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { TeaTimer, type TeaSection } from './tea-timer';
 import { TeaSectionControls } from './tea-section-controls';
 import { Chat } from './chat';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { AlertTriangle, CheckCircle, FileText } from 'lucide-react';
+import { AlertTriangle, FileText } from 'lucide-react';
 import type { Session } from 'next-auth';
 import type { UIMessage } from 'ai';
 import { DataStreamHandler } from './data-stream-handler';

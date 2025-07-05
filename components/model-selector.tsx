@@ -76,6 +76,9 @@ export function ModelSelector({
                 startTransition(() => {
                   setOptimisticModelId(id);
                   saveChatModelAsCookie(id);
+                  if (id === 'tea-evaluator') {
+                    window.location.href = '/tea';
+                  }
                 });
               }}
               data-active={id === optimisticModelId}
