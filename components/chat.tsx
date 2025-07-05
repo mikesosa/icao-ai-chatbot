@@ -97,13 +97,7 @@ function ChatWithSearchParams({
         role: 'user',
         content: query,
       });
-
       setHasAppendedQuery(true);
-      // Check if we're in TEA mode by looking at the current URL path
-      const isTeaMode = window.location.pathname.includes('/tea/');
-      console.log('isTeaMode --->', isTeaMode);
-      const redirectPath = isTeaMode ? `/tea/${id}` : `/chat/${id}`;
-      window.history.replaceState({}, '', redirectPath);
     }
   }, [query, append, hasAppendedQuery, id]);
 
@@ -145,10 +139,11 @@ function ChatWithSearchParams({
           isReadonly={isReadonly}
           isArtifactVisible={isArtifactVisible}
           hideControls={hideControls}
+          selectedModel={initialChatModel}
         />
 
         <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
-          {!isReadonly && (
+          {isReadonly && (
             <MultimodalInput
               chatId={id}
               input={input}

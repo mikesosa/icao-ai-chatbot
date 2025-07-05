@@ -29,7 +29,7 @@ export const chat = pgTable('Chat', {
   visibility: varchar('visibility', { enum: ['public', 'private'] })
     .notNull()
     .default('private'),
-  examType: varchar('examType', { enum: ['general', 'tea'] })
+  modelType: varchar('modelType', { enum: ['general', 'tea-evaluator', 'elpac-evaluator'] })
     .default('general'),
 });
 

@@ -7,19 +7,24 @@ export interface ChatModel {
 }
 
 export const chatModels: Array<ChatModel> = [
-  {
-    id: 'chat-model',
-    name: 'Chat model',
-    description: 'Primary model for all-purpose chat',
-  },
-  {
-    id: 'chat-model-reasoning',
-    name: 'Reasoning model',
-    description: 'Uses advanced reasoning',
-  },
+  // {
+  //   id: 'chat-model',
+  //   name: 'Chat model',
+  //   description: 'Primary model for all-purpose chat',
+  // },
+  // {
+  //   id: 'chat-model-reasoning',
+  //   name: 'Reasoning model',
+  //   description: 'Uses advanced reasoning',
+  // },
   {
     id: 'tea-evaluator',
     name: 'TEA Evaluator',
-    description: 'Specialized evaluator for Test of English for Aviation (TEA) exams',
+    description: 'Test of English for Aviation (TEA) exams',
+  },
+  {
+    id: 'elpac-evaluator',
+    name: 'ELPAC Evaluator',
+    description: 'English Language Proficiency Assessment for Aviation (ELPAC)',
   },
 ];

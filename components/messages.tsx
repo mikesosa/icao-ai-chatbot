@@ -18,6 +18,7 @@ interface MessagesProps {
   isReadonly: boolean;
   isArtifactVisible: boolean;
   hideControls?: boolean;
+  selectedModel?: string;
 }
 
 function PureMessages({
@@ -29,6 +30,7 @@ function PureMessages({
   reload,
   isReadonly,
   hideControls,
+  selectedModel,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -46,7 +48,7 @@ function PureMessages({
       ref={messagesContainerRef}
       className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4 relative"
     >
-      {messages.length === 0 && <Greeting />}
+      {messages.length === 0 && <Greeting selectedModel={selectedModel} />}
 
       {messages.map((message, index) => (
         <PreviewMessage
