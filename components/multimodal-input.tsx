@@ -27,6 +27,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
+import AudioControls from './audio-controls';
 
 function PureMultimodalInput({
   chatId,
@@ -59,6 +60,7 @@ function PureMultimodalInput({
   selectedVisibilityType: VisibilityType;
   hideControls?: boolean;
 }) {
+  const [isRecording, setIsRecording] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
 
@@ -114,7 +116,12 @@ function PureMultimodalInput({
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
   const submitForm = useCallback(() => {
-    window.history.replaceState({}, '', `/chat/${chatId}`);
+    // Check if we're in TEA mode by looking at the current URL path
+    const isTeaMode = window.location.pathname.includes('/tea');
+    console.log('window.location.pathname --->', window.location.pathname);
+    console.log('isTeaMode --->', isTeaMode);
+    const redirectPath = isTeaMode ? `/tea/${chatId}` : `/chat/${chatId}`;
+    window.history.replaceState({}, '', redirectPath);
 
     handleSubmit(undefined, {
       experimental_attachments: attachments,
@@ -196,6 +203,11 @@ function PureMultimodalInput({
       scrollToBottom();
     }
   }, [status, scrollToBottom]);
+
+  // TODO: Implement audio controls
+  if (isRecording) {
+    return <AudioControls />;
+  }
 
   return (
     <div className="relative w-full flex flex-col gap-4">

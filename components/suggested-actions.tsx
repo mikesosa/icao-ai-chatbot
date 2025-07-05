@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import { motion } from 'framer-motion'
-import { Button } from './ui/button'
-import { memo } from 'react'
-import type { UseChatHelpers } from '@ai-sdk/react'
-import type { VisibilityType } from './visibility-selector'
+import { motion } from 'framer-motion';
+import { Button } from './ui/button';
+import { memo } from 'react';
+import type { UseChatHelpers } from '@ai-sdk/react';
+import type { VisibilityType } from './visibility-selector';
 
 interface SuggestedActionsProps {
-  chatId: string
-  append: UseChatHelpers['append']
-  selectedVisibilityType: VisibilityType
+  chatId: string;
+  append: UseChatHelpers['append'];
+  selectedVisibilityType: VisibilityType;
 }
 
 function PureSuggestedActions({
@@ -41,7 +41,7 @@ function PureSuggestedActions({
       action:
         'I need help understanding weather reports and NOTAMs for flight planning. Can you explain the key elements I should focus on?',
     },
-  ]
+  ];
 
   return (
     <div
@@ -60,12 +60,17 @@ function PureSuggestedActions({
           <Button
             variant="ghost"
             onClick={async () => {
-              window.history.replaceState({}, '', `/chat/${chatId}`)
+              // Check if we're in TEA mode by looking at the current URL path
+              const isTeaMode = window.location.pathname.includes('/tea/');
+              const redirectPath = isTeaMode
+                ? `/tea/${chatId}`
+                : `/chat/${chatId}`;
+              window.history.replaceState({}, '', redirectPath);
 
               append({
                 role: 'user',
                 content: suggestedAction.action,
-              })
+              });
             }}
             className="text-left border rounded-xl px-4 py-3.5 text-sm flex-1 gap-1 sm:flex-col w-full h-auto justify-start items-start"
           >
@@ -77,16 +82,16 @@ function PureSuggestedActions({
         </motion.div>
       ))}
     </div>
-  )
+  );
 }
 
 export const SuggestedActions = memo(
   PureSuggestedActions,
   (prevProps, nextProps) => {
-    if (prevProps.chatId !== nextProps.chatId) return false
+    if (prevProps.chatId !== nextProps.chatId) return false;
     if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType)
-      return false
+      return false;
 
-    return true
-  }
-)
+    return true;
+  },
+);
