@@ -19,10 +19,12 @@ import type { Session } from 'next-auth';
 
 export function ModelSelector({
   session,
+  modelType,
   selectedModelId,
   className,
 }: {
   session: Session;
+  modelType?: string;
   selectedModelId: string;
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
@@ -32,22 +34,45 @@ export function ModelSelector({
   const userType = session.user.type;
   const { availableChatModelIds } = entitlementsByUserType[userType];
 
-  const availableChatModels = chatModels.filter((chatModel) =>
-    availableChatModelIds.includes(chatModel.id),
-  );
+  const availableChatModels = useMemo(() => {
+    const models = chatModels.filter((chatModel) =>
+      availableChatModelIds.includes(chatModel.id),
+    );
 
-  const selectedChatModel = useMemo(
-    () =>
-      availableChatModels.find(
-        (chatModel) => chatModel.id === optimisticModelId,
-      ),
-    [optimisticModelId, availableChatModels],
-  );
+    // If modelType is provided and is a valid model, only show that model
+    if (modelType) {
+      const modelTypeModel = models.find((model) => model.id === modelType);
+      console.log('modelTypeModel', modelTypeModel);
+      if (modelTypeModel) {
+        return [modelTypeModel];
+      }
+    }
+
+    return models;
+  }, [availableChatModelIds, modelType]);
+
+  const selectedChatModel = useMemo(() => {
+    // If modelType is provided and valid, use it as the selected model
+    if (modelType) {
+      const modelTypeModel = availableChatModels.find(
+        (chatModel) => chatModel.id === modelType,
+      );
+      if (modelTypeModel) {
+        return modelTypeModel;
+      }
+    }
+
+    // Otherwise, use the optimistic model ID
+    return availableChatModels.find(
+      (chatModel) => chatModel.id === optimisticModelId,
+    );
+  }, [optimisticModelId, availableChatModels, modelType]);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         asChild
+        disabled={availableChatModels.length <= 1}
         className={cn(
           'w-fit data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
           className,

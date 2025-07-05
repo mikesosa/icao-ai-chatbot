@@ -205,9 +205,9 @@ function PureMultimodalInput({
   }, [status, scrollToBottom]);
 
   // TODO: Implement audio controls
-  if (isRecording) {
-    return <AudioControls />;
-  }
+  // if (isRecording) {
+  //   return <AudioControls />;
+  // }
 
   return (
     <div className="relative w-full flex flex-col gap-4">
