@@ -33,6 +33,7 @@ import { generateUUID } from '../utils';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
 import { ChatSDKError } from '../errors';
+import { ModelType } from '@/lib/types';
 
 // Optionally, if not using email/pass login, you can
 // use the Drizzle adapter for Auth.js / NextAuth
@@ -85,11 +86,13 @@ export async function saveChat({
   userId,
   title,
   visibility,
+  modelType,
 }: {
   id: string;
   userId: string;
   title: string;
   visibility: VisibilityType;
+  modelType?: ModelType;
 }) {
   try {
     return await db.insert(chat).values({
@@ -98,6 +101,7 @@ export async function saveChat({
       userId,
       title,
       visibility,
+      modelType,
     });
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to save chat');

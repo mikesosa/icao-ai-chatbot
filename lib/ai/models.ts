@@ -1,4 +1,6 @@
-export const DEFAULT_CHAT_MODEL: string = 'chat-model';
+import { MODEL_IDS } from '@/lib/types';
+
+export const DEFAULT_CHAT_MODEL: string = MODEL_IDS.CHAT_MODEL;
 
 export interface ChatModel {
   id: string;
@@ -8,22 +10,22 @@ export interface ChatModel {
 
 export const chatModels: Array<ChatModel> = [
   // {
-  //   id: 'chat-model',
+  //   id: MODEL_IDS.CHAT_MODEL,
   //   name: 'Chat model',
   //   description: 'Primary model for all-purpose chat',
   // },
   // {
-  //   id: 'chat-model-reasoning',
+  //   id: MODEL_IDS.CHAT_MODEL_REASONING,
   //   name: 'Reasoning model',
   //   description: 'Uses advanced reasoning',
   // },
   {
-    id: 'tea-evaluator',
+    id: MODEL_IDS.TEA_EVALUATOR,
     name: 'TEA Evaluator',
     description: 'Test of English for Aviation (TEA) exams',
   },
   {
-    id: 'elpac-evaluator',
+    id: MODEL_IDS.ELPAC_EVALUATOR,
     name: 'ELPAC Evaluator',
     description: 'English Language Proficiency Assessment for Aviation (ELPAC)',
   },

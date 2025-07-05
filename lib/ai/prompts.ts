@@ -1,5 +1,6 @@
 import type { ArtifactKind } from '@/components/artifact';
 import type { Geo } from '@vercel/functions';
+import { MODEL_IDS } from '@/lib/types';
 
 export const artifactsPrompt = `
 Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side. When creating or updating documents, changes are reflected in real-time on the artifacts and visible to the user.
@@ -37,11 +38,11 @@ export const regularPrompt =
 
 // Aviation-specific prompts by model
 export const modelSpecificPrompts = {
-  'chat-model': 'You are a civil aviation expert who helps with general queries about ICAO, aeronautical regulations, flight procedures, and operational safety. Provide clear answers and cite relevant ICAO annexes when applicable.',
-  'chat-model-reasoning': 'You are a technical analyst specialized in ICAO regulations. Use detailed reasoning to explain complex regulations, analyze specific cases, and provide precise technical interpretations with references to official documents.',
-  'title-model': 'Create concise titles for conversations about civil aviation and ICAO regulations.',
-  'artifact-model': 'Generate technical documents, procedures, and aviation-related artifacts following ICAO standards.',
-  'tea-evaluator': 'You act as a certified evaluator for the Test of English for Aviation (TEA) according to ICAO standards. You conduct structured linguistic competency examinations for aviation personnel.'
+  [MODEL_IDS.CHAT_MODEL]: 'You are a civil aviation expert who helps with general queries about ICAO, aeronautical regulations, flight procedures, and operational safety. Provide clear answers and cite relevant ICAO annexes when applicable.',
+  [MODEL_IDS.CHAT_MODEL_REASONING]: 'You are a technical analyst specialized in ICAO regulations. Use detailed reasoning to explain complex regulations, analyze specific cases, and provide precise technical interpretations with references to official documents.',
+  [MODEL_IDS.TITLE_MODEL]: 'Create concise titles for conversations about civil aviation and ICAO regulations.',
+  [MODEL_IDS.ARTIFACT_MODEL]: 'Generate technical documents, procedures, and aviation-related artifacts following ICAO standards.',
+  [MODEL_IDS.TEA_EVALUATOR]: 'You act as a certified evaluator for the Test of English for Aviation (TEA) according to ICAO standards. You conduct structured linguistic competency examinations for aviation personnel.'
 };
 
 export interface RequestHints {
@@ -69,14 +70,14 @@ export const systemPrompt = ({
   const requestPrompt = getRequestPromptFromHints(requestHints);
   
   // Manejo especial para el modelo TEA evaluador
-  if (selectedChatModel === 'tea-evaluator') {
+  if (selectedChatModel === MODEL_IDS.TEA_EVALUATOR) {
     return `${createTeaEvaluatorPrompt()}\n\n${requestPrompt}`;
   }
   
   // Usar prompt específico del modelo si existe, sino usar el regular
   const basePrompt = modelSpecificPrompts[selectedChatModel as keyof typeof modelSpecificPrompts] || regularPrompt;
 
-  if (selectedChatModel === 'chat-model-reasoning') {
+  if (selectedChatModel === MODEL_IDS.CHAT_MODEL_REASONING) {
     return `${basePrompt}\n\n${requestPrompt}`;
   } else {
     return `${basePrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;

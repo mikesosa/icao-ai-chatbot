@@ -3,6 +3,7 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Document } from '@/lib/db/schema';
 import { ChatSDKError, type ErrorCode } from './errors';
+import { ModelType, MODEL_ID_TO_TYPE_MAP, MODEL_TYPES } from '@/lib/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -88,4 +89,8 @@ export function getTrailingMessageId({
 
 export function sanitizeText(text: string) {
   return text.replace('<has_function_call>', '');
+}
+
+export function getModelType(selectedChatModel: string): ModelType {
+  return MODEL_ID_TO_TYPE_MAP[selectedChatModel as keyof typeof MODEL_ID_TO_TYPE_MAP] || MODEL_TYPES.GENERAL;
 }

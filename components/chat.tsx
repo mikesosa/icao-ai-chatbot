@@ -6,7 +6,12 @@ import { useEffect, useState, Suspense } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat-header';
 import type { Vote } from '@/lib/db/schema';
-import { fetcher, fetchWithErrorHandlers, generateUUID } from '@/lib/utils';
+import {
+  fetcher,
+  fetchWithErrorHandlers,
+  generateUUID,
+  getModelType,
+} from '@/lib/utils';
 import { Artifact } from './artifact';
 import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
@@ -72,6 +77,7 @@ function ChatWithSearchParams({
       message: body.messages.at(-1),
       selectedChatModel: initialChatModel,
       selectedVisibilityType: visibilityType,
+      modelType: getModelType(initialChatModel),
     }),
     onFinish: () => {
       mutate(unstable_serialize(getChatHistoryPaginationKey));

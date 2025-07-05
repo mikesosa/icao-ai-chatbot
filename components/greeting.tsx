@@ -1,22 +1,25 @@
 import { motion } from 'framer-motion';
 import { Phone } from 'lucide-react';
 import { Button } from './ui/button';
+import { MODEL_IDS } from '@/lib/types';
 
 interface GreetingProps {
   selectedModel?: string;
 }
 
-export const Greeting = ({ selectedModel = 'chat-model' }: GreetingProps) => {
+export const Greeting = ({
+  selectedModel = MODEL_IDS.CHAT_MODEL,
+}: GreetingProps) => {
   const getGreetingContent = () => {
     switch (selectedModel) {
-      case 'tea-evaluator':
+      case MODEL_IDS.TEA_EVALUATOR:
         return {
           title: 'Welcome to TEA Exam Simulator',
           subtitle:
             'Test of English for Aviation (TEA) exam is about to begin.',
           description: 'Start now',
         };
-      case 'elpac-evaluator':
+      case MODEL_IDS.ELPAC_EVALUATOR:
         return {
           title: 'Welcome to ELPAC Exam Simulator',
           subtitle:
