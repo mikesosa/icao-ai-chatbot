@@ -7,6 +7,7 @@ import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import { motion } from 'framer-motion';
 import { useMessages } from '@/hooks/use-messages';
+import { useExamContext } from '@/hooks/use-exam-context';
 
 interface MessagesProps {
   chatId: string;
@@ -32,6 +33,7 @@ function PureMessages({
   hideControls,
   selectedModel,
 }: MessagesProps) {
+  const { examStarted } = useExamContext();
   const {
     containerRef: messagesContainerRef,
     endRef: messagesEndRef,
@@ -48,7 +50,9 @@ function PureMessages({
       ref={messagesContainerRef}
       className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4 relative"
     >
-      {messages.length === 0 && <Greeting selectedModel={selectedModel} />}
+      {messages.length === 0 && !examStarted && (
+        <Greeting selectedModel={selectedModel} />
+      )}
 
       {messages.map((message, index) => (
         <PreviewMessage
@@ -86,11 +90,11 @@ function PureMessages({
 }
 
 export const Messages = memo(PureMessages, (prevProps, nextProps) => {
-  if (prevProps.isArtifactVisible && nextProps.isArtifactVisible) return true;
-
+  if (prevProps.chatId !== nextProps.chatId) return false;
   if (prevProps.status !== nextProps.status) return false;
-  if (prevProps.status && nextProps.status) return false;
-  if (prevProps.messages.length !== nextProps.messages.length) return false;
+  if (prevProps.isReadonly !== nextProps.isReadonly) return false;
+  if (prevProps.isArtifactVisible !== nextProps.isArtifactVisible) return false;
+  if (prevProps.selectedModel !== nextProps.selectedModel) return false;
   if (!equal(prevProps.messages, nextProps.messages)) return false;
   if (!equal(prevProps.votes, nextProps.votes)) return false;
 
