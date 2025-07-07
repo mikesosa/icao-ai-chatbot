@@ -12,7 +12,6 @@ interface ChatPageLayoutProps {
   id: string;
   modelId: string;
   initialMessages: UIMessage[];
-  modelType?: string;
   initialVisibilityType: 'private' | 'public';
   isReadonly: boolean;
   autoResume: boolean;
@@ -23,7 +22,6 @@ export function ChatPageLayout({
   id,
   modelId,
   initialMessages,
-  modelType,
   initialVisibilityType,
   isReadonly,
   autoResume,
@@ -37,7 +35,6 @@ export function ChatPageLayout({
         <Chat
           key={id}
           id={id}
-          modelType={modelType}
           initialMessages={initialMessages}
           initialChatModel={modelId}
           initialVisibilityType={initialVisibilityType}

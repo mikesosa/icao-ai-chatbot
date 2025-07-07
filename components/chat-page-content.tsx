@@ -9,7 +9,6 @@ interface ChatPageContentProps {
   id: string;
   modelId: string;
   initialMessages: UIMessage[];
-  modelType?: string;
   initialVisibilityType: 'private' | 'public';
   isReadonly: boolean;
 }
@@ -19,7 +18,6 @@ export function ChatPageContent({
   id,
   modelId,
   initialMessages,
-  modelType,
   initialVisibilityType,
   isReadonly,
 }: ChatPageContentProps) {
@@ -29,7 +27,6 @@ export function ChatPageContent({
       id={id}
       modelId={modelId}
       initialMessages={initialMessages}
-      modelType={modelType}
       initialVisibilityType={initialVisibilityType}
       isReadonly={isReadonly}
       autoResume={true}

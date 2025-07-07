@@ -30,7 +30,6 @@ import { useExamContext } from '@/hooks/use-exam-context';
 // Componente interno que usa useSearchParams
 function ChatWithSearchParams({
   id,
-  modelType,
   initialMessages,
   initialChatModel,
   initialVisibilityType,
@@ -40,7 +39,6 @@ function ChatWithSearchParams({
   hideControls,
 }: {
   id: string;
-  modelType?: string;
   initialMessages: Array<UIMessage>;
   initialChatModel: string;
   initialVisibilityType: VisibilityType;
@@ -131,7 +129,6 @@ function ChatWithSearchParams({
       <div className="flex flex-col min-w-0 h-dvh bg-background">
         <ChatHeader
           chatId={id}
-          modelType={modelType}
           selectedModelId={initialChatModel}
           selectedVisibilityType={initialVisibilityType}
           isReadonly={isReadonly}
@@ -219,7 +216,6 @@ function ChatSkeleton() {
 // Componente principal exportado
 export function Chat({
   id,
-  modelType,
   initialMessages,
   initialChatModel,
   initialVisibilityType,
@@ -229,7 +225,6 @@ export function Chat({
   hideControls,
 }: {
   id: string;
-  modelType?: string;
   initialMessages: Array<UIMessage>;
   initialChatModel: string;
   initialVisibilityType: VisibilityType;
@@ -242,7 +237,6 @@ export function Chat({
     <Suspense fallback={<ChatSkeleton />}>
       <ChatWithSearchParams
         id={id}
-        modelType={modelType}
         initialMessages={initialMessages}
         initialChatModel={initialChatModel}
         initialVisibilityType={initialVisibilityType}

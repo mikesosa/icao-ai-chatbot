@@ -16,18 +16,18 @@ import { cn } from '@/lib/utils';
 import { CheckCircleFillIcon, ChevronDownIcon } from './icons';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
 import type { Session } from 'next-auth';
+import { useExamContext } from '@/hooks/use-exam-context';
 
 export function ModelSelector({
   session,
-  modelType,
   selectedModelId,
   className,
 }: {
   session: Session;
-  modelType?: string;
   selectedModelId: string;
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
+  const { examType } = useExamContext();
   const [optimisticModelId, setOptimisticModelId] =
     useOptimistic(selectedModelId);
 
@@ -39,9 +39,9 @@ export function ModelSelector({
       availableChatModelIds.includes(chatModel.id),
     );
 
-    // If modelType is provided and is a valid model, only show that model
-    if (modelType) {
-      const modelTypeModel = models.find((model) => model.id === modelType);
+    // If examType is provided and is a valid model, only show that model
+    if (examType) {
+      const modelTypeModel = models.find((model) => model.id === examType);
       console.log('modelTypeModel', modelTypeModel);
       if (modelTypeModel) {
         return [modelTypeModel];
@@ -49,13 +49,13 @@ export function ModelSelector({
     }
 
     return models;
-  }, [availableChatModelIds, modelType]);
+  }, [availableChatModelIds, examType]);
 
   const selectedChatModel = useMemo(() => {
-    // If modelType is provided and valid, use it as the selected model
-    if (modelType) {
+    // If examType is provided and valid, use it as the selected model
+    if (examType) {
       const modelTypeModel = availableChatModels.find(
-        (chatModel) => chatModel.id === modelType,
+        (chatModel) => chatModel.id === examType,
       );
       if (modelTypeModel) {
         return modelTypeModel;
@@ -66,13 +66,13 @@ export function ModelSelector({
     return availableChatModels.find(
       (chatModel) => chatModel.id === optimisticModelId,
     );
-  }, [optimisticModelId, availableChatModels, modelType]);
+  }, [optimisticModelId, availableChatModels, examType]);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         asChild
-        disabled={availableChatModels.length <= 1}
+        disabled={availableChatModels.length <= 1 || !!examType}
         className={cn(
           'w-fit data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
           className,

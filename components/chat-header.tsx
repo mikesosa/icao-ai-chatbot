@@ -16,7 +16,6 @@ import type { Session } from 'next-auth';
 
 function PureChatHeader({
   chatId,
-  modelType,
   selectedModelId,
   selectedVisibilityType,
   isReadonly,
@@ -24,7 +23,6 @@ function PureChatHeader({
   hideControls,
 }: {
   chatId: string;
-  modelType?: string;
   selectedModelId: string;
   selectedVisibilityType: VisibilityType;
   isReadonly: boolean;
@@ -62,7 +60,6 @@ function PureChatHeader({
       {!isReadonly && (
         <ModelSelector
           session={session}
-          modelType={modelType}
           selectedModelId={selectedModelId}
           className="order-1 md:order-2"
         />
