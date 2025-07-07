@@ -1,67 +1,14 @@
 'use client';
 
-import {
-  CheckCircle,
-  Circle,
-  ArrowRight,
-  ArrowLeft,
-  FileText,
-  Headphones,
-  MessageSquare,
-} from 'lucide-react';
+import { CheckCircle, Circle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { ExamSection } from './exam-timer';
-
-export interface ExamSectionInfo {
-  number: ExamSection;
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  duration: string;
-}
-
-export interface ExamControlsConfig {
-  name: string;
-  totalSections: number;
-  sections: ExamSectionInfo[];
-  totalDuration: string;
-  startButtonText: string;
-  finishButtonText: string;
-}
-
-// Default TEA configuration for backward compatibility
-export const TEA_CONTROLS_CONFIG: ExamControlsConfig = {
-  name: 'TEA',
-  totalSections: 3,
-  sections: [
-    {
-      number: 1,
-      title: 'Entrevista y Experiencia',
-      description: 'Preguntas sobre rol profesional y experiencia en aviación',
-      icon: <FileText className="size-5" />,
-      duration: '7-8 min',
-    },
-    {
-      number: 2,
-      title: 'Comprensión Interactiva',
-      description: 'Escucha situaciones aeronáuticas y demuestra comprensión',
-      icon: <Headphones className="size-5" />,
-      duration: '8-12 min',
-    },
-    {
-      number: 3,
-      title: 'Descripción y Discusión',
-      description: 'Describe imágenes y participa en discusión general',
-      icon: <MessageSquare className="size-5" />,
-      duration: '10 min',
-    },
-  ],
-  totalDuration: '25-30 minutos',
-  startButtonText: 'Iniciar Examen TEA',
-  finishButtonText: 'Finalizar Examen',
-};
+import type {
+  ExamSection,
+  ExamSectionInfo,
+  ExamControlsConfig,
+} from '@/lib/exam-configs';
 
 interface ExamSectionControlsProps {
   currentSection: ExamSection;
@@ -71,7 +18,7 @@ interface ExamSectionControlsProps {
   onEndExam?: () => void;
   examStarted: boolean;
   isTimerRunning: boolean;
-  controlsConfig?: ExamControlsConfig;
+  controlsConfig: ExamControlsConfig;
 }
 
 export function ExamSectionControls({
@@ -82,7 +29,7 @@ export function ExamSectionControls({
   onEndExam,
   examStarted,
   isTimerRunning,
-  controlsConfig = TEA_CONTROLS_CONFIG,
+  controlsConfig,
 }: ExamSectionControlsProps) {
   const canGoToPrevious = currentSection > 1;
   const canGoToNext = currentSection < controlsConfig.totalSections;
@@ -259,8 +206,9 @@ export function ExamSectionControls({
   );
 }
 
-// Legacy exports for backward compatibility
-export type TeaSection = ExamSection;
-export type TeaSectionInfo = ExamSectionInfo;
-export const TeaSectionControls = ExamSectionControls;
-export type TeaSectionControlsProps = ExamSectionControlsProps;
+// Export types for backward compatibility
+export type {
+  ExamSection,
+  ExamSectionInfo,
+  ExamControlsConfig,
+} from '@/lib/exam-configs';

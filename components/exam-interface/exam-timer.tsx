@@ -4,33 +4,15 @@ import { useState, useEffect } from 'react';
 import { Clock, Play, Pause, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-
-export type ExamSection = 1 | 2 | 3;
-
-export interface ExamSectionConfig {
-  name: string;
-  duration: number; // en segundos
-  color: string;
-}
-
-export interface ExamConfig {
-  name: string;
-  sections: Record<ExamSection, ExamSectionConfig>;
-}
-
-// Default TEA configuration for backward compatibility
-export const TEA_EXAM_CONFIG: ExamConfig = {
-  name: 'TEA',
-  sections: {
-    1: { name: 'Entrevista', duration: 2 * 60, color: 'bg-blue-500' },
-    2: { name: 'Comprensión', duration: 2 * 60, color: 'bg-green-500' },
-    3: { name: 'Discusión', duration: 2 * 60, color: 'bg-purple-500' },
-  },
-};
+import type {
+  ExamSection,
+  ExamSectionConfig,
+  ExamConfig,
+} from '@/lib/exam-configs';
 
 interface ExamTimerProps {
   currentSection: ExamSection;
-  examConfig?: ExamConfig;
+  examConfig: ExamConfig;
   onSectionComplete?: (section: ExamSection) => void;
   onTimerWarning?: (section: ExamSection, timeLeft: number) => void;
   isRunning?: boolean;
@@ -40,78 +22,64 @@ interface ExamTimerProps {
 
 export function ExamTimer({
   currentSection,
-  examConfig = TEA_EXAM_CONFIG,
+  examConfig,
   onSectionComplete,
   onTimerWarning,
   isRunning = false,
   onToggleTimer,
   onResetTimer,
 }: ExamTimerProps) {
-  const [timeLeft, setTimeLeft] = useState(
-    examConfig.sections[currentSection].duration,
-  );
-  const [hasWarned, setHasWarned] = useState(false);
+  const sectionConfig = examConfig.sections[currentSection];
+  const [timeLeft, setTimeLeft] = useState(sectionConfig.duration);
 
-  // Resetear timer cuando cambia la sección
+  // Reset timer when section changes
   useEffect(() => {
-    setTimeLeft(examConfig.sections[currentSection].duration);
-    setHasWarned(false);
-  }, [currentSection, examConfig]);
+    setTimeLeft(sectionConfig.duration);
+  }, [currentSection, sectionConfig.duration]);
 
-  // Lógica del timer
+  // Timer logic
   useEffect(() => {
-    if (!isRunning || timeLeft <= 0) return;
+    if (!isRunning) return;
 
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
-        const newTime = prev - 1;
-
-        // Advertencia a los 2 minutos
-        if (newTime === 120 && !hasWarned) {
-          setHasWarned(true);
-          onTimerWarning?.(currentSection, newTime);
-        }
-
-        // Sección completada
-        if (newTime <= 0) {
+        if (prev <= 1) {
           onSectionComplete?.(currentSection);
           return 0;
         }
 
-        return newTime;
+        // Warning at 2 minutes (120 seconds)
+        if (prev === 120) {
+          onTimerWarning?.(currentSection, prev);
+        }
+
+        return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [
-    isRunning,
-    timeLeft,
-    currentSection,
-    hasWarned,
-    onSectionComplete,
-    onTimerWarning,
-  ]);
+  }, [isRunning, currentSection, onSectionComplete, onTimerWarning]);
 
+  // Format time as MM:SS
   const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds
       .toString()
       .padStart(2, '0')}`;
   };
 
-  const getTimeColor = (): string => {
-    if (timeLeft <= 60) return 'text-red-600 font-bold'; // Último minuto
-    if (timeLeft <= 120) return 'text-orange-600 font-bold'; // Últimos 2 minutos
-    return 'text-white';
-  };
-
+  // Get progress percentage
   const getProgressPercentage = (): number => {
-    const totalDuration = examConfig.sections[currentSection].duration;
-    return ((totalDuration - timeLeft) / totalDuration) * 100;
+    return ((sectionConfig.duration - timeLeft) / sectionConfig.duration) * 100;
   };
 
-  const sectionConfig = examConfig.sections[currentSection];
+  // Get time color based on remaining time
+  const getTimeColor = (): string => {
+    if (timeLeft <= 60) return 'text-red-500'; // Last minute
+    if (timeLeft <= 120) return 'text-orange-500'; // Last 2 minutes
+    return 'text-gray-800';
+  };
 
   return (
     <Card className="w-full max-w-md">
@@ -175,23 +143,26 @@ export function ExamTimer({
         </div>
 
         {/* Status Indicators */}
-        {timeLeft <= 120 && timeLeft > 0 && (
-          <div className="mt-3 p-2 bg-orange-100 border border-orange-300 rounded text-sm text-orange-800 text-center">
-            ⚠️ Quedan menos de 2 minutos
+        <div className="mt-4 text-sm text-gray-600">
+          <div className="flex justify-between">
+            <span>Estado:</span>
+            <span className={isRunning ? 'text-green-600' : 'text-gray-400'}>
+              {isRunning ? 'Corriendo' : 'Pausado'}
+            </span>
           </div>
-        )}
-
-        {timeLeft === 0 && (
-          <div className="mt-3 p-2 bg-red-100 border border-red-300 rounded text-sm text-red-800 text-center">
-            🔔 Tiempo completado para esta sección
+          <div className="flex justify-between">
+            <span>Progreso:</span>
+            <span>{Math.round(getProgressPercentage())}%</span>
           </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-// Legacy exports for backward compatibility
-export type TeaSection = ExamSection;
-export const TeaTimer = ExamTimer;
-export type TeaTimerProps = ExamTimerProps;
+// Export types for backward compatibility
+export type {
+  ExamSection,
+  ExamSectionConfig,
+  ExamConfig,
+} from '@/lib/exam-configs';

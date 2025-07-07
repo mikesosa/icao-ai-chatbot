@@ -2,7 +2,7 @@
 
 import { Chat } from '@/components/chat';
 import { DataStreamHandler } from '@/components/data-stream-handler';
-import { ExamSidebar } from '@/components/exam-interface';
+import { ExamSidebar, getExamConfigById } from '@/components/exam-interface';
 import { useExamContext } from '@/hooks/use-exam-context';
 import { Session } from 'next-auth';
 import type { UIMessage } from 'ai';
@@ -29,6 +29,7 @@ export function ChatPageLayout({
   autoResume,
 }: ChatPageLayoutProps) {
   const { examType } = useExamContext();
+  const examConfig = examType ? getExamConfigById(examType) : null;
 
   return (
     <div className="flex">
@@ -46,9 +47,12 @@ export function ChatPageLayout({
         />
         <DataStreamHandler id={id} />
       </div>
-      {examType && (
+      {examConfig && (
         <div className="flex flex-col min-w-0 h-dvh bg-sidebar">
-          <ExamSidebar initialMessages={initialMessages} />
+          <ExamSidebar
+            initialMessages={initialMessages}
+            examConfig={examConfig}
+          />
         </div>
       )}
     </div>

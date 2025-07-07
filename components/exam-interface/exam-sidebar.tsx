@@ -2,113 +2,31 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import {
-  // ExamTimer,
-  type ExamSection,
-  type ExamConfig,
-  TEA_EXAM_CONFIG,
-} from './exam-timer';
-import {
-  ExamSectionControls,
-  type ExamControlsConfig,
-  TEA_CONTROLS_CONFIG,
-} from './exam-section-controls';
-// import { AlertTriangle } from 'lucide-react';
+import { ExamSectionControls } from './exam-section-controls';
 import type { UIMessage } from 'ai';
-
-export interface ExamMessagesConfig {
-  welcomeMessage: string;
-  sectionStartMessages: Record<ExamSection, string>;
-  completionMessage: string;
-  quickInstructions: string[];
-}
-
-// Default TEA messages for backward compatibility
-const TEA_MESSAGES_CONFIG: ExamMessagesConfig = {
-  welcomeMessage: `¡Bienvenido al simulador del Test de Inglés Aeronáutico (TEA)!
-
-Soy su evaluador certificado ICAO. Este examen evalúa su competencia lingüística en inglés para operaciones aeronáuticas.
-
-**INFORMACIÓN DEL EXAMEN:**
-- ⏱️ Duración: 25-30 minutos
-- 📋 3 secciones obligatorias
-- 🎯 Nivel mínimo requerido: ICAO Nivel 4 (Operacional)
-
-**INSTRUCCIONES:**
-1. Use el panel de control para iniciar el examen
-2. Complete cada sección en orden
-3. El timer controla la duración de cada sección
-4. Responda de manera natural y completa
-
-¿Está listo para comenzar? Haga clic en "Iniciar Examen TEA" cuando esté preparado.`,
-  sectionStartMessages: {
-    1: `**SECCIÓN 1: ENTREVISTA Y EXPERIENCIA** (7-8 minutos)
-
-Comenzemos con algunas preguntas sobre su experiencia profesional en aviación.
-
-1. **¿Cuál es su rol actual en la aviación?**
-   - ¿Es usted piloto, controlador de tráfico aéreo, técnico u otro profesional?
-   - ¿Cuántos años de experiencia tiene en este rol?
-
-Por favor, responda de manera detallada y natural.`,
-    2: `**SECCIÓN 2: COMPRENSIÓN INTERACTIVA** (8-12 minutos)
-
-Ahora evaluaré su comprensión auditiva. Le presentaré situaciones aeronáuticas que debe interpretar y explicar.`,
-    3: `**SECCIÓN 3: DESCRIPCIÓN Y DISCUSIÓN** (10 minutos)
-
-Finalmente, describirá imágenes relacionadas con aviación y participará en una discusión general sobre temas aeronáuticos.`,
-  },
-  completionMessage: `**🎉 EXAMEN TEA COMPLETADO**
-
-Felicitaciones, ha completado las 3 secciones del Test de Inglés Aeronáutico.
-
-**RESUMEN DEL EXAMEN:**
-- ✅ Sección 1: Entrevista y Experiencia
-- ✅ Sección 2: Comprensión Interactiva  
-- ✅ Sección 3: Descripción y Discusión
-
-Ahora procederé a evaluar su desempeño según los criterios ICAO y le proporcionaré su puntuación final con recomendaciones específicas.
-
-**Criterios de Evaluación ICAO:**
-1. Pronunciación
-2. Estructura Gramatical
-3. Vocabulario
-4. Fluidez
-5. Comprensión
-6. Interacciones
-
-¿Desea recibir su evaluación final ahora?`,
-  quickInstructions: [
-    'Responda de manera natural y completa',
-    'Use vocabulario técnico cuando sea apropiado',
-    'No se preocupe por errores menores',
-    'El evaluador le hará preguntas de seguimiento',
-    'Mantenga una conversación fluida',
-  ],
-};
+import { useExamContext } from '@/hooks/use-exam-context';
+import type { CompleteExamConfig, ExamSection } from '@/lib/exam-configs';
 
 interface ExamSidebarProps {
   initialMessages: UIMessage[];
-  examConfig?: ExamConfig;
-  controlsConfig?: ExamControlsConfig;
-  messagesConfig?: ExamMessagesConfig;
+  examConfig: CompleteExamConfig;
 }
 
-export function ExamSidebar({
-  initialMessages,
-  examConfig = TEA_EXAM_CONFIG,
-  controlsConfig = TEA_CONTROLS_CONFIG,
-  messagesConfig = TEA_MESSAGES_CONFIG,
-}: ExamSidebarProps) {
-  // Estado del examen
-  const [examStarted, setExamStarted] = useState(false);
-  const [currentSection, setCurrentSection] = useState<ExamSection>(1);
-  const [completedSections, setCompletedSections] = useState<ExamSection[]>([]);
+export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
+  // Use exam context state instead of local state
+  const {
+    examStarted,
+    currentSection,
+    completedSections,
+    setCurrentSection,
+    endExam,
+  } = useExamContext();
+
+  // Local state for UI
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [examCompleted, setExamCompleted] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
 
-  // Mensajes del chat con instrucciones iniciales
+  // Chat messages with initial instructions
   const [messages, setMessages] = useState<UIMessage[]>(() => {
     if (initialMessages.length === 0) {
       return [
@@ -119,7 +37,7 @@ export function ExamSidebar({
           parts: [
             {
               type: 'text',
-              text: messagesConfig.welcomeMessage,
+              text: examConfig.messagesConfig.welcomeMessage,
             },
           ],
           createdAt: new Date(),
@@ -130,21 +48,20 @@ export function ExamSidebar({
     return initialMessages;
   });
 
-  // Handlers del examen
+  // Exam handlers
   const handleStartExam = () => {
-    setExamStarted(true);
     setShowInstructions(false);
     setIsTimerRunning(true);
 
-    // Enviar mensaje de inicio de sección 1
+    // Send section 1 start message
     const sectionStartMessage: UIMessage = {
-      id: `exam-section-${currentSection}-start`,
+      id: `exam-section-1-start`,
       role: 'assistant',
       content: '',
       parts: [
         {
           type: 'text',
-          text: messagesConfig.sectionStartMessages[currentSection],
+          text: examConfig.messagesConfig.sectionStartMessages[1],
         },
       ],
       createdAt: new Date(),
@@ -152,7 +69,7 @@ export function ExamSidebar({
     };
 
     setMessages((prev) => [...prev, sectionStartMessage]);
-    toast.success(`Examen ${controlsConfig.name} iniciado - Sección 1`);
+    toast.success(`Examen ${examConfig.name} iniciado - Sección 1`);
   };
 
   const handleSectionChange = (section: ExamSection) => {
@@ -161,9 +78,9 @@ export function ExamSidebar({
       return;
     }
 
-    setCurrentSection(section);
+    setCurrentSection(section.toString());
 
-    // Enviar mensaje de cambio de sección
+    // Send section change message
     const sectionMessage: UIMessage = {
       id: `exam-section-${section}-change`,
       role: 'assistant',
@@ -171,7 +88,7 @@ export function ExamSidebar({
       parts: [
         {
           type: 'text',
-          text: messagesConfig.sectionStartMessages[section],
+          text: examConfig.messagesConfig.sectionStartMessages[section],
         },
       ],
       createdAt: new Date(),
@@ -182,38 +99,9 @@ export function ExamSidebar({
     toast.info(`Cambiado a Sección ${section}`);
   };
 
-  // const handleSectionComplete = (section: ExamSection) => {
-  //   if (!completedSections.includes(section)) {
-  //     setCompletedSections((prev) => [...prev, section]);
-  //     toast.success(`Sección ${section} completada`);
-
-  //     // Auto-avance a la siguiente sección si existe
-  //     if (section < controlsConfig.totalSections) {
-  //       setTimeout(() => {
-  //         handleSectionChange((section + 1) as ExamSection);
-  //       }, 2000);
-  //     }
-  //   }
-  // };
-
-  // const handleTimerWarning = (section: ExamSection) => {
-  //   toast.warning(`Sección ${section}: Quedan 2 minutos`, {
-  //     icon: <AlertTriangle className="size-4" />,
-  //   });
-  // };
-
-  // const handleToggleTimer = () => {
-  //   setIsTimerRunning(!isTimerRunning);
-  //   toast.info(isTimerRunning ? 'Timer pausado' : 'Timer reanudado');
-  // };
-
-  // const handleResetTimer = (section: ExamSection) => {
-  //   toast.info(`Timer de Sección ${section} reiniciado`);
-  // };
-
   const handleEndExam = () => {
-    setExamCompleted(true);
     setIsTimerRunning(false);
+    endExam();
 
     const finalMessage: UIMessage = {
       id: 'exam-complete',
@@ -222,7 +110,7 @@ export function ExamSidebar({
       parts: [
         {
           type: 'text',
-          text: messagesConfig.completionMessage,
+          text: examConfig.messagesConfig.completionMessage,
         },
       ],
       createdAt: new Date(),
@@ -233,12 +121,15 @@ export function ExamSidebar({
     toast.success('¡Examen completado exitosamente!');
   };
 
+  console.log('currentSection', currentSection);
+
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {/* {examStarted && (
+      {/* Uncomment if you want to use the timer
+      {examStarted && (
         <ExamTimer
-          currentSection={currentSection}
-          examConfig={examConfig}
+          currentSection={parseInt(currentSection || '1') as ExamSection}
+          examConfig={examConfig.examConfig}
           onSectionComplete={handleSectionComplete}
           onTimerWarning={handleTimerWarning}
           isRunning={isTimerRunning}
@@ -248,16 +139,19 @@ export function ExamSidebar({
       )} */}
 
       <ExamSectionControls
-        currentSection={currentSection}
-        completedSections={completedSections}
+        currentSection={parseInt(currentSection || '1') as ExamSection}
+        completedSections={
+          completedSections.map((s) => parseInt(s)) as ExamSection[]
+        }
         onSectionChange={handleSectionChange}
         onStartExam={handleStartExam}
         onEndExam={handleEndExam}
         examStarted={examStarted}
         isTimerRunning={isTimerRunning}
-        controlsConfig={controlsConfig}
+        controlsConfig={examConfig.controlsConfig}
       />
-      {/* 
+
+      {/* Uncomment if you want to show quick instructions
       {showInstructions && (
         <Card className="bg-sidebar">
           <CardHeader>
@@ -267,7 +161,7 @@ export function ExamSidebar({
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs space-y-2">
-            {messagesConfig.quickInstructions.map((instruction, index) => (
+            {examConfig.messagesConfig.quickInstructions.map((instruction, index) => (
               <p key={index}>• {instruction}</p>
             ))}
           </CardContent>
