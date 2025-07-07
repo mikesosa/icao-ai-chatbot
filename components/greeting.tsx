@@ -11,7 +11,13 @@ interface GreetingProps {
 export const Greeting = ({
   selectedModel = MODEL_IDS.CHAT_MODEL,
 }: GreetingProps) => {
-  const { readyToStartExam } = useExamContext();
+  const { readyToStartExam, examType } = useExamContext();
+
+  // Hide greeting if exam type is set
+  if (examType) {
+    return null;
+  }
+
   const getGreetingContent = () => {
     switch (selectedModel) {
       case MODEL_IDS.TEA_EVALUATOR:
