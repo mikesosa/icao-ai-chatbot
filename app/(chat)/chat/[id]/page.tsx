@@ -61,7 +61,6 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         !chatModelFromCookie ? DEFAULT_CHAT_MODEL : chatModelFromCookie.value
       }
       initialMessages={convertToUIMessages(messagesFromDb)}
-      modelType={chat.modelType ?? undefined}
       initialVisibilityType={chat.visibility}
       isReadonly={session?.user?.id !== chat.userId}
     />

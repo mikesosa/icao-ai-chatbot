@@ -35,7 +35,25 @@ export function ChatPageLayout({
         <Chat
           key={id}
           id={id}
-          initialMessages={initialMessages}
+          initialMessages={
+            initialMessages.length > 0
+              ? initialMessages
+              : examConfig?.messagesConfig.welcomeMessage
+              ? [
+                  {
+                    id: crypto.randomUUID(),
+                    role: 'assistant' as const,
+                    content: examConfig.messagesConfig.welcomeMessage,
+                    parts: [
+                      {
+                        type: 'text',
+                        text: examConfig.messagesConfig.welcomeMessage,
+                      },
+                    ],
+                  },
+                ]
+              : []
+          }
           initialChatModel={modelId}
           initialVisibilityType={initialVisibilityType}
           isReadonly={isReadonly}

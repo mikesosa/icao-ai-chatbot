@@ -17,30 +17,30 @@ function PureSuggestedActions({
   append,
   selectedVisibilityType,
 }: SuggestedActionsProps) {
-  const suggestedActions = [
-    {
-      title: 'What are the advantages of',
-      label: 'getting certified by ICAO?',
-      action: 'What are the advantages of getting certified by ICAO?',
-    },
-    {
-      title: 'ICAO Exam Preparation',
-      label: 'Help me study for ICAO English test',
-      action:
-        'I need help preparing for my ICAO English language proficiency test. Can you provide study materials and practice questions?',
-    },
-    {
-      title: 'Aviation Communication',
-      label: 'Practice radio phraseology',
-      action:
-        'I want to practice standard ICAO radio phraseology for air traffic control communications. Can you help me with common phrases and procedures?',
-    },
-    {
-      title: 'Flight Planning',
-      label: 'Weather briefing assistance',
-      action:
-        'I need help understanding weather reports and NOTAMs for flight planning. Can you explain the key elements I should focus on?',
-    },
+  const suggestedActions: any[] = [
+    // {
+    //   title: 'What are the advantages of',
+    //   label: 'getting certified by ICAO?',
+    //   action: 'What are the advantages of getting certified by ICAO?',
+    // },
+    // {
+    //   title: 'ICAO Exam Preparation',
+    //   label: 'Help me study for ICAO English test',
+    //   action:
+    //     'I need help preparing for my ICAO English language proficiency test. Can you provide study materials and practice questions?',
+    // },
+    // {
+    //   title: 'Aviation Communication',
+    //   label: 'Practice radio phraseology',
+    //   action:
+    //     'I want to practice standard ICAO radio phraseology for air traffic control communications. Can you help me with common phrases and procedures?',
+    // },
+    // {
+    //   title: 'Flight Planning',
+    //   label: 'Weather briefing assistance',
+    //   action:
+    //     'I need help understanding weather reports and NOTAMs for flight planning. Can you explain the key elements I should focus on?',
+    // },
   ];
 
   return (
