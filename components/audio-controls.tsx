@@ -6,7 +6,11 @@ import { Toggle } from '@/components/ui/toggle';
 import MicFFT from '@/components/mic-fft';
 import { cn } from '@/lib/utils';
 
-export default function AudioControls() {
+export default function AudioControls({
+  isRecording,
+}: {
+  isRecording: boolean;
+}) {
   // TODO: Implement audio controls
   const { disconnect, status, isMuted, unmute, mute, micFft } = {
     disconnect: () => {},
@@ -16,6 +20,10 @@ export default function AudioControls() {
     mute: () => {},
     micFft: [12],
   };
+
+  if (!isRecording) {
+    return null;
+  }
 
   return (
     <div
