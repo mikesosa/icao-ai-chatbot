@@ -73,6 +73,12 @@ export default function AudioControls({
   const [micFft, setMicFft] = useState<number[]>([]);
   const [isRecognitionActive, setIsRecognitionActive] = useState(false);
 
+  // Initialize refs to match initial state
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+    isRecognitionActiveRef.current = isRecognitionActive;
+  }, [isMuted, isRecognitionActive]);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -81,6 +87,8 @@ export default function AudioControls({
   const animationFrameRef = useRef<number>();
   const shouldRestartRecognition = useRef(false);
   const isConnectedRef = useRef(false);
+  const isMutedRef = useRef(false);
+  const isRecognitionActiveRef = useRef(false);
   const transcriptRef = useRef('');
 
   // Initialize speech recognition once
@@ -116,7 +124,10 @@ export default function AudioControls({
 
           // Stream the complete transcript (final + interim) to the input field
           const completeTranscript = newTranscript + interimTranscript;
-          onTranscriptUpdate?.(completeTranscript);
+          // Defer the callback to avoid setState during render
+          setTimeout(() => {
+            onTranscriptUpdate?.(completeTranscript);
+          }, 0);
 
           return newTranscript;
         });
@@ -124,28 +135,39 @@ export default function AudioControls({
         // Also call onTranscriptUpdate for interim-only updates
         if (finalTranscript === '' && interimTranscript !== '') {
           const completeTranscript = transcriptRef.current + interimTranscript;
-          onTranscriptUpdate?.(completeTranscript);
+          // Defer the callback to avoid setState during render
+          setTimeout(() => {
+            onTranscriptUpdate?.(completeTranscript);
+          }, 0);
         }
       };
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error:', event.error);
         setIsRecognitionActive(false);
+        isRecognitionActiveRef.current = false;
 
         // Only show error toast for non-aborted errors
         if (event.error !== 'aborted') {
-          toast.error('Speech recognition error: ' + event.error);
+          toast.error(`Speech recognition error: ${event.error}`);
         }
       };
 
       recognition.onend = () => {
         setIsRecognitionActive(false);
+        isRecognitionActiveRef.current = false;
 
         // Only restart if we should and we're still connected and not muted
-        if (shouldRestartRecognition.current && isConnected && !isMuted) {
+        // Use refs to avoid stale closure issues
+        if (
+          shouldRestartRecognition.current &&
+          isConnectedRef.current &&
+          !isMutedRef.current
+        ) {
           try {
             recognition.start();
             setIsRecognitionActive(true);
+            isRecognitionActiveRef.current = true;
           } catch (error) {
             console.error('Failed to restart recognition:', error);
           }
@@ -154,6 +176,7 @@ export default function AudioControls({
 
       recognition.onstart = () => {
         setIsRecognitionActive(true);
+        isRecognitionActiveRef.current = true;
       };
 
       recognitionRef.current = recognition;
@@ -163,7 +186,7 @@ export default function AudioControls({
 
     return () => {
       shouldRestartRecognition.current = false;
-      if (recognitionRef.current && isRecognitionActive) {
+      if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
         } catch (error) {
@@ -175,7 +198,7 @@ export default function AudioControls({
 
   // Audio visualization
   const updateMicFFT = () => {
-    if (analyserRef.current && isConnectedRef.current && !isMuted) {
+    if (analyserRef.current && isConnectedRef.current && !isMutedRef.current) {
       const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
       analyserRef.current.getByteFrequencyData(dataArray);
 
@@ -194,7 +217,7 @@ export default function AudioControls({
   };
 
   const startSpeechRecognition = () => {
-    if (recognitionRef.current && !isRecognitionActive) {
+    if (recognitionRef.current && !isRecognitionActiveRef.current) {
       try {
         shouldRestartRecognition.current = true;
         recognitionRef.current.start();
@@ -206,7 +229,7 @@ export default function AudioControls({
 
   const stopSpeechRecognition = () => {
     shouldRestartRecognition.current = false;
-    if (recognitionRef.current && isRecognitionActive) {
+    if (recognitionRef.current && isRecognitionActiveRef.current) {
       try {
         recognitionRef.current.stop();
       } catch (error) {
@@ -275,7 +298,9 @@ export default function AudioControls({
       transcriptRef.current = ''; // Clear ref as well
 
       // Notify parent component that recording started
-      onRecordingStart?.();
+      setTimeout(() => {
+        onRecordingStart?.();
+      }, 0);
 
       // Start audio visualization with a small delay to ensure stream is ready
       const startVisualization = () => {
@@ -347,7 +372,9 @@ export default function AudioControls({
 
     // Send transcript to parent component if available
     if (transcriptRef.current.trim()) {
-      onTranscriptComplete?.(transcriptRef.current.trim());
+      setTimeout(() => {
+        onTranscriptComplete?.(transcriptRef.current.trim());
+      }, 0);
       toast.success('Message sent');
     } else {
       toast.info('No speech detected');
@@ -357,6 +384,7 @@ export default function AudioControls({
   const toggleMute = () => {
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
+    isMutedRef.current = newMutedState; // Update ref immediately
 
     if (newMutedState) {
       // Stop speech recognition when muted
@@ -389,7 +417,7 @@ export default function AudioControls({
 
     // Restart speech recognition to ensure fresh session
     stopSpeechRecognition();
-    if (!isMuted) {
+    if (!isMutedRef.current) {
       // Small delay to ensure clean restart
       setTimeout(() => {
         startSpeechRecognition();
@@ -397,7 +425,9 @@ export default function AudioControls({
     }
 
     // Clear the parent's transcript update
-    onTranscriptUpdate?.('');
+    setTimeout(() => {
+      onTranscriptUpdate?.('');
+    }, 0);
 
     toast.success('Recording cleared - speak again');
   };
