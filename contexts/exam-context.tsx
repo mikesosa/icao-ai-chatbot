@@ -1,5 +1,6 @@
 'use client';
 
+import { useSidebar } from '@/components/ui/sidebar';
 import { MODEL_IDS, MODEL_TYPES } from '@/lib/types';
 import { createContext, useContext, useState, ReactNode } from 'react';
 
@@ -59,10 +60,12 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     [],
   );
   const [examProgress, setExamProgress] = useState(0);
+  const { setOpen } = useSidebar();
 
   const readyToStartExam = (modelId: string) => {
     if (isExamModel(modelId)) {
       setExamType(modelId);
+      setOpen(false);
     }
   };
 

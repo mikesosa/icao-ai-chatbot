@@ -1,6 +1,6 @@
 {
   "tea-evaluator": {
-    "id": "tea",
+    "id": "tea-evaluator",
     "name": "TEA",
     "examConfig": {
       "name": "TEA",
@@ -134,7 +134,7 @@
     }
   },
   "elpac-evaluator": {
-    "id": "elpac",
+    "id": "elpac-evaluator",
     "name": "ELPAC",
     "examConfig": {
       "name": "ELPAC",

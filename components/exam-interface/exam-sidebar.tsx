@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { ExamSectionControls } from './exam-section-controls';
+import { ExamTimer } from './exam-timer';
 import type { UIMessage } from 'ai';
 import { useExamContext } from '@/hooks/use-exam-context';
 import type { CompleteExamConfig, ExamSection } from './exam';
+import { useSidebar } from '../ui/sidebar';
 
 interface ExamSidebarProps {
   initialMessages: UIMessage[];
@@ -14,6 +16,8 @@ interface ExamSidebarProps {
 
 export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
   // Use exam context state instead of local state
+  const { setOpen } = useSidebar();
+
   const {
     examStarted,
     currentSection,
@@ -23,6 +27,7 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
     setCurrentSection,
     setCurrentSubsection,
     completeSubsection,
+    startExam,
     endExam,
   } = useExamContext();
 
@@ -54,10 +59,12 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
 
   // Exam handlers
   const handleStartExam = () => {
+    startExam(examConfig.id);
     setShowInstructions(false);
     setIsTimerRunning(true);
     setCurrentSection('1');
     setCurrentSubsection(null);
+    setOpen(false);
 
     // Send section 1 start message
     const sectionStartMessage: UIMessage = {
@@ -160,11 +167,28 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
     toast.success('¡Examen completado exitosamente!');
   };
 
-  console.log('currentSection', currentSection);
+  const handleSectionComplete = (section: ExamSection) => {
+    completeSubsection(section.toString());
+    toast.info(`Sección ${section} completada`);
+  };
+
+  const handleTimerWarning = (section: ExamSection, timeLeft: number) => {
+    toast.warning(
+      `Sección ${section}: Solo quedan ${Math.floor(timeLeft / 60)} minutos`,
+    );
+  };
+
+  const handleToggleTimer = () => {
+    setIsTimerRunning((prev) => !prev);
+  };
+
+  const handleResetTimer = (section: ExamSection) => {
+    setIsTimerRunning(false);
+    toast.info(`Timer de sección ${section} reiniciado`);
+  };
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {/* Uncomment if you want to use the timer
       {examStarted && (
         <ExamTimer
           currentSection={parseInt(currentSection || '1') as ExamSection}
@@ -175,7 +199,7 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
           onToggleTimer={handleToggleTimer}
           onResetTimer={handleResetTimer}
         />
-      )} */}
+      )}
 
       <ExamSectionControls
         currentSection={parseInt(currentSection || '1') as ExamSection}
