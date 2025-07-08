@@ -17,8 +17,12 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
   const {
     examStarted,
     currentSection,
+    currentSubsection,
     completedSections,
+    completedSubsections,
     setCurrentSection,
+    setCurrentSubsection,
+    completeSubsection,
     endExam,
   } = useExamContext();
 
@@ -52,6 +56,8 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
   const handleStartExam = () => {
     setShowInstructions(false);
     setIsTimerRunning(true);
+    setCurrentSection('1');
+    setCurrentSubsection(null);
 
     // Send section 1 start message
     const sectionStartMessage: UIMessage = {
@@ -79,6 +85,7 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
     }
 
     setCurrentSection(section.toString());
+    setCurrentSubsection(null); // Reset subsection when changing sections
 
     // Send section change message
     const sectionMessage: UIMessage = {
@@ -97,6 +104,38 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
 
     setMessages((prev) => [...prev, sectionMessage]);
     toast.info(`Cambiado a Sección ${section}`);
+  };
+
+  const handleSubsectionChange = (subsectionId: string) => {
+    if (isTimerRunning) {
+      toast.warning('Pause el timer antes de cambiar de subsección');
+      return;
+    }
+
+    setCurrentSubsection(subsectionId);
+
+    // Send subsection change message if available
+    if (examConfig.messagesConfig.subsectionStartMessages?.[subsectionId]) {
+      const subsectionMessage: UIMessage = {
+        id: `exam-subsection-${subsectionId}-change`,
+        role: 'assistant',
+        content: '',
+        parts: [
+          {
+            type: 'text',
+            text: examConfig.messagesConfig.subsectionStartMessages[
+              subsectionId
+            ],
+          },
+        ],
+        createdAt: new Date(),
+        experimental_attachments: [],
+      };
+
+      setMessages((prev) => [...prev, subsectionMessage]);
+    }
+
+    toast.info(`Cambiado a Subsección ${subsectionId}`);
   };
 
   const handleEndExam = () => {
@@ -140,15 +179,19 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
 
       <ExamSectionControls
         currentSection={parseInt(currentSection || '1') as ExamSection}
+        currentSubsection={currentSubsection}
         completedSections={
           completedSections.map((s) => parseInt(s)) as ExamSection[]
         }
+        completedSubsections={completedSubsections}
         onSectionChange={handleSectionChange}
+        onSubsectionChange={handleSubsectionChange}
         onStartExam={handleStartExam}
         onEndExam={handleEndExam}
         examStarted={examStarted}
         isTimerRunning={isTimerRunning}
         controlsConfig={examConfig.controlsConfig}
+        examConfig={examConfig}
       />
 
       {/* Uncomment if you want to show quick instructions

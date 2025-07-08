@@ -11,11 +11,13 @@ interface ExamContextType {
   examStartTime: Date | null;
   examDuration: number | null; // in minutes
   currentSection: string | null;
+  currentSubsection: string | null;
   currentQuestionIndex: number;
   totalQuestions: number;
 
   // Exam progress
   completedSections: string[];
+  completedSubsections: string[];
   examProgress: number; // percentage 0-100
 
   // Exam actions
@@ -23,9 +25,11 @@ interface ExamContextType {
   startExam: (modelId: string, duration?: number) => void;
   endExam: () => void;
   setCurrentSection: (section: string) => void;
+  setCurrentSubsection: (subsection: string | null) => void;
   setCurrentQuestion: (index: number) => void;
   setTotalQuestions: (total: number) => void;
   completeSection: (section: string) => void;
+  completeSubsection: (subsection: string) => void;
   updateProgress: (progress: number) => void;
 
   // Exam utilities
@@ -45,9 +49,15 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   const [examStartTime, setExamStartTime] = useState<Date | null>(null);
   const [examDuration, setExamDuration] = useState<number | null>(null);
   const [currentSection, setCurrentSection] = useState<string | null>(null);
+  const [currentSubsection, setCurrentSubsection] = useState<string | null>(
+    null,
+  );
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [completedSections, setCompletedSections] = useState<string[]>([]);
+  const [completedSubsections, setCompletedSubsections] = useState<string[]>(
+    [],
+  );
   const [examProgress, setExamProgress] = useState(0);
 
   const readyToStartExam = (modelId: string) => {
@@ -71,9 +81,11 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       setExamStartTime(new Date());
       setExamDuration(duration);
       setCurrentSection(null);
+      setCurrentSubsection(null);
       setCurrentQuestionIndex(0);
       setTotalQuestions(0);
       setCompletedSections([]);
+      setCompletedSubsections([]);
       setExamProgress(0);
     }
   };
@@ -84,9 +96,11 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     setExamStartTime(null);
     setExamDuration(null);
     setCurrentSection(null);
+    setCurrentSubsection(null);
     setCurrentQuestionIndex(0);
     setTotalQuestions(0);
     setCompletedSections([]);
+    setCompletedSubsections([]);
     setExamProgress(0);
   };
 
@@ -94,6 +108,15 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     setCompletedSections((prev) => {
       if (!prev.includes(section)) {
         return [...prev, section];
+      }
+      return prev;
+    });
+  };
+
+  const completeSubsection = (subsection: string) => {
+    setCompletedSubsections((prev) => {
+      if (!prev.includes(subsection)) {
+        return [...prev, subsection];
       }
       return prev;
     });
@@ -138,17 +161,21 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     examStartTime,
     examDuration,
     currentSection,
+    currentSubsection,
     currentQuestionIndex,
     totalQuestions,
     completedSections,
+    completedSubsections,
     examProgress,
     readyToStartExam,
     startExam,
     endExam,
     setCurrentSection,
+    setCurrentSubsection,
     setCurrentQuestion: setCurrentQuestionIndex,
     setTotalQuestions,
     completeSection,
+    completeSubsection,
     updateProgress,
     isExamModel,
     getExamDuration,

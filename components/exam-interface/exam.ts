@@ -1,8 +1,16 @@
 // Types that match the API response (serialized data)
+export interface SerializedExamSubsectionConfig {
+  name: string;
+  duration?: number; // in seconds, optional
+  description: string;
+  instructions?: string[];
+}
+
 export interface SerializedExamSectionConfig {
   name: string;
   duration: number; // in seconds
   color: string;
+  subsections?: Record<string, SerializedExamSubsectionConfig>; // optional subsections
 }
 
 export interface SerializedExamConfig {
@@ -30,6 +38,7 @@ export interface SerializedExamControlsConfig {
 export interface SerializedExamMessagesConfig {
   welcomeMessage: string;
   sectionStartMessages: Record<number, string>;
+  subsectionStartMessages?: Record<string, string>; // optional subsection messages (e.g., "2A", "2B", "2C")
   completionMessage: string;
   quickInstructions: string[];
 }
@@ -45,10 +54,18 @@ export interface SerializedCompleteExamConfig {
 // Frontend types (with React components)
 export type ExamSection = number;
 
+export interface ExamSubsectionConfig {
+  name: string;
+  duration?: number; // in seconds, optional
+  description: string;
+  instructions?: string[];
+}
+
 export interface ExamSectionConfig {
   name: string;
   duration: number; // in seconds
   color: string;
+  subsections?: Record<string, ExamSubsectionConfig>; // optional subsections
 }
 
 export interface ExamConfig {
@@ -76,6 +93,7 @@ export interface ExamControlsConfig {
 export interface ExamMessagesConfig {
   welcomeMessage: string;
   sectionStartMessages: Record<ExamSection, string>;
+  subsectionStartMessages?: Record<string, string>; // optional subsection messages (e.g., "2A", "2B", "2C")
   completionMessage: string;
   quickInstructions: string[];
 }
