@@ -2,10 +2,13 @@
 
 import { Chat } from '@/components/chat';
 import { DataStreamHandler } from '@/components/data-stream-handler';
-import { ExamSidebar, getExamConfigById } from '@/components/exam-interface';
+import { ExamSidebar } from '@/components/exam-interface/exam-sidebar';
+import { fetcher } from '@/lib/utils';
+
 import { useExamContext } from '@/hooks/use-exam-context';
 import { Session } from 'next-auth';
 import type { UIMessage } from 'ai';
+import useSWR from 'swr';
 
 interface ChatPageLayoutProps {
   session: Session;
@@ -27,7 +30,10 @@ export function ChatPageLayout({
   autoResume,
 }: ChatPageLayoutProps) {
   const { examType } = useExamContext();
-  const examConfig = examType ? getExamConfigById(examType) : null;
+  const { data: examConfig } = useSWR(
+    `/api/exam-configs?id=${examType}`,
+    fetcher,
+  );
 
   return (
     <div className="flex">

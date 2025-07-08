@@ -4,11 +4,7 @@ import { CheckCircle, Circle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type {
-  ExamSection,
-  ExamSectionInfo,
-  ExamControlsConfig,
-} from '@/lib/exam-configs';
+import type { ExamSection, ExamSectionInfo, ExamControlsConfig } from './exam';
 
 interface ExamSectionControlsProps {
   currentSection: ExamSection;
@@ -205,10 +201,3 @@ export function ExamSectionControls({
     </Card>
   );
 }
-
-// Export types for backward compatibility
-export type {
-  ExamSection,
-  ExamSectionInfo,
-  ExamControlsConfig,
-} from '@/lib/exam-configs';

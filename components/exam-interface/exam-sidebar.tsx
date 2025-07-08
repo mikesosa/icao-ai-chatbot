@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { ExamSectionControls } from './exam-section-controls';
 import type { UIMessage } from 'ai';
 import { useExamContext } from '@/hooks/use-exam-context';
-import type { CompleteExamConfig, ExamSection } from '@/lib/exam-configs';
+import type { CompleteExamConfig, ExamSection } from './exam';
 
 interface ExamSidebarProps {
   initialMessages: UIMessage[];

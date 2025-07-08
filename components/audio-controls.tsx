@@ -194,6 +194,7 @@ export default function AudioControls({
         }
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Remove dependencies to prevent recreation
 
   // Audio visualization

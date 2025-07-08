@@ -1,0 +1,155 @@
+{
+  "tea-evaluator": {
+    "id": "tea",
+    "name": "TEA",
+    "examConfig": {
+      "name": "TEA",
+      "sections": {
+        "1": {
+          "name": "Entrevista",
+          "duration": 120,
+          "color": "bg-blue-500"
+        },
+        "2": {
+          "name": "Comprensión",
+          "duration": 120,
+          "color": "bg-green-500"
+        },
+        "3": {
+          "name": "Discusión",
+          "duration": 120,
+          "color": "bg-purple-500"
+        }
+      }
+    },
+    "controlsConfig": {
+      "name": "TEA",
+      "totalSections": 3,
+      "sections": [
+        {
+          "number": 1,
+          "title": "Entrevista y Experiencia",
+          "description": "Preguntas sobre rol profesional y experiencia en aviación",
+          "icon": "FileText",
+          "duration": "7-8 min"
+        },
+        {
+          "number": 2,
+          "title": "Comprensión Interactiva",
+          "description": "Escucha situaciones aeronáuticas y demuestra comprensión",
+          "icon": "Headphones",
+          "duration": "8-12 min"
+        },
+        {
+          "number": 3,
+          "title": "Descripción y Discusión",
+          "description": "Describe imágenes y participa en discusión general",
+          "icon": "MessageSquare",
+          "duration": "10 min"
+        }
+      ],
+      "totalDuration": "25-30 minutos",
+      "startButtonText": "Iniciar Examen TEA",
+      "finishButtonText": "Finalizar Examen"
+    },
+    "messagesConfig": {
+      "welcomeMessage": "¡Bienvenido al simulador del Test de Inglés Aeronáutico (TEA)!\n\nSoy su evaluador certificado ICAO. Este examen evalúa su competencia lingüística en inglés para operaciones aeronáuticas.\n\n**INFORMACIÓN DEL EXAMEN:**\n- ⏱️ Duración: 25-30 minutos\n- 📋 3 secciones obligatorias\n- 🎯 Nivel mínimo requerido: ICAO Nivel 4 (Operacional)\n\n**INSTRUCCIONES:**\n1. Use el panel de control para iniciar el examen\n2. Complete cada sección en orden\n3. El timer controla la duración de cada sección\n4. Responda de manera natural y completa\n\n¿Está listo para comenzar? Haga clic en \"Iniciar Examen TEA\" cuando esté preparado.",
+      "sectionStartMessages": {
+        "1": "**SECCIÓN 1: ENTREVISTA Y EXPERIENCIA** (7-8 minutos)\n\nComencemos con algunas preguntas sobre su experiencia profesional en aviación.\n\n1. **¿Cuál es su rol actual en la aviación?**\n   - ¿Es usted piloto, controlador de tráfico aéreo, técnico u otro profesional?\n   - ¿Cuántos años de experiencia tiene en este rol?\n\nPor favor, responda de manera detallada y natural.",
+        "2": "**SECCIÓN 2: COMPRENSIÓN INTERACTIVA** (8-12 minutos)\n\nAhora evaluaré su comprensión auditiva. Le presentaré situaciones aeronáuticas que debe interpretar y explicar.",
+        "3": "**SECCIÓN 3: DESCRIPCIÓN Y DISCUSIÓN** (10 minutos)\n\nFinalmente, describirá imágenes relacionadas con aviación y participará en una discusión general sobre temas aeronáuticos."
+      },
+      "completionMessage": "**🎉 EXAMEN TEA COMPLETADO**\n\nFelicitaciones, ha completado las 3 secciones del Test de Inglés Aeronáutico.\n\n**RESUMEN DEL EXAMEN:**\n- ✅ Sección 1: Entrevista y Experiencia\n- ✅ Sección 2: Comprensión Interactiva  \n- ✅ Sección 3: Descripción y Discusión\n\nAhora procederé a evaluar su desempeño según los criterios ICAO y le proporcionaré su puntuación final con recomendaciones específicas.\n\n**Criterios de Evaluación ICAO:**\n1. Pronunciación\n2. Estructura Gramatical\n3. Vocabulario\n4. Fluidez\n5. Comprensión\n6. Interacciones\n\n¿Desea recibir su evaluación final ahora?",
+      "quickInstructions": [
+        "Responda de manera natural y completa",
+        "Use vocabulario técnico cuando sea apropiado",
+        "No se preocupe por errores menores",
+        "El evaluador le hará preguntas de seguimiento",
+        "Mantenga una conversación fluida"
+      ]
+    }
+  },
+  "elpac-evaluator": {
+    "id": "elpac",
+    "name": "ELPAC",
+    "examConfig": {
+      "name": "ELPAC",
+      "sections": {
+        "1": {
+          "name": "Listening",
+          "duration": 1800,
+          "color": "bg-blue-500"
+        },
+        "2": {
+          "name": "Reading",
+          "duration": 2700,
+          "color": "bg-green-500"
+        },
+        "3": {
+          "name": "Writing",
+          "duration": 2700,
+          "color": "bg-purple-500"
+        },
+        "4": {
+          "name": "Speaking",
+          "duration": 1200,
+          "color": "bg-orange-500"
+        }
+      }
+    },
+    "controlsConfig": {
+      "name": "ELPAC",
+      "totalSections": 4,
+      "sections": [
+        {
+          "number": 1,
+          "title": "Listening",
+          "description": "Listen to audio recordings and answer questions",
+          "icon": "Mic",
+          "duration": "30 min"
+        },
+        {
+          "number": 2,
+          "title": "Reading",
+          "description": "Read passages and answer comprehension questions",
+          "icon": "BookOpen",
+          "duration": "45 min"
+        },
+        {
+          "number": 3,
+          "title": "Writing",
+          "description": "Complete writing tasks and essays",
+          "icon": "PenTool",
+          "duration": "45 min"
+        },
+        {
+          "number": 4,
+          "title": "Speaking",
+          "description": "Oral interview and speaking tasks",
+          "icon": "Users",
+          "duration": "20 min"
+        }
+      ],
+      "totalDuration": "140 minutes",
+      "startButtonText": "Start ELPAC Assessment",
+      "finishButtonText": "Complete Assessment"
+    },
+    "messagesConfig": {
+      "welcomeMessage": "Welcome to the English Language Proficiency Assessment for California (ELPAC)!\n\nI am your certified ELPAC administrator. This assessment evaluates your English language proficiency across four domains.\n\n**ASSESSMENT INFORMATION:**\n- ⏱️ Duration: 140 minutes total\n- 📋 4 sections required\n- 🎯 Measures: Listening, Reading, Writing, Speaking\n\n**INSTRUCTIONS:**\n1. Use the control panel to start the assessment\n2. Complete each section in order\n3. Follow time limits for each section\n4. Read instructions carefully before beginning\n\nAre you ready to begin? Click \"Start ELPAC Assessment\" when you're prepared.",
+      "sectionStartMessages": {
+        "1": "**SECTION 1: LISTENING** (30 minutes)\n\nIn this section, you will listen to audio recordings and answer questions about what you hear.\n\n**Instructions:**\n- Listen carefully to each recording\n- You may take notes while listening\n- Answer all questions based on what you hear\n- Some recordings will play only once\n\nClick \"Next\" when you're ready to begin the listening section.",
+        "2": "**SECTION 2: READING** (45 minutes)\n\nIn this section, you will read passages and answer comprehension questions.\n\n**Instructions:**\n- Read each passage carefully\n- Answer questions based on the text\n- You may refer back to the passages\n- Manage your time effectively\n\nClick \"Next\" when you're ready to begin the reading section.",
+        "3": "**SECTION 3: WRITING** (45 minutes)\n\nIn this section, you will complete writing tasks.\n\n**Instructions:**\n- Follow the writing prompts carefully\n- Organize your ideas clearly\n- Use proper grammar and vocabulary\n- Review your work before submitting\n\nClick \"Next\" when you're ready to begin the writing section.",
+        "4": "**SECTION 4: SPEAKING** (20 minutes)\n\nIn this section, you will complete speaking tasks.\n\n**Instructions:**\n- Speak clearly and naturally\n- Answer all parts of each question\n- Use examples when appropriate\n- Don't worry about minor mistakes\n\nClick \"Next\" when you're ready to begin the speaking section."
+      },
+      "completionMessage": "**🎉 ELPAC ASSESSMENT COMPLETED**\n\nCongratulations! You have completed all 4 sections of the ELPAC assessment.\n\n**ASSESSMENT SUMMARY:**\n- ✅ Section 1: Listening\n- ✅ Section 2: Reading  \n- ✅ Section 3: Writing\n- ✅ Section 4: Speaking\n\nYour responses are now being processed. You will receive your official ELPAC score report within 7-10 business days.\n\n**Score Levels:**\n- Level 1: Beginning\n- Level 2: Somewhat Developed\n- Level 3: Moderately Developed\n- Level 4: Well Developed\n\nThank you for completing the ELPAC assessment!",
+      "quickInstructions": [
+        "Read all instructions carefully",
+        "Manage your time effectively",
+        "Answer all questions completely",
+        "Use examples when appropriate",
+        "Stay focused throughout the assessment"
+      ]
+    }
+  }
+}

@@ -4,11 +4,7 @@ import { useState, useEffect } from 'react';
 import { Clock, Play, Pause, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import type {
-  ExamSection,
-  ExamSectionConfig,
-  ExamConfig,
-} from '@/lib/exam-configs';
+import type { ExamSection, ExamConfig } from './exam';
 
 interface ExamTimerProps {
   currentSection: ExamSection;
@@ -159,10 +155,3 @@ export function ExamTimer({
     </Card>
   );
 }
-
-// Export types for backward compatibility
-export type {
-  ExamSection,
-  ExamSectionConfig,
-  ExamConfig,
-} from '@/lib/exam-configs';
