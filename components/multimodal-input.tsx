@@ -44,6 +44,7 @@ function PureMultimodalInput({
   className,
   selectedVisibilityType,
   hideControls,
+  audioOnly = false,
 }: {
   chatId: string;
   input: UseChatHelpers['input'];
@@ -59,8 +60,8 @@ function PureMultimodalInput({
   className?: string;
   selectedVisibilityType: VisibilityType;
   hideControls?: boolean;
+  audioOnly?: boolean;
 }) {
-  const [isRecording, setIsRecording] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
 
@@ -199,9 +200,42 @@ function PureMultimodalInput({
     }
   }, [status, scrollToBottom]);
 
-  // TODO: Implement audio controls
-  if (isRecording) {
-    return <AudioControls isRecording={!isRecording} />;
+  // Handle transcript completion from audio controls
+  const handleTranscriptComplete = useCallback(
+    (transcript: string) => {
+      // Since we're streaming the transcript in real-time, just submit the form
+      // The transcript is already in the input field
+      submitForm();
+    },
+    [submitForm],
+  );
+
+  // Handle real-time transcript updates from audio controls
+  const handleTranscriptUpdate = useCallback(
+    (transcript: string) => {
+      setInput(transcript);
+      // Adjust textarea height to fit content
+      setTimeout(() => {
+        adjustHeight();
+      }, 0);
+    },
+    [setInput],
+  );
+
+  // Handle recording start from audio controls
+  const handleRecordingStart = useCallback(() => {
+    setInput('');
+    resetHeight();
+  }, [setInput]);
+
+  if (audioOnly) {
+    return (
+      <AudioControls
+        onTranscriptComplete={handleTranscriptComplete}
+        onTranscriptUpdate={handleTranscriptUpdate}
+        onRecordingStart={handleRecordingStart}
+      />
+    );
   }
 
   return (

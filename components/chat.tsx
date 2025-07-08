@@ -165,6 +165,7 @@ function ChatWithSearchParams({
               append={append}
               selectedVisibilityType={visibilityType}
               hideControls={hideControls}
+              audioOnly={true}
             />
           )}
         </form>
