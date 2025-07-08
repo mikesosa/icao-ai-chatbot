@@ -1,6 +1,6 @@
 'use client';
 import { Button } from './ui/button';
-import { Mic, MicOff, Phone } from 'lucide-react';
+import { Mic, MicOff, Phone, RotateCcw } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toggle } from '@/components/ui/toggle';
 import MicFFT from '@/components/mic-fft';
@@ -366,14 +366,40 @@ export default function AudioControls({
         cancelAnimationFrame(animationFrameRef.current);
       }
       setMicFft([]);
+      toast.info('Microphone muted');
     } else {
-      // Resume speech recognition when unmuted
+      // Resume speech recognition when unmuted - add delay to ensure clean restart
       if (isConnectedRef.current) {
-        startSpeechRecognition();
+        setTimeout(() => {
+          shouldRestartRecognition.current = true;
+          startSpeechRecognition();
+        }, 100);
       }
       // Resume audio visualization
       updateMicFFT();
+      toast.success('Microphone unmuted');
     }
+  };
+
+  const discardRecording = () => {
+    // Clear all transcript states
+    setTranscript('');
+    setInterimTranscript('');
+    transcriptRef.current = '';
+
+    // Restart speech recognition to ensure fresh session
+    stopSpeechRecognition();
+    if (!isMuted) {
+      // Small delay to ensure clean restart
+      setTimeout(() => {
+        startSpeechRecognition();
+      }, 100);
+    }
+
+    // Clear the parent's transcript update
+    onTranscriptUpdate?.('');
+
+    toast.success('Recording cleared - speak again');
   };
 
   const disconnect = () => {
@@ -500,13 +526,25 @@ export default function AudioControls({
               </div>
 
               <Button
-                className={'flex items-center gap-1 rounded-full'}
+                className="flex items-center gap-1 rounded-full"
+                onClick={discardRecording}
+                type="button"
+                variant={'outline'}
+                title="Discard recording and start fresh"
+              >
+                <RotateCcw className="size-4" />
+                <span>Reset</span>
+              </Button>
+
+              <Button
+                className="flex items-center gap-1 rounded-full"
                 onClick={disconnect}
+                type="button"
                 variant={'destructive'}
               >
                 <span>
                   <Phone
-                    className={'size-4 opacity-50 fill-current'}
+                    className="size-4 opacity-50 fill-current"
                     strokeWidth={0}
                   />
                 </span>
