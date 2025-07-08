@@ -5,6 +5,7 @@ import { generateUUID } from '@/lib/utils';
 import { auth } from '../(auth)/auth';
 import { redirect } from 'next/navigation';
 import { ChatPageContent } from '@/components/chat-page-content';
+import { TTSExample } from '@/components/tts-example';
 
 export default async function Page() {
   const session = await auth();
@@ -19,15 +20,16 @@ export default async function Page() {
   const modelIdFromCookie = cookieStore.get('chat-model');
 
   return (
-    <ChatPageContent
-      session={session}
-      id={id}
-      modelId={
-        !modelIdFromCookie ? DEFAULT_CHAT_MODEL : modelIdFromCookie.value
-      }
-      initialMessages={[]}
-      initialVisibilityType="private"
-      isReadonly={false}
-    />
+    <TTSExample />
+    // <ChatPageContent
+    //   session={session}
+    //   id={id}
+    //   modelId={
+    //     !modelIdFromCookie ? DEFAULT_CHAT_MODEL : modelIdFromCookie.value
+    //   }
+    //   initialMessages={[]}
+    //   initialVisibilityType="private"
+    //   isReadonly={false}
+    // />
   );
 }
