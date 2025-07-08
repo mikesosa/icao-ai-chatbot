@@ -17,10 +17,12 @@ import {
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { useExamContext } from '@/hooks/use-exam-context';
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, setOpen } = useSidebar();
+  const { endExam } = useExamContext();
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
@@ -46,6 +48,8 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   className="p-2 h-fit"
                   onClick={() => {
                     setOpenMobile(false);
+                    setOpen(false);
+                    endExam();
                     router.push('/');
                     router.refresh();
                   }}
