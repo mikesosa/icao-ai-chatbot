@@ -127,6 +127,44 @@ export async function deleteChatById({ id }: { id: string }) {
   }
 }
 
+export async function deleteAllChatsByUserId({ userId }: { userId: string }) {
+  try {
+    // Get all chat IDs for the user
+    const userChats = await db
+      .select({ id: chat.id })
+      .from(chat)
+      .where(eq(chat.userId, userId));
+
+    const chatIds = userChats.map(chat => chat.id);
+
+    if (chatIds.length === 0) {
+      return { deletedChats: 0 };
+    }
+
+    // Delete all votes for all user's chats
+    await db.delete(vote).where(inArray(vote.chatId, chatIds));
+
+    // Delete all messages for all user's chats
+    await db.delete(message).where(inArray(message.chatId, chatIds));
+
+    // Delete all streams for all user's chats
+    await db.delete(stream).where(inArray(stream.chatId, chatIds));
+
+    // Delete all chats for the user
+    const deletedChats = await db
+      .delete(chat)
+      .where(eq(chat.userId, userId))
+      .returning();
+
+    return { deletedChats: deletedChats.length };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete all chats for user',
+    );
+  }
+}
+
 export async function getChatsByUserId({
   id,
   limit,

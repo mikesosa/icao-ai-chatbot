@@ -2,10 +2,12 @@
 
 import { generateText, type UIMessage } from 'ai';
 import { cookies } from 'next/headers';
+import { auth } from '@/app/(auth)/auth';
 import {
   deleteMessagesByChatIdAfterTimestamp,
   getMessageById,
   updateChatVisiblityById,
+  deleteAllChatsByUserId,
 } from '@/lib/db/queries';
 import type { VisibilityType } from '@/components/visibility-selector';
 import { myProvider } from '@/lib/ai/providers';
@@ -68,4 +70,14 @@ export async function updateChatVisibility({
   visibility: VisibilityType;
 }) {
   await updateChatVisiblityById({ chatId, visibility });
+}
+
+export async function clearAllChats() {
+  const session = await auth();
+
+  if (!session?.user) {
+    throw new Error('Unauthorized');
+  }
+
+  return await deleteAllChatsByUserId({ userId: session.user.id });
 }
