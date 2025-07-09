@@ -21,15 +21,32 @@ export async function generateTitleFromUserMessage({
 }: {
   message: UIMessage;
 }) {
-  const { text: title } = await generateText({
+  const { text: aiTitle } = await generateText({
     model: myProvider.languageModel(MODEL_IDS.TITLE_MODEL),
     system: `\n
     - you will generate a short title based on the first message a user begins a conversation with
-    - ensure it is not more than 80 characters long
-    - the title should be a summary of the user's message
-    - do not use quotes or colons`,
+    - ensure it is not more than 50 characters long
+    - the title should be a concise summary of the user's message
+    - do not use quotes or colons
+    - focus on the main topic or question being asked
+    - use simple, clear language`,
     prompt: JSON.stringify(message),
   });
+
+  // Get current date and time
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric' 
+  });
+  const timeStr = now.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  });
+
+  // Create a title with date and AI-generated description
+  const title = `${dateStr} ${timeStr} - ${aiTitle}`;
 
   return title;
 }
