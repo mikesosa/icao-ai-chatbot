@@ -31,7 +31,6 @@ interface ExamSectionControlsProps {
   onStartExam?: () => void;
   onEndExam?: () => void;
   examStarted: boolean;
-  isTimerRunning: boolean;
   controlsConfig: ExamControlsConfig;
   examConfig: CompleteExamConfig;
 }
@@ -46,7 +45,6 @@ export function ExamSectionControls({
   onStartExam,
   onEndExam,
   examStarted,
-  isTimerRunning,
   controlsConfig,
   examConfig,
 }: ExamSectionControlsProps) {
@@ -156,7 +154,7 @@ export function ExamSectionControls({
                   variant="outline"
                   size="sm"
                   onClick={() => handleSectionChange(-1)}
-                  disabled={!canGoToPrevious || isTimerRunning}
+                  disabled={!canGoToPrevious}
                 >
                   <ChevronLeft className="size-4" />
                   Previous
@@ -165,7 +163,7 @@ export function ExamSectionControls({
                   variant="outline"
                   size="sm"
                   onClick={() => handleSectionChange(1)}
-                  disabled={!canGoToNext || isTimerRunning}
+                  disabled={!canGoToNext}
                 >
                   Next
                   <ChevronRight className="size-4" />
@@ -190,7 +188,7 @@ export function ExamSectionControls({
                           variant={isCurrent ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => onSectionChange(sectionNum)}
-                          disabled={isTimerRunning}
+                          disabled={false}
                           className="justify-start"
                         >
                           <div className="flex items-center gap-2">
@@ -225,7 +223,7 @@ export function ExamSectionControls({
                           variant={isCurrent ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => onSubsectionChange(subsectionId)}
-                          disabled={isTimerRunning}
+                          disabled={false}
                           className="justify-start"
                         >
                           <div className="flex items-center gap-2">
@@ -240,20 +238,6 @@ export function ExamSectionControls({
                   </div>
                 </div>
               )}
-
-              {/* Completion Actions */}
-              <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSectionChange(currentSection)}
-                  className="w-full"
-                >
-                  {completedSections.includes(currentSection)
-                    ? 'Mark as Incomplete'
-                    : 'Complete All'}
-                </Button>
-              </div>
             </div>
           </>
         )}
@@ -262,9 +246,7 @@ export function ExamSectionControls({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">Exam status:</span>
-            <Badge variant={isTimerRunning ? 'default' : 'outline'}>
-              {isTimerRunning ? 'In progress' : 'Paused'}
-            </Badge>
+            <Badge variant="outline">Exam in progress</Badge>
           </div>
           {completedSections.length === controlsConfig.totalSections && (
             <div className="text-sm text-green-600">

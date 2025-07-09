@@ -38,7 +38,6 @@ export function ExamSidebar({
   } = useExamContext();
 
   // Local state for UI
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
 
   // Chat messages with initial instructions
@@ -67,7 +66,6 @@ export function ExamSidebar({
   const handleStartExam = () => {
     startExam(examConfig.id);
     setShowInstructions(false);
-    setIsTimerRunning(true);
     setCurrentSection('1');
     setCurrentSubsection(null);
     setOpen(false);
@@ -76,9 +74,36 @@ export function ExamSidebar({
   };
 
   const handleSectionChange = (section: ExamSection) => {
-    if (isTimerRunning) {
-      toast.warning('Pause the timer before changing sections');
+    const currentSectionNum = parseInt(currentSection || '1');
+    const completedSectionNums = completedSections.map((s) => parseInt(s));
+
+    // Progressive lock: Only allow going to completed sections or current section
+    if (
+      section > currentSectionNum &&
+      !completedSectionNums.includes(section)
+    ) {
+      toast.warning(
+        'Complete current section before advancing to future sections',
+      );
       return;
+    }
+
+    // Real exam behavior: No navigation during active timing
+    // Only allow reviewing completed sections
+    if (
+      section !== currentSectionNum &&
+      !completedSectionNums.includes(section)
+    ) {
+      toast.warning('Section navigation is restricted during the exam');
+      return;
+    }
+
+    // If navigating to a different completed section, show confirmation
+    if (
+      section !== currentSectionNum &&
+      completedSectionNums.includes(section)
+    ) {
+      toast.info(`Reviewing completed Section ${section}`);
     }
 
     setCurrentSection(section.toString());
@@ -100,9 +125,35 @@ export function ExamSidebar({
   };
 
   const handleSubsectionChange = (subsectionId: string) => {
-    if (isTimerRunning) {
-      toast.warning('Pause the timer before changing subsections');
+    const currentSectionNum = parseInt(currentSection || '1');
+    const completedSectionNums = completedSections.map((s) => parseInt(s));
+
+    // Get the section number from subsection ID (e.g., "2A" -> section 2)
+    const subsectionSection = parseInt(subsectionId.charAt(0));
+
+    // Progressive lock: Only allow subsections of completed sections or current section
+    if (
+      subsectionSection > currentSectionNum &&
+      !completedSectionNums.includes(subsectionSection)
+    ) {
+      toast.warning(
+        'Complete current section before accessing future subsections',
+      );
       return;
+    }
+
+    // Real exam behavior: Only allow subsections within current or completed sections
+    if (
+      subsectionSection !== currentSectionNum &&
+      !completedSectionNums.includes(subsectionSection)
+    ) {
+      toast.warning('Subsection navigation is restricted during the exam');
+      return;
+    }
+
+    // If navigating to a subsection of a different section, switch sections first
+    if (subsectionSection !== currentSectionNum) {
+      setCurrentSection(subsectionSection.toString());
     }
 
     setCurrentSubsection(subsectionId);
@@ -120,9 +171,7 @@ export function ExamSidebar({
   };
 
   const handleEndExam = () => {
-    setIsTimerRunning(false);
     endExam();
-
     toast.success('Exam completed successfully!');
   };
 
@@ -137,15 +186,6 @@ export function ExamSidebar({
     );
   };
 
-  const handleToggleTimer = () => {
-    setIsTimerRunning((prev) => !prev);
-  };
-
-  const handleResetTimer = (section: ExamSection) => {
-    setIsTimerRunning(false);
-    toast.info(`Section ${section} timer reset`);
-  };
-
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {examStarted && (
@@ -154,9 +194,6 @@ export function ExamSidebar({
           examConfig={examConfig.examConfig}
           onSectionComplete={handleSectionComplete}
           onTimerWarning={handleTimerWarning}
-          isRunning={isTimerRunning}
-          onToggleTimer={handleToggleTimer}
-          onResetTimer={handleResetTimer}
         />
       )}
 
@@ -172,7 +209,6 @@ export function ExamSidebar({
         onStartExam={handleStartExam}
         onEndExam={handleEndExam}
         examStarted={examStarted}
-        isTimerRunning={isTimerRunning}
         controlsConfig={examConfig.controlsConfig}
         examConfig={examConfig}
       />

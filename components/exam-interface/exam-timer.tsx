@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Clock, Play, Pause, RotateCcw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import type { ExamSection, ExamConfig } from './exam';
 import { Badge } from '@/components/ui/badge';
@@ -12,9 +11,6 @@ interface ExamTimerProps {
   examConfig: ExamConfig;
   onSectionComplete?: (section: ExamSection) => void;
   onTimerWarning?: (section: ExamSection, timeLeft: number) => void;
-  isRunning?: boolean;
-  onToggleTimer?: () => void;
-  onResetTimer?: (section: ExamSection) => void;
 }
 
 export function ExamTimer({
@@ -22,19 +18,18 @@ export function ExamTimer({
   examConfig,
   onSectionComplete,
   onTimerWarning,
-  isRunning = false,
-  onToggleTimer,
-  onResetTimer,
 }: ExamTimerProps) {
   const sectionConfig = examConfig.sections[currentSection];
   const [timeLeft, setTimeLeft] = useState(sectionConfig.duration);
+  const [isRunning, setIsRunning] = useState(true); // Always running once timer is mounted
 
   // Reset timer when section changes
   useEffect(() => {
     setTimeLeft(sectionConfig.duration);
+    setIsRunning(true); // Auto-start when section changes
   }, [currentSection, sectionConfig.duration]);
 
-  // Timer logic
+  // Timer logic - runs continuously
   useEffect(() => {
     if (!isRunning) return;
 
@@ -97,9 +92,7 @@ export function ExamTimer({
           <div className="text-2xl font-mono font-bold">
             {formatTime(timeLeft)}
           </div>
-          <div className="text-xs text-gray-500 mb-3">
-            {isRunning ? 'Running' : 'Paused'}
-          </div>
+          <div className="text-xs text-gray-500 mb-3">Running</div>
         </div>
 
         {/* Progress Bar */}
@@ -110,44 +103,11 @@ export function ExamTimer({
           />
         </div>
 
-        {/* Controls */}
-        <div className="flex gap-2">
-          <Button
-            variant={isRunning ? 'destructive' : 'default'}
-            size="sm"
-            onClick={onToggleTimer}
-            className="flex-1"
-          >
-            {isRunning ? (
-              <>
-                <Pause className="size-4 mr-1" />
-                Pause
-              </>
-            ) : (
-              <>
-                <Play className="size-4 mr-1" />
-                Start
-              </>
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onResetTimer?.(currentSection)}
-            className="flex-1"
-          >
-            <RotateCcw className="size-4 mr-1" />
-            Reset
-          </Button>
-        </div>
-
         {/* Status Indicators */}
         <div className="mt-4 text-sm text-gray-600">
           <div className="flex justify-between">
             <span>Status:</span>
-            <span className={isRunning ? 'text-green-600' : 'text-gray-400'}>
-              {isRunning ? 'Running' : 'Paused'}
-            </span>
+            <span className="text-green-600">Running</span>
           </div>
           <div className="flex justify-between">
             <span>Progress:</span>
