@@ -6,6 +6,19 @@ export interface SerializedExamSubsectionConfig {
   instructions?: string[];
 }
 
+// AI-specific configuration types
+export interface SerializedAiSectionConfig {
+  prompt: string;
+  objectives: string[];
+}
+
+export interface SerializedAiConfig {
+  mainPrompt: string;
+  evaluationCriteria: string;
+  sections: Record<string, SerializedAiSectionConfig>;
+  finalEvaluationPrompt: string;
+}
+
 export interface SerializedExamSectionConfig {
   name: string;
   duration: number; // in seconds
@@ -46,6 +59,7 @@ export interface SerializedExamMessagesConfig {
 export interface SerializedCompleteExamConfig {
   id: string;
   name: string;
+  aiConfig: SerializedAiConfig;
   examConfig: SerializedExamConfig;
   controlsConfig: SerializedExamControlsConfig;
   messagesConfig: SerializedExamMessagesConfig;
@@ -61,6 +75,19 @@ export interface ExamSubsectionConfig {
   instructions?: string[];
 }
 
+// AI-specific configuration types (frontend)
+export interface AiSectionConfig {
+  prompt: string;
+  objectives: string[];
+}
+
+export interface AiConfig {
+  mainPrompt: string;
+  evaluationCriteria: string;
+  sections: Record<string, AiSectionConfig>;
+  finalEvaluationPrompt: string;
+}
+
 export interface ExamSectionConfig {
   name: string;
   duration: number; // in seconds
@@ -71,6 +98,7 @@ export interface ExamSectionConfig {
 export interface ExamConfig {
   name: string;
   sections: Record<ExamSection, ExamSectionConfig>;
+  
 }
 
 export interface ExamSectionInfo {
@@ -101,6 +129,7 @@ export interface ExamMessagesConfig {
 export interface CompleteExamConfig {
   id: string;
   name: string;
+  aiConfig: AiConfig;
   examConfig: ExamConfig;
   controlsConfig: ExamControlsConfig;
   messagesConfig: ExamMessagesConfig;

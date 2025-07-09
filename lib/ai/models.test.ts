@@ -86,3 +86,12 @@ export const teaEvaluatorModel = new MockLanguageModelV1({
     text: `Hello, world!`,
   }),
 });
+
+export const elpacEvaluatorModel = new MockLanguageModelV1({
+  doGenerate: async () => ({
+    rawCall: { rawPrompt: null, rawSettings: {} },
+    finishReason: 'stop',
+    usage: { promptTokens: 10, completionTokens: 20 },
+    text: `Hello, world!`,
+  }),
+});

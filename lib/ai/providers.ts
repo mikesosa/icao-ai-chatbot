@@ -11,6 +11,7 @@ import {
   reasoningModel,
   titleModel,
   teaEvaluatorModel,
+  elpacEvaluatorModel,
 } from './models.test';
 import { MODEL_IDS } from '@/lib/types';
 
@@ -22,6 +23,7 @@ export const myProvider = isTestEnvironment
         [MODEL_IDS.TITLE_MODEL]: titleModel,
         [MODEL_IDS.ARTIFACT_MODEL]: artifactModel,
         [MODEL_IDS.TEA_EVALUATOR]: teaEvaluatorModel,
+        [MODEL_IDS.ELPAC_EVALUATOR]: elpacEvaluatorModel,
       },
     })
   : customProvider({

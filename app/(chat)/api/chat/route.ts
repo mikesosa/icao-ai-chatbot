@@ -6,7 +6,8 @@ import {
   streamText,
 } from 'ai';
 import { auth, type UserType } from '@/app/(auth)/auth';
-import { type RequestHints, systemPrompt } from '@/lib/ai/prompts';
+import { type RequestHints, systemPrompt, isExamEvaluator } from '@/lib/ai/prompts';
+import type { SerializedCompleteExamConfig } from '@/components/exam-interface/exam';
 import {
   createStreamId,
   deleteChatById,
@@ -36,6 +37,7 @@ import { after } from 'next/server';
 import type { Chat } from '@/lib/db/schema';
 import { differenceInSeconds } from 'date-fns';
 import { ChatSDKError } from '@/lib/errors';
+import examConfigsData from '../exam-configs/exam-configs.json';
 
 export const maxDuration = 60;
 
@@ -165,14 +167,47 @@ export async function POST(request: Request) {
       ],
     });
 
+    // Load exam configuration if this is an exam evaluator model
+    let examConfig: SerializedCompleteExamConfig | undefined;
+    let currentSection: string | undefined;
+    
+    if (isExamEvaluator(selectedChatModel)) {
+      try {
+        // Load exam config from imported data
+        const examConfigs = examConfigsData as Record<string, SerializedCompleteExamConfig>;
+        examConfig = examConfigs[selectedChatModel];
+        
+        if (examConfig) {
+          console.log('✅ [PROMPT SYSTEM] Exam config loaded for:', examConfig.name);
+        } else {
+          console.warn('⚠️ [PROMPT SYSTEM] No exam config found for model:', selectedChatModel);
+        }
+        
+        // TODO: Extract current section from messages or context if needed
+        // For now, we'll let the AI determine the appropriate section
+        // currentSection could be extracted from conversation context in the future
+        
+      } catch (error) {
+        console.error('❌ [PROMPT SYSTEM] Failed to load exam configuration:', error);
+        // Continue without exam config - will use fallback prompt
+      }
+    }
+
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });
 
     const stream = createDataStream({
       execute: (dataStream) => {
+        const systemPromptContent = systemPrompt({ 
+          selectedChatModel, 
+          requestHints, 
+          examConfig,
+          currentSection 
+        });
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: systemPromptContent,
           messages,
           maxSteps: 5,
           experimental_activeTools:
