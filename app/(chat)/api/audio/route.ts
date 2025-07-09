@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const audioPath = join(process.cwd(), './', filename);
+    // Fix: Look for audio files in the correct directory
+    const audioPath = join(process.cwd(), 'app', '(chat)', 'api', 'audio', filename);
     const audioBuffer = await readFile(audioPath);
     
     return new NextResponse(new Uint8Array(audioBuffer), {
