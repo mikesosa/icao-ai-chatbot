@@ -24,6 +24,7 @@ import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
+import { examSectionControl } from '@/lib/ai/tools/exam-section-control';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -213,6 +214,14 @@ export async function POST(request: Request) {
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []
+              : isExamEvaluator(selectedChatModel)
+              ? [
+                  'getWeather',
+                  'createDocument',
+                  'updateDocument',
+                  'requestSuggestions',
+                  'examSectionControl',
+                ]
               : [
                   'getWeather',
                   'createDocument',
@@ -229,6 +238,7 @@ export async function POST(request: Request) {
               session,
               dataStream,
             }),
+            examSectionControl: examSectionControl({ dataStream }),
           },
           onFinish: async ({ response }) => {
             if (session.user?.id) {

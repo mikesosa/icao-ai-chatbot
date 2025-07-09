@@ -39,6 +39,7 @@ function ChatWithSearchParams({
   autoResume,
   hideControls,
   onAppendRef,
+  onDataStreamUpdate,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -49,6 +50,7 @@ function ChatWithSearchParams({
   autoResume: boolean;
   hideControls?: boolean;
   onAppendRef?: (append: UseChatHelpers['append']) => void;
+  onDataStreamUpdate?: (data: any[]) => void;
 }) {
   const { mutate } = useSWRConfig();
   const { examType, examStarted } = useExamContext();
@@ -98,6 +100,13 @@ function ChatWithSearchParams({
       }
     },
   });
+
+  useEffect(() => {
+    // Notify parent component of data stream updates
+    if (onDataStreamUpdate && data) {
+      onDataStreamUpdate(data);
+    }
+  }, [data, onDataStreamUpdate]);
 
   const searchParams = useSearchParams();
   const query = searchParams.get('query');
@@ -250,6 +259,7 @@ export function Chat({
   autoResume,
   hideControls,
   onAppendRef,
+  onDataStreamUpdate,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -260,6 +270,7 @@ export function Chat({
   autoResume: boolean;
   hideControls?: boolean;
   onAppendRef?: (append: UseChatHelpers['append']) => void;
+  onDataStreamUpdate?: (data: any[]) => void;
 }) {
   return (
     <Suspense fallback={<ChatSkeleton />}>
@@ -273,6 +284,7 @@ export function Chat({
         autoResume={autoResume}
         hideControls={hideControls}
         onAppendRef={onAppendRef}
+        onDataStreamUpdate={onDataStreamUpdate}
       />
     </Suspense>
   );

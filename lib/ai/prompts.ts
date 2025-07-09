@@ -82,23 +82,29 @@ export const buildExamEvaluatorPrompt = (
     prompt += `${sectionPrompt}\n\n`;
   } else {
     // If no specific section, include general instructions
-    const generalInstructions = `INSTRUCCIONES GENERALES:
-Este examen consta de múltiples secciones secuenciales. Comenzarás con la primera sección 
-a menos que el candidato solicite una sección específica.
+    const generalInstructions = `GENERAL INSTRUCTIONS:
+This exam consists of multiple sequential sections. You will begin with the first section 
+unless the candidate requests a specific section.
 
-Para iniciar el examen:
-1. Presenta bienvenida profesional
-2. Explica brevemente el formato
-3. Confirma el rol del candidato
-4. Inicia la primera sección
+To start the exam:
+1. Present a professional welcome
+2. Briefly explain the format
+3. Confirm the candidate's role/context
+4. Begin the first section
 
-Durante el examen:
-- Controla el tiempo de cada sección
-- Toma notas mentales para la evaluación final
-- Mantén el flujo natural de conversación
-- Evalúa continuamente según los criterios establecidos
+During the exam:
+- Monitor time for each section
+- Take mental notes for final evaluation
+- Maintain natural conversation flow
+- Evaluate continuously according to established criteria
+- Use examSectionControl when the candidate is ready to advance or when you determine the section is complete
 
-Al finalizar todas las secciones, proporciona evaluación completa.`;
+SECTION CONTROL:
+- When the candidate says "let's go to the next section" or similar, use examSectionControl with action "complete_and_advance"
+- If you have completed the objectives of a section, mark it as completed with "complete_current"
+- Respond naturally to the candidate indicating the section change
+
+After completing all sections, provide a complete evaluation.`;
     
     prompt += generalInstructions;
   }

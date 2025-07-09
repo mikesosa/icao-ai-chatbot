@@ -64,7 +64,11 @@ export function ExamSidebar({
 
   // Exam handlers
   const handleStartExam = () => {
-    startExam(examConfig.id);
+    startExam(
+      examConfig.id,
+      undefined,
+      examConfig.controlsConfig.totalSections,
+    );
     setShowInstructions(false);
     setCurrentSection('1');
     setCurrentSubsection(null);
