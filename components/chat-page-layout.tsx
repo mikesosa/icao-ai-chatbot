@@ -31,7 +31,7 @@ export function ChatPageLayout({
 }: ChatPageLayoutProps) {
   const { examType } = useExamContext();
   const { data: examConfig } = useSWR(
-    `/api/exam-configs?id=${examType}`,
+    examType ? `/api/exam-configs?id=${examType}` : null,
     fetcher,
   );
 
