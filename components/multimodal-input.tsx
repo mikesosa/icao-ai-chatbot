@@ -28,6 +28,7 @@ import { ArrowDown } from 'lucide-react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
 import AudioControls from './audio-controls';
+import { useExamContext } from '@/hooks/use-exam-context';
 
 function PureMultimodalInput({
   chatId,
@@ -62,6 +63,7 @@ function PureMultimodalInput({
   hideControls?: boolean;
   audioOnly?: boolean;
 }) {
+  const { examStarted } = useExamContext();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
 
@@ -227,6 +229,10 @@ function PureMultimodalInput({
     setInput('');
     resetHeight();
   }, [setInput]);
+
+  if (!examStarted) {
+    return null;
+  }
 
   if (audioOnly) {
     return (

@@ -230,6 +230,7 @@ const PurePreviewMessage = ({
                 message={message}
                 vote={vote}
                 isLoading={isLoading}
+                allowVote={false}
               />
             )}
           </div>

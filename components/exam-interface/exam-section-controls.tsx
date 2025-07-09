@@ -127,7 +127,7 @@ export function ExamSectionControls({
           ) : (
             <Button
               onClick={onEndExam}
-              className="w-full"
+              className="w-full fill-current"
               variant="destructive"
               size="lg"
             >

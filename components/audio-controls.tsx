@@ -1,6 +1,6 @@
 'use client';
 import { Button } from './ui/button';
-import { Mic, MicOff, Phone, RotateCcw } from 'lucide-react';
+import { Mic, MicOff, RotateCcw, Square } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toggle } from '@/components/ui/toggle';
 import MicFFT from '@/components/mic-fft';
@@ -459,9 +459,10 @@ export default function AudioControls({
           className="flex items-center gap-1 rounded-full"
           type="button"
           onClick={startRecording}
+          variant="success"
         >
           <span>
-            <Phone className="size-4 opacity-50 fill-current" strokeWidth={0} />
+            <Mic className="size-4 opacity-50 fill-current" strokeWidth={0} />
           </span>
           <span>Speak</span>
         </Button>
@@ -571,15 +572,15 @@ export default function AudioControls({
                 className="flex items-center gap-1 rounded-full"
                 onClick={disconnect}
                 type="button"
-                variant={'destructive'}
+                variant="destructive"
               >
                 <span>
-                  <Phone
+                  <Square
                     className="size-4 opacity-50 fill-current"
                     strokeWidth={0}
                   />
                 </span>
-                <span>Stop</span>
+                <span>Send</span>
               </Button>
             </motion.div>
           ) : null}
