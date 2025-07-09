@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { MessageEditor } from './message-editor';
 import { DocumentPreview } from './document-preview';
 import { MessageReasoning } from './message-reasoning';
+import { AudioPlayer } from './audio-player';
 import type { UseChatHelpers } from '@ai-sdk/react';
 
 const PurePreviewMessage = ({
@@ -185,6 +186,10 @@ const PurePreviewMessage = ({
                           args={args}
                           isReadonly={isReadonly}
                         />
+                      ) : toolName === 'playAudio' ? (
+                        <div className="bg-muted rounded-lg p-4 text-center text-sm text-muted-foreground">
+                          Loading audio player...
+                        </div>
                       ) : null}
                     </div>
                   );
@@ -213,6 +218,12 @@ const PurePreviewMessage = ({
                           type="request-suggestions"
                           result={result}
                           isReadonly={isReadonly}
+                        />
+                      ) : toolName === 'playAudio' ? (
+                        <AudioPlayer
+                          src={result.details?.url || ''}
+                          title={result.details?.title || 'Audio Recording'}
+                          description={result.details?.description}
                         />
                       ) : (
                         <pre>{JSON.stringify(result, null, 2)}</pre>
