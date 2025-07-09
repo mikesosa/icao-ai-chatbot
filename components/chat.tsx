@@ -48,11 +48,14 @@ function ChatWithSearchParams({
   hideControls?: boolean;
 }) {
   const { mutate } = useSWRConfig();
-  const { examType } = useExamContext();
+  const { examType, examStarted } = useExamContext();
   const { visibilityType } = useChatVisibility({
     chatId: id,
     initialVisibilityType,
   });
+
+  // Use examType as the selected model when available, otherwise use initialChatModel
+  const selectedChatModel = examType || initialChatModel;
 
   const {
     messages,
@@ -76,9 +79,9 @@ function ChatWithSearchParams({
     experimental_prepareRequestBody: (body) => ({
       id,
       message: body.messages.at(-1),
-      selectedChatModel: initialChatModel,
+      selectedChatModel: selectedChatModel,
       selectedVisibilityType: visibilityType,
-      modelType: getModelType(initialChatModel),
+      modelType: getModelType(selectedChatModel),
     }),
     onFinish: () => {
       mutate(unstable_serialize(getChatHistoryPaginationKey));
@@ -97,6 +100,7 @@ function ChatWithSearchParams({
   const query = searchParams.get('query');
 
   const [hasAppendedQuery, setHasAppendedQuery] = useState(false);
+  const [hasStartedExam, setHasStartedExam] = useState(false);
 
   useEffect(() => {
     if (query && !hasAppendedQuery) {
@@ -107,6 +111,17 @@ function ChatWithSearchParams({
       setHasAppendedQuery(true);
     }
   }, [query, append, hasAppendedQuery, id]);
+
+  // Auto-start exam when examStarted becomes true
+  useEffect(() => {
+    if (examStarted && !hasStartedExam && examType) {
+      setHasStartedExam(true);
+      append({
+        role: 'user',
+        content: 'Start the evaluation. Begin with the first section.',
+      });
+    }
+  }, [examStarted, hasStartedExam, examType, append]);
 
   const { data: votes } = useSWR<Array<Vote>>(
     messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
@@ -129,7 +144,7 @@ function ChatWithSearchParams({
       <div className="flex flex-col min-w-0 h-dvh bg-background">
         <ChatHeader
           chatId={id}
-          selectedModelId={initialChatModel}
+          selectedModelId={selectedChatModel}
           selectedVisibilityType={initialVisibilityType}
           isReadonly={isReadonly}
           session={session}
@@ -146,7 +161,7 @@ function ChatWithSearchParams({
           isReadonly={isReadonly}
           isArtifactVisible={isArtifactVisible}
           hideControls={hideControls}
-          selectedModel={initialChatModel}
+          selectedModel={selectedChatModel}
         />
 
         <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">

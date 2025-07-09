@@ -66,115 +66,47 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
     setCurrentSubsection(null);
     setOpen(false);
 
-    // Send section 1 start message
-    const sectionStartMessage: UIMessage = {
-      id: `exam-section-1-start`,
-      role: 'assistant',
-      content: '',
-      parts: [
-        {
-          type: 'text',
-          text: examConfig.messagesConfig.sectionStartMessages[1],
-        },
-      ],
-      createdAt: new Date(),
-      experimental_attachments: [],
-    };
-
-    setMessages((prev) => [...prev, sectionStartMessage]);
-    toast.success(`Examen ${examConfig.name} iniciado - Sección 1`);
+    toast.success(`Exam ${examConfig.name} started - Section 1`);
   };
 
   const handleSectionChange = (section: ExamSection) => {
     if (isTimerRunning) {
-      toast.warning('Pause el timer antes de cambiar de sección');
+      toast.warning('Pause the timer before changing sections');
       return;
     }
 
     setCurrentSection(section.toString());
     setCurrentSubsection(null); // Reset subsection when changing sections
 
-    // Send section change message
-    const sectionMessage: UIMessage = {
-      id: `exam-section-${section}-change`,
-      role: 'assistant',
-      content: '',
-      parts: [
-        {
-          type: 'text',
-          text: examConfig.messagesConfig.sectionStartMessages[section],
-        },
-      ],
-      createdAt: new Date(),
-      experimental_attachments: [],
-    };
-
-    setMessages((prev) => [...prev, sectionMessage]);
-    toast.info(`Cambiado a Sección ${section}`);
+    toast.info(`Changed to Section ${section}`);
   };
 
   const handleSubsectionChange = (subsectionId: string) => {
     if (isTimerRunning) {
-      toast.warning('Pause el timer antes de cambiar de subsección');
+      toast.warning('Pause the timer before changing subsections');
       return;
     }
 
     setCurrentSubsection(subsectionId);
 
-    // Send subsection change message if available
-    if (examConfig.messagesConfig.subsectionStartMessages?.[subsectionId]) {
-      const subsectionMessage: UIMessage = {
-        id: `exam-subsection-${subsectionId}-change`,
-        role: 'assistant',
-        content: '',
-        parts: [
-          {
-            type: 'text',
-            text: examConfig.messagesConfig.subsectionStartMessages[
-              subsectionId
-            ],
-          },
-        ],
-        createdAt: new Date(),
-        experimental_attachments: [],
-      };
-
-      setMessages((prev) => [...prev, subsectionMessage]);
-    }
-
-    toast.info(`Cambiado a Subsección ${subsectionId}`);
+    toast.info(`Changed to Subsection ${subsectionId}`);
   };
 
   const handleEndExam = () => {
     setIsTimerRunning(false);
     endExam();
 
-    const finalMessage: UIMessage = {
-      id: 'exam-complete',
-      role: 'assistant',
-      content: '',
-      parts: [
-        {
-          type: 'text',
-          text: examConfig.messagesConfig.completionMessage,
-        },
-      ],
-      createdAt: new Date(),
-      experimental_attachments: [],
-    };
-
-    setMessages((prev) => [...prev, finalMessage]);
-    toast.success('¡Examen completado exitosamente!');
+    toast.success('Exam completed successfully!');
   };
 
   const handleSectionComplete = (section: ExamSection) => {
     completeSubsection(section.toString());
-    toast.info(`Sección ${section} completada`);
+    toast.info(`Section ${section} completed`);
   };
 
   const handleTimerWarning = (section: ExamSection, timeLeft: number) => {
     toast.warning(
-      `Sección ${section}: Solo quedan ${Math.floor(timeLeft / 60)} minutos`,
+      `Section ${section}: Only ${Math.floor(timeLeft / 60)} minutes left`,
     );
   };
 
@@ -184,7 +116,7 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
 
   const handleResetTimer = (section: ExamSection) => {
     setIsTimerRunning(false);
-    toast.info(`Timer de sección ${section} reiniciado`);
+    toast.info(`Section ${section} timer reset`);
   };
 
   return (

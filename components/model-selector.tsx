@@ -42,7 +42,6 @@ export function ModelSelector({
     // If examType is provided and is a valid model, only show that model
     if (examType) {
       const modelTypeModel = models.find((model) => model.id === examType);
-      console.log('modelTypeModel', modelTypeModel);
       if (modelTypeModel) {
         return [modelTypeModel];
       }
