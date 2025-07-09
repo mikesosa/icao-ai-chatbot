@@ -26,6 +26,7 @@ import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { ChatSDKError } from '@/lib/errors';
 import { useExamContext } from '@/hooks/use-exam-context';
+import type { UseChatHelpers } from '@ai-sdk/react';
 
 // Componente interno que usa useSearchParams
 function ChatWithSearchParams({
@@ -37,6 +38,7 @@ function ChatWithSearchParams({
   session,
   autoResume,
   hideControls,
+  onAppendRef,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -46,6 +48,7 @@ function ChatWithSearchParams({
   session: Session;
   autoResume: boolean;
   hideControls?: boolean;
+  onAppendRef?: (append: UseChatHelpers['append']) => void;
 }) {
   const { mutate } = useSWRConfig();
   const { examType, examStarted } = useExamContext();
@@ -122,6 +125,13 @@ function ChatWithSearchParams({
       });
     }
   }, [examStarted, hasStartedExam, examType, append]);
+
+  // Notify parent of append function
+  useEffect(() => {
+    if (onAppendRef) {
+      onAppendRef(append);
+    }
+  }, [append, onAppendRef]);
 
   const { data: votes } = useSWR<Array<Vote>>(
     messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
@@ -239,6 +249,7 @@ export function Chat({
   session,
   autoResume,
   hideControls,
+  onAppendRef,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -248,6 +259,7 @@ export function Chat({
   session: Session;
   autoResume: boolean;
   hideControls?: boolean;
+  onAppendRef?: (append: UseChatHelpers['append']) => void;
 }) {
   return (
     <Suspense fallback={<ChatSkeleton />}>
@@ -260,6 +272,7 @@ export function Chat({
         session={session}
         autoResume={autoResume}
         hideControls={hideControls}
+        onAppendRef={onAppendRef}
       />
     </Suspense>
   );

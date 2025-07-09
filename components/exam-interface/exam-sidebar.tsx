@@ -8,13 +8,19 @@ import type { UIMessage } from 'ai';
 import { useExamContext } from '@/hooks/use-exam-context';
 import type { CompleteExamConfig, ExamSection } from './exam';
 import { useSidebar } from '../ui/sidebar';
+import type { UseChatHelpers } from '@ai-sdk/react';
 
 interface ExamSidebarProps {
   initialMessages: UIMessage[];
   examConfig: CompleteExamConfig;
+  appendToChat: UseChatHelpers['append'] | null;
 }
 
-export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
+export function ExamSidebar({
+  initialMessages,
+  examConfig,
+  appendToChat,
+}: ExamSidebarProps) {
   // Use exam context state instead of local state
   const { setOpen } = useSidebar();
 
@@ -78,6 +84,18 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
     setCurrentSection(section.toString());
     setCurrentSubsection(null); // Reset subsection when changing sections
 
+    // Send section start message to chat if appendToChat is available
+    if (appendToChat && examConfig.messagesConfig.sectionStartMessages) {
+      const sectionMessage =
+        examConfig.messagesConfig.sectionStartMessages[section];
+      if (sectionMessage) {
+        appendToChat({
+          role: 'user',
+          content: sectionMessage,
+        });
+      }
+    }
+
     toast.info(`Changed to Section ${section}`);
   };
 
@@ -88,6 +106,15 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
     }
 
     setCurrentSubsection(subsectionId);
+
+    const subsectionMessage =
+      examConfig.messagesConfig.subsectionStartMessages?.[subsectionId];
+    if (appendToChat && subsectionMessage) {
+      appendToChat({
+        role: 'user',
+        content: subsectionMessage,
+      });
+    }
 
     toast.info(`Changed to Subsection ${subsectionId}`);
   };

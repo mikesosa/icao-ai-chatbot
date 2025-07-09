@@ -9,6 +9,8 @@ import { useExamContext } from '@/hooks/use-exam-context';
 import { Session } from 'next-auth';
 import type { UIMessage } from 'ai';
 import useSWR from 'swr';
+import { useRef } from 'react';
+import type { UseChatHelpers } from '@ai-sdk/react';
 
 interface ChatPageLayoutProps {
   session: Session;
@@ -34,6 +36,9 @@ export function ChatPageLayout({
     examType ? `/api/exam-configs?id=${examType}` : null,
     fetcher,
   );
+
+  // Create a ref to store the chat's append function
+  const appendRef = useRef<UseChatHelpers['append'] | null>(null);
 
   return (
     <div className="flex">
@@ -65,6 +70,9 @@ export function ChatPageLayout({
           isReadonly={isReadonly}
           session={session}
           autoResume={autoResume}
+          onAppendRef={(append) => {
+            appendRef.current = append;
+          }}
         />
         <DataStreamHandler id={id} />
       </div>
@@ -73,6 +81,7 @@ export function ChatPageLayout({
           <ExamSidebar
             initialMessages={initialMessages}
             examConfig={examConfig}
+            appendToChat={appendRef.current}
           />
         </div>
       )}
