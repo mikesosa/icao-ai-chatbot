@@ -3,7 +3,7 @@ import { tool } from 'ai';
 import type { DataStreamWriter } from 'ai';
 
 interface ExamSectionControlParams {
-  action: 'complete_and_advance' | 'complete_current' | 'advance_to_section';
+  action: 'advance_to_next' | 'complete_and_advance' | 'complete_current' | 'advance_to_section' | 'complete_exam';
   targetSection?: string;
   reason?: string;
 }
@@ -14,16 +14,24 @@ interface ExamSectionControlProps {
 
 export const examSectionControl = ({ dataStream }: ExamSectionControlProps) =>
   tool({
-    description: `Control exam section progression during any type of evaluation or assessment. Use this tool when:
-- User indicates readiness to move to next section (e.g., "let's go to the next section")
-- Current section objectives have been met
+    description: `Control exam section progression and completion during any type of evaluation or assessment. Use this tool when:
+- User indicates readiness to move to next part (e.g., "let's go to the next section", "skip this part")
+- Current section/subsection objectives have been met
 - Time to advance naturally in the exam flow
 - Need to mark current section as completed
+- User requests to finish the exam or all sections are complete
+
+IMPORTANT: This tool handles section, subsection progression AND exam completion:
+- If user says "next section" while in a subsection, advance to the next subsection FIRST
+- Only advance to next section when all subsections are complete
+- Use "advance_to_next" for natural progression (subsection → subsection → section)
+- Use "advance_to_section" only for specific section jumps
+- Use "complete_exam" when all sections are done or user requests to finish exam
 
 This tool helps maintain proper exam flow and section tracking for any exam type with multiple sections.`,
     parameters: z.object({
-      action: z.enum(['complete_and_advance', 'complete_current', 'advance_to_section']).describe(
-        'Action to take: complete_and_advance (complete current and move to next), complete_current (just mark as complete), advance_to_section (move to specific section)'
+      action: z.enum(['advance_to_next', 'complete_current', 'advance_to_section', 'complete_exam']).describe(
+        'Action to take: advance_to_next (advance to next subsection or section naturally), complete_current (just mark as complete), advance_to_section (move to specific section), complete_exam (finish entire exam and provide final evaluation)'
       ),
       targetSection: z.string().optional().describe(
         'Target section number (e.g., "1", "2", "3", etc.) when using advance_to_section action'

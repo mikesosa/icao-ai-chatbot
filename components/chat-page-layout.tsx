@@ -9,7 +9,7 @@ import { useExamContext } from '@/hooks/use-exam-context';
 import { Session } from 'next-auth';
 import type { UIMessage } from 'ai';
 import useSWR from 'swr';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import type { UseChatHelpers } from '@ai-sdk/react';
 
 interface ChatPageLayoutProps {
@@ -31,11 +31,18 @@ export function ChatPageLayout({
   isReadonly,
   autoResume,
 }: ChatPageLayoutProps) {
-  const { examType } = useExamContext();
+  const { examType, setExamConfig } = useExamContext();
   const { data: examConfig } = useSWR(
     examType ? `/api/exam-configs?id=${examType}` : null,
     fetcher,
   );
+
+  // Set exam configuration in context when it's loaded
+  useEffect(() => {
+    if (examConfig) {
+      setExamConfig(examConfig);
+    }
+  }, [examConfig, setExamConfig]);
 
   // Create refs to store the chat's append function and data stream
   const appendRef = useRef<UseChatHelpers['append'] | null>(null);

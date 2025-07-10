@@ -2,7 +2,8 @@
 
 import { useSidebar } from '@/components/ui/sidebar';
 import { MODEL_IDS, MODEL_TYPES } from '@/lib/types';
-import { createContext, useState, ReactNode } from 'react';
+import { createContext, useState, useRef, ReactNode } from 'react';
+import type { CompleteExamConfig } from '@/components/exam-interface/exam';
 
 // Define the exam context interface
 interface ExamContextType {
@@ -16,6 +17,7 @@ interface ExamContextType {
   currentQuestionIndex: number;
   totalQuestions: number;
   totalSections: number; // Dynamic total sections from exam config
+  examConfig: CompleteExamConfig | null; // Add exam configuration
 
   // Exam progress
   completedSections: string[];
@@ -35,13 +37,19 @@ interface ExamContextType {
   setCurrentQuestion: (index: number) => void;
   setTotalQuestions: (total: number) => void;
   setTotalSections: (total: number) => void;
+  setExamConfig: (config: CompleteExamConfig | null) => void; // Add setter for exam config
   completeSection: (section: string) => void;
   completeSubsection: (subsection: string) => void;
   updateProgress: (progress: number) => void;
 
   // AI-driven exam control
   handleAIExamControl: (
-    action: 'complete_and_advance' | 'complete_current' | 'advance_to_section',
+    action:
+      | 'advance_to_next'
+      | 'complete_and_advance'
+      | 'complete_current'
+      | 'advance_to_section'
+      | 'complete_exam',
     targetSection?: string,
   ) => void;
 
@@ -68,12 +76,19 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [totalSections, setTotalSections] = useState(0);
+  const [examConfig, setExamConfig] = useState<CompleteExamConfig | null>(null); // Add exam config state
   const [completedSections, setCompletedSections] = useState<string[]>([]);
   const [completedSubsections, setCompletedSubsections] = useState<string[]>(
     [],
   );
   const [examProgress, setExamProgress] = useState(0);
   const { setOpen } = useSidebar();
+
+  // Add debouncing for exam control to prevent rapid duplicate calls
+  const lastExamControlCall = useRef<{ action: string; timestamp: number }>({
+    action: '',
+    timestamp: 0,
+  });
 
   const readyToStartExam = (modelId: string) => {
     if (isExamModel(modelId)) {
@@ -110,6 +125,13 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   };
 
   const endExam = () => {
+    console.log('🔚 [EXAM CONTEXT] endExam() called - terminating exam');
+    console.log('🔚 [EXAM CONTEXT] Current state before termination:', {
+      examStarted,
+      examType,
+      currentSection,
+      currentSubsection,
+    });
     setExamStarted(false);
     setExamType(null);
     setExamStartTime(null);
@@ -122,6 +144,7 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     setCompletedSections([]);
     setCompletedSubsections([]);
     setExamProgress(0);
+    setExamConfig(null); // Reset exam config
   };
 
   const completeSection = (section: string) => {
@@ -176,16 +199,150 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     return `${formattedName} Assessment`;
   };
 
+  // Helper function to get the next subsection in sequence using exam configuration
+  const getNextSubsection = (
+    currentSubsection: string,
+    sectionKey: string | null | undefined,
+  ): string | null => {
+    if (!sectionKey || !examConfig) return null;
+
+    // Get section configuration safely using Object.hasOwn for type safety
+    const sections = examConfig.examConfig.sections;
+    if (!sections || !Object.hasOwn(sections, sectionKey)) return null;
+
+    const sectionConfig = (sections as Record<string, any>)[sectionKey];
+    if (!sectionConfig || !sectionConfig.subsections) return null;
+
+    // Get all subsection keys for this section and sort them
+    const subsectionKeys = Object.keys(sectionConfig.subsections).sort();
+
+    // Find the current subsection index
+    const currentIndex = subsectionKeys.indexOf(currentSubsection);
+
+    // If current subsection not found or is the last one, return null
+    if (currentIndex === -1 || currentIndex === subsectionKeys.length - 1) {
+      return null;
+    }
+
+    // Return the next subsection
+    return subsectionKeys[currentIndex + 1];
+  };
+
   const handleAIExamControl = (
-    action: 'complete_and_advance' | 'complete_current' | 'advance_to_section',
+    action:
+      | 'advance_to_next'
+      | 'complete_and_advance'
+      | 'complete_current'
+      | 'advance_to_section'
+      | 'complete_exam',
     targetSection?: string,
   ) => {
+    // Ignore all exam control actions if exam is not started (except complete_exam which can be called anytime)
+    if (!examStarted && action !== 'complete_exam') {
+      console.log(
+        '🚫 [EXAM CONTEXT] Ignoring action - exam not started:',
+        action,
+      );
+      return;
+    }
+
+    // Debounce rapid duplicate calls (within 5 seconds)
+    const now = Date.now();
+    const timeSinceLastCall = now - lastExamControlCall.current.timestamp;
+    const isSameAction = lastExamControlCall.current.action === action;
+
+    // Log only when we will ignore (to reduce noise)
+    if (isSameAction && timeSinceLastCall < 5000) {
+      console.log('🔍 [EXAM CONTEXT] Debounce check:', {
+        action,
+        timeSinceLastCall,
+        willIgnore: true,
+      });
+    }
+
+    if (isSameAction && timeSinceLastCall < 5000) {
+      console.log(
+        '🚫 [EXAM CONTEXT] Ignoring duplicate call:',
+        action,
+        `(${timeSinceLastCall}ms ago)`,
+      );
+      return;
+    }
+
+    // Prevent any other actions once complete_exam has been called
+    if (
+      lastExamControlCall.current.action === 'complete_exam' &&
+      action !== 'complete_exam'
+    ) {
+      console.log(
+        '🚫 [EXAM CONTEXT] Ignoring action - exam already completed:',
+        action,
+      );
+      return;
+    }
+
+    // Update last call tracking
+    lastExamControlCall.current = { action, timestamp: now };
+
     const currentSectionNum = parseInt(currentSection || '1');
 
     switch (action) {
       case 'complete_current':
         if (currentSection) {
           completeSection(currentSection);
+        }
+        break;
+
+      case 'advance_to_next':
+        // Smart progression: advance to next subsection first, then to next section
+        if (currentSubsection) {
+          // Currently in a subsection, try to advance to next subsection
+          const nextSubsection = getNextSubsection(
+            currentSubsection,
+            currentSection,
+          );
+
+          if (nextSubsection) {
+            console.log(
+              '✅ [EXAM CONTEXT] Advancing to next subsection:',
+              nextSubsection,
+            );
+            setCurrentSubsection(nextSubsection);
+          } else {
+            // No more subsections in current section, advance to next section
+            const nextSection = currentSectionNum + 1;
+            if (nextSection <= totalSections) {
+              console.log(
+                '✅ [EXAM CONTEXT] Advancing from section',
+                currentSection,
+                'to section',
+                nextSection,
+              );
+              setCurrentSection(nextSection.toString());
+              setCurrentSubsection(null); // Will be auto-selected by useEffect
+            } else {
+              console.warn(
+                '⚠️ [EXAM CONTEXT] Cannot advance: reached final section',
+              );
+            }
+          }
+        } else if (currentSection) {
+          // Currently in a section without subsections, advance to next section
+          const nextSection = currentSectionNum + 1;
+          if (nextSection <= totalSections) {
+            console.log(
+              '✅ [EXAM CONTEXT] Advancing from section',
+              currentSection,
+              'to section',
+              nextSection,
+            );
+            setCurrentSection(nextSection.toString());
+            setCurrentSubsection(null); // Will be auto-selected by useEffect
+          } else {
+            console.warn(
+              '⚠️ [EXAM CONTEXT] Cannot advance: reached final section',
+            );
+          }
         }
         break;
 
@@ -197,6 +354,12 @@ export function ExamProvider({ children }: { children: ReactNode }) {
           const nextSection = currentSectionNum + 1;
 
           if (nextSection <= totalSections) {
+            console.log(
+              '✅ [EXAM CONTEXT] Advancing from section',
+              currentSection,
+              'to section',
+              nextSection,
+            );
             setCurrentSection(nextSection.toString());
             setCurrentSubsection(null); // Reset subsection when changing sections
           } else {
@@ -223,6 +386,15 @@ export function ExamProvider({ children }: { children: ReactNode }) {
           }
         }
         break;
+
+      case 'complete_exam':
+        // Mark current section as complete
+        if (currentSection) {
+          completeSection(currentSection);
+        }
+        // End the exam
+        endExam();
+        break;
     }
   };
 
@@ -236,6 +408,7 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     currentQuestionIndex,
     totalQuestions,
     totalSections,
+    examConfig, // Add exam config to context value
     completedSections,
     completedSubsections,
     examProgress,
@@ -247,6 +420,7 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     setCurrentQuestion: setCurrentQuestionIndex,
     setTotalQuestions,
     setTotalSections,
+    setExamConfig, // Add exam config setter to context value
     completeSection,
     completeSubsection,
     updateProgress,

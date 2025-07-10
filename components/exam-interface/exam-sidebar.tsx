@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { ExamSectionControls } from './exam-section-controls';
 import { ExamTimer } from './exam-timer';
@@ -35,7 +35,15 @@ export function ExamSidebar({
     completeSubsection,
     startExam,
     endExam,
+    setExamConfig,
   } = useExamContext();
+
+  // Set exam configuration in context when it's available
+  useEffect(() => {
+    if (examConfig) {
+      setExamConfig(examConfig);
+    }
+  }, [examConfig, setExamConfig]);
 
   // Local state for UI
   const [showInstructions, setShowInstructions] = useState(true);

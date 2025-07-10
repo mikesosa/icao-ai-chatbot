@@ -25,7 +25,12 @@ export type DataStreamDelta = {
 
 type ExamSectionControlResult = {
   type: 'exam-section-control';
-  action: 'complete_and_advance' | 'complete_current' | 'advance_to_section';
+  action:
+    | 'advance_to_next'
+    | 'complete_and_advance'
+    | 'complete_current'
+    | 'advance_to_section'
+    | 'complete_exam';
   targetSection: string | null;
   reason: string;
   timestamp: string;
