@@ -1,0 +1,8 @@
+# Run lint-staged to check and fix files before commit
+npx lint-staged
+
+# Run type checking
+npx tsc --noEmit
+
+# Run tests (comment out if you want to skip tests on pre-commit)
+# npm run test
