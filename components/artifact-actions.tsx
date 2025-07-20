@@ -1,10 +1,13 @@
+import { type Dispatch, type SetStateAction, memo, useState } from 'react';
+
+import { toast } from 'sonner';
+
+import { cn } from '@/lib/utils';
+
+import { type UIArtifact, artifactDefinitions } from './artifact';
+import type { ArtifactActionContext } from './create-artifact';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { artifactDefinitions, UIArtifact } from './artifact';
-import { Dispatch, memo, SetStateAction, useState } from 'react';
-import { ArtifactActionContext } from './create-artifact';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 
 interface ArtifactActionsProps {
   artifact: UIArtifact;
@@ -61,7 +64,7 @@ function PureArtifactActions({
 
                 try {
                   await Promise.resolve(action.onClick(actionContext));
-                } catch (error) {
+                } catch (_error) {
                   toast.error('Failed to execute action');
                 } finally {
                   setIsLoading(false);

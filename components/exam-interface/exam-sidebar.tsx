@@ -1,14 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+import type { UseChatHelpers } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
 import { toast } from 'sonner';
+
+import { useExamContext } from '@/hooks/use-exam-context';
+
+import { useSidebar } from '../ui/sidebar';
+
+import type { CompleteExamConfig, ExamSection } from './exam';
 import { ExamSectionControls } from './exam-section-controls';
 import { ExamTimer } from './exam-timer';
-import type { UIMessage } from 'ai';
-import { useExamContext } from '@/hooks/use-exam-context';
-import type { CompleteExamConfig, ExamSection } from './exam';
-import { useSidebar } from '../ui/sidebar';
-import type { UseChatHelpers } from '@ai-sdk/react';
 
 interface ExamSidebarProps {
   initialMessages: UIMessage[];
@@ -35,14 +39,21 @@ export function ExamSidebar({
     completeSubsection,
     startExam,
     endExam,
+    setExamConfig,
   } = useExamContext();
 
+  // Set exam configuration in context when it's available
+  useEffect(() => {
+    if (examConfig) {
+      setExamConfig(examConfig);
+    }
+  }, [examConfig, setExamConfig]);
+
   // Local state for UI
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(true);
+  const [_showInstructions, _setShowInstructions] = useState(true);
 
   // Chat messages with initial instructions
-  const [messages, setMessages] = useState<UIMessage[]>(() => {
+  const [_messages, _setMessages] = useState<UIMessage[]>(() => {
     if (initialMessages.length === 0) {
       return [
         {
@@ -65,9 +76,12 @@ export function ExamSidebar({
 
   // Exam handlers
   const handleStartExam = () => {
-    startExam(examConfig.id);
-    setShowInstructions(false);
-    setIsTimerRunning(true);
+    startExam(
+      examConfig.id,
+      undefined,
+      examConfig.controlsConfig.totalSections,
+    );
+    _setShowInstructions(false);
     setCurrentSection('1');
     setCurrentSubsection(null);
     setOpen(false);
@@ -76,9 +90,38 @@ export function ExamSidebar({
   };
 
   const handleSectionChange = (section: ExamSection) => {
-    if (isTimerRunning) {
-      toast.warning('Pause the timer before changing sections');
+    const currentSectionNum = Number.parseInt(currentSection || '1');
+    const completedSectionNums = completedSections.map((s) =>
+      Number.parseInt(s),
+    );
+
+    // Progressive lock: Only allow going to completed sections or current section
+    if (
+      section > currentSectionNum &&
+      !completedSectionNums.includes(section)
+    ) {
+      toast.warning(
+        'Complete current section before advancing to future sections',
+      );
       return;
+    }
+
+    // Real exam behavior: No navigation during active timing
+    // Only allow reviewing completed sections
+    if (
+      section !== currentSectionNum &&
+      !completedSectionNums.includes(section)
+    ) {
+      toast.warning('Section navigation is restricted during the exam');
+      return;
+    }
+
+    // If navigating to a different completed section, show confirmation
+    if (
+      section !== currentSectionNum &&
+      completedSectionNums.includes(section)
+    ) {
+      toast.info(`Reviewing completed Section ${section}`);
     }
 
     setCurrentSection(section.toString());
@@ -100,9 +143,37 @@ export function ExamSidebar({
   };
 
   const handleSubsectionChange = (subsectionId: string) => {
-    if (isTimerRunning) {
-      toast.warning('Pause the timer before changing subsections');
+    const currentSectionNum = Number.parseInt(currentSection || '1');
+    const completedSectionNums = completedSections.map((s) =>
+      Number.parseInt(s),
+    );
+
+    // Get the section number from subsection ID (e.g., "2A" -> section 2)
+    const subsectionSection = Number.parseInt(subsectionId.charAt(0));
+
+    // Progressive lock: Only allow subsections of completed sections or current section
+    if (
+      subsectionSection > currentSectionNum &&
+      !completedSectionNums.includes(subsectionSection)
+    ) {
+      toast.warning(
+        'Complete current section before accessing future subsections',
+      );
       return;
+    }
+
+    // Real exam behavior: Only allow subsections within current or completed sections
+    if (
+      subsectionSection !== currentSectionNum &&
+      !completedSectionNums.includes(subsectionSection)
+    ) {
+      toast.warning('Subsection navigation is restricted during the exam');
+      return;
+    }
+
+    // If navigating to a subsection of a different section, switch sections first
+    if (subsectionSection !== currentSectionNum) {
+      setCurrentSection(subsectionSection.toString());
     }
 
     setCurrentSubsection(subsectionId);
@@ -120,9 +191,7 @@ export function ExamSidebar({
   };
 
   const handleEndExam = () => {
-    setIsTimerRunning(false);
     endExam();
-
     toast.success('Exam completed successfully!');
   };
 
@@ -137,34 +206,22 @@ export function ExamSidebar({
     );
   };
 
-  const handleToggleTimer = () => {
-    setIsTimerRunning((prev) => !prev);
-  };
-
-  const handleResetTimer = (section: ExamSection) => {
-    setIsTimerRunning(false);
-    toast.info(`Section ${section} timer reset`);
-  };
-
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {examStarted && (
         <ExamTimer
-          currentSection={parseInt(currentSection || '1') as ExamSection}
+          currentSection={Number.parseInt(currentSection || '1') as ExamSection}
           examConfig={examConfig.examConfig}
           onSectionComplete={handleSectionComplete}
           onTimerWarning={handleTimerWarning}
-          isRunning={isTimerRunning}
-          onToggleTimer={handleToggleTimer}
-          onResetTimer={handleResetTimer}
         />
       )}
 
       <ExamSectionControls
-        currentSection={parseInt(currentSection || '1') as ExamSection}
+        currentSection={Number.parseInt(currentSection || '1') as ExamSection}
         currentSubsection={currentSubsection}
         completedSections={
-          completedSections.map((s) => parseInt(s)) as ExamSection[]
+          completedSections.map((s) => Number.parseInt(s)) as ExamSection[]
         }
         completedSubsections={completedSubsections}
         onSectionChange={handleSectionChange}
@@ -172,7 +229,6 @@ export function ExamSidebar({
         onStartExam={handleStartExam}
         onEndExam={handleEndExam}
         examStarted={examStarted}
-        isTimerRunning={isTimerRunning}
         controlsConfig={examConfig.controlsConfig}
         examConfig={examConfig}
       />

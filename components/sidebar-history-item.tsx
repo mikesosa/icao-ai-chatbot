@@ -1,10 +1,18 @@
-import type { Chat } from '@/lib/db/schema';
-import {
-  SidebarMenuAction,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from './ui/sidebar';
+import { memo } from 'react';
+
 import Link from 'next/link';
+
+import { useChatVisibility } from '@/hooks/use-chat-visibility';
+import type { Chat } from '@/lib/db/schema';
+
+import {
+  CheckCircleFillIcon,
+  GlobeIcon,
+  LockIcon,
+  MoreHorizontalIcon,
+  ShareIcon,
+  TrashIcon,
+} from './icons';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,15 +24,10 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import {
-  CheckCircleFillIcon,
-  GlobeIcon,
-  LockIcon,
-  MoreHorizontalIcon,
-  ShareIcon,
-  TrashIcon,
-} from './icons';
-import { memo } from 'react';
-import { useChatVisibility } from '@/hooks/use-chat-visibility';
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from './ui/sidebar';
 
 const PureChatItem = ({
   chat,

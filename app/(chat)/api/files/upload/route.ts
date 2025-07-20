@@ -1,5 +1,6 @@
-import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
+
+import { put } from '@vercel/blob';
 import { z } from 'zod';
 
 import { auth } from '@/app/(auth)/auth';
@@ -56,10 +57,10 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json(data);
-    } catch (error) {
+    } catch (_error) {
       return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
     }
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Failed to process request' },
       { status: 500 },

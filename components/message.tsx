@@ -1,25 +1,28 @@
 'use client';
 
+import { memo, useState } from 'react';
+
+import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import cx from 'classnames';
+import equal from 'fast-deep-equal';
 import { AnimatePresence, motion } from 'framer-motion';
-import { memo, useState } from 'react';
+
 import type { Vote } from '@/lib/db/schema';
+import { cn, sanitizeText } from '@/lib/utils';
+
+import { AudioPlayer } from './audio-player';
 import { DocumentToolCall, DocumentToolResult } from './document';
+import { DocumentPreview } from './document-preview';
 import { PencilEditIcon, SparklesIcon } from './icons';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
+import { MessageEditor } from './message-editor';
+import { MessageReasoning } from './message-reasoning';
 import { PreviewAttachment } from './preview-attachment';
-import { Weather } from './weather';
-import equal from 'fast-deep-equal';
-import { cn, sanitizeText } from '@/lib/utils';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { MessageEditor } from './message-editor';
-import { DocumentPreview } from './document-preview';
-import { MessageReasoning } from './message-reasoning';
-import { AudioPlayer } from './audio-player';
-import type { UseChatHelpers } from '@ai-sdk/react';
+import { Weather } from './weather';
 
 const PurePreviewMessage = ({
   chatId,
@@ -78,7 +81,7 @@ const PurePreviewMessage = ({
             {message.experimental_attachments &&
               message.experimental_attachments.length > 0 && (
                 <div
-                  data-testid={`message-attachments`}
+                  data-testid={'message-attachments'}
                   className="flex flex-row justify-end gap-2"
                 >
                   {message.experimental_attachments.map((attachment) => (

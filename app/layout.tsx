@@ -1,10 +1,12 @@
-import { Toaster } from 'sonner';
-import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+
+import type { Metadata } from 'next';
+import { SessionProvider } from 'next-auth/react';
+import { Toaster } from 'sonner';
+
 import { ThemeProvider } from '@/components/theme-provider';
 
 import './globals.css';
-import { SessionProvider } from 'next-auth/react';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://aerochat.ai'),

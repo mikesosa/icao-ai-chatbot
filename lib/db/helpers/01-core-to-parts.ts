@@ -1,16 +1,17 @@
+import { type UIMessage, appendResponseMessages } from 'ai';
 import { config } from 'dotenv';
+import { inArray } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+
 import {
+  type MessageDeprecated,
   chat,
   message,
-  type MessageDeprecated,
   messageDeprecated,
   vote,
   voteDeprecated,
 } from '../schema';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { inArray } from 'drizzle-orm';
-import { appendResponseMessages, type UIMessage } from 'ai';
 
 config({
   path: '.env.local',

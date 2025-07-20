@@ -1,5 +1,7 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
+
 import { getToken } from 'next-auth/jwt';
+
 import { guestRegex, isDevelopmentEnvironment } from './lib/constants';
 
 export async function middleware(request: NextRequest) {
@@ -35,7 +37,9 @@ export async function middleware(request: NextRequest) {
   // For all other routes, require authentication
   if (!token) {
     // Store the attempted URL to redirect back after login
-    const redirectUrl = encodeURIComponent(request.nextUrl.pathname + request.nextUrl.search);
+    const redirectUrl = encodeURIComponent(
+      request.nextUrl.pathname + request.nextUrl.search,
+    );
     return NextResponse.redirect(
       new URL(`/login?callbackUrl=${redirectUrl}`, request.url),
     );
@@ -44,7 +48,9 @@ export async function middleware(request: NextRequest) {
   // If user is a guest, redirect to login (guests are no longer allowed to access the app)
   const isGuest = guestRegex.test(token?.email ?? '');
   if (isGuest) {
-    const redirectUrl = encodeURIComponent(request.nextUrl.pathname + request.nextUrl.search);
+    const redirectUrl = encodeURIComponent(
+      request.nextUrl.pathname + request.nextUrl.search,
+    );
     return NextResponse.redirect(
       new URL(`/login?callbackUrl=${redirectUrl}`, request.url),
     );

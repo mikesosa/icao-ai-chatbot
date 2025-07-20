@@ -1,4 +1,8 @@
+import { memo } from 'react';
+
 import type { Message } from 'ai';
+import equal from 'fast-deep-equal';
+import { toast } from 'sonner';
 import { useSWRConfig } from 'swr';
 import { useCopyToClipboard } from 'usehooks-ts';
 
@@ -12,9 +16,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
-import { memo } from 'react';
-import equal from 'fast-deep-equal';
-import { toast } from 'sonner';
 
 export function PureMessageActions({
   chatId,

@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
+
+import type { SerializedCompleteExamConfig } from '@/components/exam-interface/exam';
+
 import examConfigsData from './exam-configs.json';
-import { SerializedCompleteExamConfig } from '@/components/exam-interface/exam';
 
 // Load exam configurations from JSON file
-const examConfigs: Record<string, SerializedCompleteExamConfig> = examConfigsData;
+const examConfigs: Record<string, SerializedCompleteExamConfig> =
+  examConfigsData;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -16,7 +19,7 @@ export async function GET(request: Request) {
       if (!config) {
         return NextResponse.json(
           { error: 'Exam configuration not found' },
-          { status: 404 }
+          { status: 404 },
         );
       }
       return NextResponse.json(config);
@@ -31,7 +34,7 @@ export async function GET(request: Request) {
     console.error('Error fetching exam config:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

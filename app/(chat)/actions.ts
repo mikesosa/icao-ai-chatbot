@@ -1,16 +1,18 @@
 'use server';
 
-import { generateText, type UIMessage } from 'ai';
 import { cookies } from 'next/headers';
+
+import { type UIMessage, generateText } from 'ai';
+
 import { auth } from '@/app/(auth)/auth';
+import type { VisibilityType } from '@/components/visibility-selector';
+import { myProvider } from '@/lib/ai/providers';
 import {
+  deleteAllChatsByUserId,
   deleteMessagesByChatIdAfterTimestamp,
   getMessageById,
   updateChatVisiblityById,
-  deleteAllChatsByUserId,
 } from '@/lib/db/queries';
-import type { VisibilityType } from '@/components/visibility-selector';
-import { myProvider } from '@/lib/ai/providers';
 import { MODEL_IDS } from '@/lib/types';
 
 export async function saveChatModelAsCookie(model: string) {
@@ -37,14 +39,14 @@ export async function generateTitleFromUserMessage({
 
   // Get current date and time
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric' 
+  const dateStr = now.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
   });
-  const timeStr = now.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
+  const timeStr = now.toLocaleTimeString('en-US', {
+    hour: 'numeric',
     minute: '2-digit',
-    hour12: true 
+    hour12: true,
   });
 
   // Create a title with date and AI-generated description

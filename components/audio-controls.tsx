@@ -1,12 +1,15 @@
 'use client';
-import { Button } from './ui/button';
-import { Mic, MicOff, RotateCcw, Square } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+
 import { AnimatePresence, motion } from 'framer-motion';
-import { Toggle } from '@/components/ui/toggle';
-import MicFFT from '@/components/mic-fft';
-import { cn } from '@/lib/utils';
-import { useState, useEffect, useRef } from 'react';
+import { Mic, MicOff, RotateCcw, Square } from 'lucide-react';
 import { toast } from 'sonner';
+
+import MicFFT from '@/components/mic-fft';
+import { Toggle } from '@/components/ui/toggle';
+import { cn } from '@/lib/utils';
+
+import { Button } from './ui/button';
 
 // Extend the Window interface to include webkitSpeechRecognition
 declare global {

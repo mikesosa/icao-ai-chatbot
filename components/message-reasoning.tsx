@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+
+import { AnimatePresence, motion } from 'framer-motion';
+
 import { ChevronDownIcon, LoaderIcon } from './icons';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Markdown } from './markdown';
 
 interface MessageReasoningProps {

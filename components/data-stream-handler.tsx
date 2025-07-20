@@ -1,10 +1,12 @@
 'use client';
 
-import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef } from 'react';
-import { artifactDefinitions, ArtifactKind } from './artifact';
-import { Suggestion } from '@/lib/db/schema';
+
 import { initialArtifactData, useArtifact } from '@/hooks/use-artifact';
+import { useExamContext } from '@/hooks/use-exam-context';
+import type { Suggestion } from '@/lib/db/schema';
+
+import { type ArtifactKind, artifactDefinitions } from './artifact';
 
 export type DataStreamDelta = {
   type:
@@ -17,13 +19,33 @@ export type DataStreamDelta = {
     | 'suggestion'
     | 'clear'
     | 'finish'
-    | 'kind';
-  content: string | Suggestion;
+    | 'kind'
+    | 'exam-section-control';
+  content: string | Suggestion | ExamSectionControlResult;
 };
 
-export function DataStreamHandler({ id }: { id: string }) {
-  const { data: dataStream } = useChat({ id });
+type ExamSectionControlResult = {
+  type: 'exam-section-control';
+  action:
+    | 'advance_to_next'
+    | 'complete_and_advance'
+    | 'complete_current'
+    | 'advance_to_section'
+    | 'complete_exam';
+  targetSection: string | null;
+  reason: string;
+  timestamp: string;
+};
+
+export function DataStreamHandler({
+  id: _id,
+  dataStream,
+}: {
+  id: string;
+  dataStream?: any[];
+}) {
   const { artifact, setArtifact, setMetadata } = useArtifact();
+  const { handleAIExamControl } = useExamContext();
   const lastProcessedIndex = useRef(-1);
 
   useEffect(() => {
@@ -33,6 +55,17 @@ export function DataStreamHandler({ id }: { id: string }) {
     lastProcessedIndex.current = dataStream.length - 1;
 
     (newDeltas as DataStreamDelta[]).forEach((delta: DataStreamDelta) => {
+      // Handle exam section control events
+      if (delta.type === 'exam-section-control') {
+        const examControl = delta.content as ExamSectionControlResult;
+
+        handleAIExamControl(
+          examControl.action,
+          examControl.targetSection || undefined,
+        );
+        return; // Early return for exam control events
+      }
+
       const artifactDefinition = artifactDefinitions.find(
         (artifactDefinition) => artifactDefinition.kind === artifact.kind,
       );
@@ -90,7 +123,7 @@ export function DataStreamHandler({ id }: { id: string }) {
         }
       });
     });
-  }, [dataStream, setArtifact, setMetadata, artifact]);
+  }, [dataStream, setArtifact, setMetadata, artifact, handleAIExamControl]);
 
   return null;
 }

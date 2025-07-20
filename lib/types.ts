@@ -17,9 +17,12 @@ export const MODEL_TYPES = {
   ELPAC_EVALUATOR: 'elpac-evaluator',
 } as const;
 
-export type ModelType = typeof MODEL_TYPES[keyof typeof MODEL_TYPES];
+export type ModelType = (typeof MODEL_TYPES)[keyof typeof MODEL_TYPES];
 
-export const MODEL_TYPE_VALUES = Object.values(MODEL_TYPES) as [ModelType, ...ModelType[]];
+export const MODEL_TYPE_VALUES = Object.values(MODEL_TYPES) as [
+  ModelType,
+  ...ModelType[],
+];
 
 // Model ID to Type mapping
 export const MODEL_ID_TO_TYPE_MAP = {

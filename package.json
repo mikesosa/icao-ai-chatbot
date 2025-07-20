@@ -6,9 +6,12 @@
     "dev": "next dev --turbo",
     "build": "tsx lib/db/migrate && next build",
     "start": "next start",
-    "lint": "next lint && biome lint --write --unsafe",
-    "lint:fix": "next lint --fix && biome lint --write --unsafe",
+    "lint": "next lint && biome lint",
+    "lint:fix": "next lint --fix && biome lint --write --unsafe && biome format --write",
+    "lint:check": "next lint && biome check",
     "format": "biome format --write",
+    "format:check": "biome format --check",
+    "prepare": "husky",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "npx tsx lib/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
@@ -102,16 +105,26 @@
     "@types/pdf-parse": "^1.1.4",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@typescript-eslint/eslint-plugin": "^8.36.0",
+    "@typescript-eslint/parser": "^8.36.0",
     "drizzle-kit": "^0.25.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",
     "eslint-config-prettier": "^9.1.0",
     "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-tailwindcss": "^3.17.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3"
   },
-  "packageManager": "pnpm@9.12.3"
+  "packageManager": "pnpm@9.12.3",
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": ["biome check --apply --unsafe", "eslint --fix"],
+    "*.{json,md,yml,yaml}": ["biome format --write"]
+  }
 }

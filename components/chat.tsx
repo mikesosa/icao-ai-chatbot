@@ -1,32 +1,35 @@
 'use client';
 
+import { Suspense, useEffect, useState } from 'react';
+
+import { useSearchParams } from 'next/navigation';
+
+import { type UseChatHelpers, useChat } from '@ai-sdk/react';
 import type { Attachment, UIMessage } from 'ai';
-import { useChat } from '@ai-sdk/react';
-import { useEffect, useState, Suspense } from 'react';
+import type { Session } from 'next-auth';
 import useSWR, { useSWRConfig } from 'swr';
+import { unstable_serialize } from 'swr/infinite';
+
 import { ChatHeader } from '@/components/chat-header';
+import { useArtifactSelector } from '@/hooks/use-artifact';
+import { useAutoResume } from '@/hooks/use-auto-resume';
+import { useChatVisibility } from '@/hooks/use-chat-visibility';
+import { useExamContext } from '@/hooks/use-exam-context';
 import type { Vote } from '@/lib/db/schema';
+import { ChatSDKError } from '@/lib/errors';
 import {
-  fetcher,
   fetchWithErrorHandlers,
+  fetcher,
   generateUUID,
   getModelType,
 } from '@/lib/utils';
+
 import { Artifact } from './artifact';
-import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
-import type { VisibilityType } from './visibility-selector';
-import { useArtifactSelector } from '@/hooks/use-artifact';
-import { unstable_serialize } from 'swr/infinite';
+import { MultimodalInput } from './multimodal-input';
 import { getChatHistoryPaginationKey } from './sidebar-history';
 import { toast } from './toast';
-import type { Session } from 'next-auth';
-import { useSearchParams } from 'next/navigation';
-import { useChatVisibility } from '@/hooks/use-chat-visibility';
-import { useAutoResume } from '@/hooks/use-auto-resume';
-import { ChatSDKError } from '@/lib/errors';
-import { useExamContext } from '@/hooks/use-exam-context';
-import type { UseChatHelpers } from '@ai-sdk/react';
+import type { VisibilityType } from './visibility-selector';
 
 // Componente interno que usa useSearchParams
 function ChatWithSearchParams({
@@ -39,6 +42,7 @@ function ChatWithSearchParams({
   autoResume,
   hideControls,
   onAppendRef,
+  onDataStreamUpdate,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -49,6 +53,7 @@ function ChatWithSearchParams({
   autoResume: boolean;
   hideControls?: boolean;
   onAppendRef?: (append: UseChatHelpers['append']) => void;
+  onDataStreamUpdate?: (data: any[]) => void;
 }) {
   const { mutate } = useSWRConfig();
   const { examType, examStarted } = useExamContext();
@@ -82,7 +87,7 @@ function ChatWithSearchParams({
     experimental_prepareRequestBody: (body) => ({
       id,
       message: body.messages.at(-1),
-      selectedChatModel: selectedChatModel,
+      selectedChatModel,
       selectedVisibilityType: visibilityType,
       modelType: getModelType(selectedChatModel),
     }),
@@ -98,6 +103,13 @@ function ChatWithSearchParams({
       }
     },
   });
+
+  useEffect(() => {
+    // Notify parent component of data stream updates
+    if (onDataStreamUpdate && data) {
+      onDataStreamUpdate(data);
+    }
+  }, [data, onDataStreamUpdate]);
 
   const searchParams = useSearchParams();
   const query = searchParams.get('query');
@@ -222,18 +234,18 @@ function ChatSkeleton() {
   return (
     <div className="flex flex-col min-w-0 h-dvh bg-background">
       <div className="flex items-center justify-between w-full px-4 py-3 border-b">
-        <div className="h-6 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-        <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        <div className="h-6 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
       </div>
       <div className="flex-1 overflow-hidden">
         <div className="space-y-4 p-4">
-          <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-          <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
         </div>
       </div>
       <div className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
-        <div className="flex-1 h-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        <div className="flex-1 h-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
       </div>
     </div>
   );
@@ -250,6 +262,7 @@ export function Chat({
   autoResume,
   hideControls,
   onAppendRef,
+  onDataStreamUpdate,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -260,6 +273,7 @@ export function Chat({
   autoResume: boolean;
   hideControls?: boolean;
   onAppendRef?: (append: UseChatHelpers['append']) => void;
+  onDataStreamUpdate?: (data: any[]) => void;
 }) {
   return (
     <Suspense fallback={<ChatSkeleton />}>
@@ -273,6 +287,7 @@ export function Chat({
         autoResume={autoResume}
         hideControls={hideControls}
         onAppendRef={onAppendRef}
+        onDataStreamUpdate={onDataStreamUpdate}
       />
     </Suspense>
   );

@@ -1,12 +1,14 @@
+import type { DataStreamWriter } from 'ai';
+import type { Session } from 'next-auth';
+
 import { codeDocumentHandler } from '@/artifacts/code/server';
 import { imageDocumentHandler } from '@/artifacts/image/server';
 import { sheetDocumentHandler } from '@/artifacts/sheet/server';
 import { textDocumentHandler } from '@/artifacts/text/server';
-import { ArtifactKind } from '@/components/artifact';
-import { DataStreamWriter } from 'ai';
-import { Document } from '../db/schema';
+import type { ArtifactKind } from '@/components/artifact';
+
 import { saveDocument } from '../db/queries';
-import { Session } from 'next-auth';
+import type { Document } from '../db/schema';
 
 export interface SaveDocumentProps {
   id: string;
@@ -60,8 +62,6 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
           userId: args.session.user.id,
         });
       }
-
-      return;
     },
     onUpdateDocument: async (args: UpdateDocumentCallbackProps) => {
       const draftContent = await config.onUpdateDocument({
@@ -80,8 +80,6 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
           userId: args.session.user.id,
         });
       }
-
-      return;
     },
   };
 }

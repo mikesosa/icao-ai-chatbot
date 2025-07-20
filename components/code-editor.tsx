@@ -1,12 +1,14 @@
 'use client';
 
-import { EditorView } from '@codemirror/view';
-import { EditorState, Transaction } from '@codemirror/state';
-import { python } from '@codemirror/lang-python';
-import { oneDark } from '@codemirror/theme-one-dark';
-import { basicSetup } from 'codemirror';
 import React, { memo, useEffect, useRef } from 'react';
-import { Suggestion } from '@/lib/db/schema';
+
+import { python } from '@codemirror/lang-python';
+import { EditorState, Transaction } from '@codemirror/state';
+import { oneDark } from '@codemirror/theme-one-dark';
+import { EditorView } from '@codemirror/view';
+import { basicSetup } from 'codemirror';
+
+import type { Suggestion } from '@/lib/db/schema';
 
 type EditorProps = {
   content: string;

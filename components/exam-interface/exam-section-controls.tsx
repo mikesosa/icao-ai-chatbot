@@ -1,24 +1,25 @@
 'use client';
 
+import { useEffect, useMemo } from 'react';
+
 import {
   CheckCircle,
-  Circle,
-  ArrowRight,
-  ArrowLeft,
+  ChevronLeft,
   ChevronRight,
+  Circle,
   Play,
   Square,
-  ChevronLeft,
 } from 'lucide-react';
+
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+
 import type {
-  ExamSection,
-  ExamSectionInfo,
-  ExamControlsConfig,
   CompleteExamConfig,
+  ExamControlsConfig,
+  ExamSection,
 } from './exam';
 
 interface ExamSectionControlsProps {
@@ -31,7 +32,6 @@ interface ExamSectionControlsProps {
   onStartExam?: () => void;
   onEndExam?: () => void;
   examStarted: boolean;
-  isTimerRunning: boolean;
   controlsConfig: ExamControlsConfig;
   examConfig: CompleteExamConfig;
 }
@@ -46,54 +46,35 @@ export function ExamSectionControls({
   onStartExam,
   onEndExam,
   examStarted,
-  isTimerRunning,
   controlsConfig,
   examConfig,
 }: ExamSectionControlsProps) {
   const canGoToPrevious = currentSection > 1;
   const canGoToNext = currentSection < controlsConfig.totalSections;
-  const allSectionsCompleted =
-    completedSections.length === controlsConfig.totalSections;
 
-  const getSectionStatus = (
-    sectionNumber: ExamSection,
-  ): 'completed' | 'current' | 'pending' => {
-    if (completedSections.includes(sectionNumber)) return 'completed';
-    if (sectionNumber === currentSection) return 'current';
-    return 'pending';
-  };
+  // Get current section's subsections
+  const currentSectionSubsections = useMemo(
+    () => examConfig.examConfig.sections[currentSection]?.subsections || {},
+    [examConfig, currentSection],
+  );
+  const hasSubsections = Object.keys(currentSectionSubsections).length > 0;
 
-  const getSubsectionStatus = (
-    subsectionId: string,
-  ): 'completed' | 'current' | 'pending' => {
-    if (completedSubsections.includes(subsectionId)) return 'completed';
-    if (subsectionId === currentSubsection) return 'current';
-    return 'pending';
-  };
-
-  const getSectionSubsections = (sectionNumber: ExamSection) => {
-    return examConfig.examConfig.sections[sectionNumber]?.subsections || {};
-  };
-
-  const getSectionBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'default';
-      case 'current':
-        return 'secondary';
-      case 'pending':
-        return 'outline';
-      default:
-        return 'outline';
+  // Auto-select first subsection when entering a section with subsections but no current subsection
+  useEffect(() => {
+    if (examStarted && hasSubsections && !currentSubsection) {
+      const firstSubsectionId = Object.keys(currentSectionSubsections)[0];
+      if (firstSubsectionId) {
+        onSubsectionChange(firstSubsectionId);
+      }
     }
-  };
-
-  const getSectionIcon = (section: ExamSectionInfo, status: string) => {
-    if (status === 'completed') {
-      return <CheckCircle className="size-5 text-green-600" />;
-    }
-    return section.icon;
-  };
+  }, [
+    currentSection,
+    hasSubsections,
+    currentSubsection,
+    examStarted,
+    onSubsectionChange,
+    currentSectionSubsections,
+  ]);
 
   const handleSectionChange = (direction: 1 | -1) => {
     if (direction === 1 && canGoToNext) {
@@ -156,7 +137,7 @@ export function ExamSectionControls({
                   variant="outline"
                   size="sm"
                   onClick={() => handleSectionChange(-1)}
-                  disabled={!canGoToPrevious || isTimerRunning}
+                  disabled={!canGoToPrevious}
                 >
                   <ChevronLeft className="size-4" />
                   Previous
@@ -165,7 +146,7 @@ export function ExamSectionControls({
                   variant="outline"
                   size="sm"
                   onClick={() => handleSectionChange(1)}
-                  disabled={!canGoToNext || isTimerRunning}
+                  disabled={!canGoToNext}
                 >
                   Next
                   <ChevronRight className="size-4" />
@@ -183,6 +164,7 @@ export function ExamSectionControls({
                       const isCompleted =
                         completedSections.includes(sectionNum);
                       const isCurrent = currentSection === sectionNum;
+                      const sectionInfo = controlsConfig.sections[i];
 
                       return (
                         <Button
@@ -190,14 +172,19 @@ export function ExamSectionControls({
                           variant={isCurrent ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => onSectionChange(sectionNum)}
-                          disabled={isTimerRunning}
-                          className="justify-start"
+                          disabled={false}
+                          className="justify-start h-auto py-3"
                         >
-                          <div className="flex items-center gap-2">
-                            {isCompleted && (
-                              <CheckCircle className="size-4 text-green-500" />
-                            )}
-                            Section {sectionNum}
+                          <div className="flex flex-col items-start gap-1 text-left">
+                            <div className="flex items-center gap-2">
+                              {isCompleted && (
+                                <CheckCircle className="size-4 text-green-500" />
+                              )}
+                              <span className="font-medium">
+                                Section {sectionNum}:{' '}
+                                {sectionInfo?.title || `Section ${sectionNum}`}
+                              </span>
+                            </div>
                           </div>
                         </Button>
                       );
@@ -207,53 +194,47 @@ export function ExamSectionControls({
               </div>
 
               {/* Subsection Controls */}
-              {examConfig.examConfig.sections[currentSection]?.subsections && (
+              {hasSubsections && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">Subsections</h4>
                   <div className="grid grid-cols-1 gap-2">
-                    {Object.entries(
-                      examConfig.examConfig.sections[currentSection]
-                        .subsections || {},
-                    ).map(([subsectionId, subsection]) => {
-                      const isCompleted =
-                        completedSubsections.includes(subsectionId);
-                      const isCurrent = currentSubsection === subsectionId;
+                    {Object.entries(currentSectionSubsections).map(
+                      ([subsectionId, subsection]) => {
+                        const isCompleted =
+                          completedSubsections.includes(subsectionId);
+                        const isCurrent = currentSubsection === subsectionId;
 
-                      return (
-                        <Button
-                          key={subsectionId}
-                          variant={isCurrent ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => onSubsectionChange(subsectionId)}
-                          disabled={isTimerRunning}
-                          className="justify-start"
-                        >
-                          <div className="flex items-center gap-2">
-                            {isCompleted && (
-                              <CheckCircle className="size-4 text-green-500" />
-                            )}
-                            {subsection.name}
-                          </div>
-                        </Button>
-                      );
-                    })}
+                        return (
+                          <Button
+                            key={subsectionId}
+                            variant={isCurrent ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => onSubsectionChange(subsectionId)}
+                            disabled={false}
+                            className={`justify-start ${
+                              isCurrent
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'hover:bg-muted'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isCurrent && !isCompleted && (
+                                <Circle className="size-4 fill-current" />
+                              )}
+                              {isCompleted && (
+                                <CheckCircle className="size-4 text-green-500" />
+                              )}
+                              <span className={isCurrent ? 'font-medium' : ''}>
+                                {subsection.name}
+                              </span>
+                            </div>
+                          </Button>
+                        );
+                      },
+                    )}
                   </div>
                 </div>
               )}
-
-              {/* Completion Actions */}
-              <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSectionChange(currentSection)}
-                  className="w-full"
-                >
-                  {completedSections.includes(currentSection)
-                    ? 'Mark as Incomplete'
-                    : 'Complete All'}
-                </Button>
-              </div>
             </div>
           </>
         )}
@@ -262,8 +243,8 @@ export function ExamSectionControls({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">Exam status:</span>
-            <Badge variant={isTimerRunning ? 'default' : 'outline'}>
-              {isTimerRunning ? 'In progress' : 'Paused'}
+            <Badge variant="outline">
+              {examStarted ? 'In progress' : 'Not started'}
             </Badge>
           </div>
           {completedSections.length === controlsConfig.totalSections && (
