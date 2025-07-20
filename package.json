@@ -125,6 +125,6 @@
   "packageManager": "pnpm@9.12.3",
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": ["biome check --apply --unsafe", "eslint --fix"],
-    "*.{json,md,yml,yaml}": ["biome format --write"]
+    "*.{json,yml,yaml}": ["biome format --write"]
   }
 }
