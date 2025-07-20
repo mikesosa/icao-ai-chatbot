@@ -2,7 +2,10 @@
 
 import { type ReactNode, createContext, useRef, useState } from 'react';
 
-import type { CompleteExamConfig } from '@/components/exam-interface/exam';
+import type {
+  AudioFile,
+  CompleteExamConfig,
+} from '@/components/exam-interface/exam';
 import { useSidebar } from '@/components/ui/sidebar';
 
 // Define the exam context interface
@@ -18,6 +21,12 @@ interface ExamContextType {
   totalQuestions: number;
   totalSections: number; // Dynamic total sections from exam config
   examConfig: CompleteExamConfig | null; // Add exam configuration
+
+  // Audio state
+  currentAudioIndex: number;
+  audioFiles: AudioFile[];
+  isAudioPlaying: boolean;
+  audioProgress: number; // 0-100
 
   // Exam progress
   completedSections: string[];
@@ -41,6 +50,16 @@ interface ExamContextType {
   completeSection: (section: string) => void;
   completeSubsection: (subsection: string) => void;
   updateProgress: (progress: number) => void;
+
+  // Audio actions
+  setAudioFiles: (files: AudioFile[]) => void;
+  setCurrentAudioIndex: (index: number) => void;
+  setIsAudioPlaying: (playing: boolean) => void;
+  setAudioProgress: (progress: number) => void;
+  playNextAudio: () => void;
+  playPreviousAudio: () => void;
+  getCurrentAudioFile: () => AudioFile | null;
+  getAudioUrl: (recording: number) => string;
 
   // AI-driven exam control
   handleAIExamControl: (
@@ -77,6 +96,13 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [totalSections, setTotalSections] = useState(0);
   const [examConfig, setExamConfig] = useState<CompleteExamConfig | null>(null); // Add exam config state
+
+  // Audio state
+  const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
+  const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+
   const [completedSections, setCompletedSections] = useState<string[]>([]);
   const [completedSubsections, setCompletedSubsections] = useState<string[]>(
     [],
@@ -197,6 +223,37 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       .join(' ');
 
     return `${formattedName} Assessment`;
+  };
+
+  // Audio functions
+  const playNextAudio = () => {
+    if (currentAudioIndex < audioFiles.length - 1) {
+      setCurrentAudioIndex(currentAudioIndex + 1);
+    }
+  };
+
+  const playPreviousAudio = () => {
+    if (currentAudioIndex > 0) {
+      setCurrentAudioIndex(currentAudioIndex - 1);
+    }
+  };
+
+  const getCurrentAudioFile = (): AudioFile | null => {
+    return audioFiles[currentAudioIndex] || null;
+  };
+
+  const getAudioUrl = (recording: number): string => {
+    if (!examType || !currentSection || !currentSubsection) {
+      return '';
+    }
+
+    const exam = examType.replace('-evaluator', '');
+    const section = currentSection;
+    const subsection = currentSubsection;
+
+    return `/api/audio?exam=${exam}&section=${section}${
+      subsection ? subsection.toLowerCase() : ''
+    }&recording=${recording}`;
   };
 
   // Helper function to get the next subsection in sequence using exam configuration
@@ -409,6 +466,10 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     totalQuestions,
     totalSections,
     examConfig, // Add exam config to context value
+    currentAudioIndex,
+    audioFiles,
+    isAudioPlaying,
+    audioProgress,
     completedSections,
     completedSubsections,
     examProgress,
@@ -424,6 +485,14 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     completeSection,
     completeSubsection,
     updateProgress,
+    setAudioFiles,
+    setCurrentAudioIndex,
+    setIsAudioPlaying,
+    setAudioProgress,
+    playNextAudio,
+    playPreviousAudio,
+    getCurrentAudioFile,
+    getAudioUrl,
     handleAIExamControl,
     isExamModel,
     getExamDuration,

@@ -3,7 +3,8 @@ import { join } from 'node:path';
 
 import { type NextRequest, NextResponse } from 'next/server';
 
-import { auth } from '@/app/(auth)/auth';
+// Authentication is now handled by middleware
+// import { auth } from '@/app/(auth)/auth';
 
 // Supported exam types and their sections
 const SUPPORTED_EXAMS = {
@@ -27,11 +28,11 @@ const SUPPORTED_EXAMS = {
 type ExamType = keyof typeof SUPPORTED_EXAMS;
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Authentication is handled by middleware
+  // const session = await auth();
+  // if (!session) {
+  //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // }
 
   const { searchParams } = new URL(request.url);
 

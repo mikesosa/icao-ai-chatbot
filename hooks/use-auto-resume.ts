@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
-import type { UIMessage } from 'ai';
+
 import type { UseChatHelpers } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
+
 import type { DataPart } from '@/lib/types';
 
 export interface UseAutoResumeParams {

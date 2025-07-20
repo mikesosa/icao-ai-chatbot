@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+import { Pause, Play, RotateCcw, Volume2 } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCcw, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AudioPlayerProps {
@@ -74,7 +76,7 @@ export function AudioPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
-    const seekTime = parseFloat(e.target.value);
+    const seekTime = Number.parseFloat(e.target.value);
     audio.currentTime = seekTime;
     setCurrentTime(seekTime);
   };
@@ -91,7 +93,7 @@ export function AudioPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
-    const newVolume = parseFloat(e.target.value);
+    const newVolume = Number.parseFloat(e.target.value);
     audio.volume = newVolume;
     setVolume(newVolume);
   };
@@ -164,9 +166,9 @@ export function AudioPlayer({
             onChange={handleSeek}
             disabled={isLoading || !!error}
             className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer
-                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-3 
+                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-3
                      [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
-                     [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:bg-primary 
+                     [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:bg-primary
                      [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
@@ -187,9 +189,9 @@ export function AudioPlayer({
             onChange={handleVolumeChange}
             disabled={isLoading || !!error}
             className="w-16 h-1 bg-muted rounded-lg appearance-none cursor-pointer
-                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-2 
+                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-2
                      [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
-                     [&::-moz-range-thumb]:size-2 [&::-moz-range-thumb]:bg-primary 
+                     [&::-moz-range-thumb]:size-2 [&::-moz-range-thumb]:bg-primary
                      [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none"
           />
         </div>

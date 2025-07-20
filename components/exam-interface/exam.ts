@@ -1,9 +1,16 @@
 // Types that match the API response (serialized data)
+export interface SerializedAudioFile {
+  recording: number;
+  title: string;
+  description: string;
+}
+
 export interface SerializedExamSubsectionConfig {
   name: string;
   duration?: number; // in seconds, optional
   description: string;
   instructions?: string[];
+  audioFiles?: SerializedAudioFile[]; // optional audio files for listening sections
 }
 
 // AI-specific configuration types
@@ -68,11 +75,18 @@ export interface SerializedCompleteExamConfig {
 // Frontend types (with React components)
 export type ExamSection = number;
 
+export interface AudioFile {
+  recording: number;
+  title: string;
+  description: string;
+}
+
 export interface ExamSubsectionConfig {
   name: string;
   duration?: number; // in seconds, optional
   description: string;
   instructions?: string[];
+  audioFiles?: AudioFile[]; // optional audio files for listening sections
 }
 
 // AI-specific configuration types (frontend)

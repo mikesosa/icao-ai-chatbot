@@ -9,6 +9,7 @@ import { useExamContext } from '@/hooks/use-exam-context';
 import { useMessages } from '@/hooks/use-messages';
 import type { Vote } from '@/lib/db/schema';
 
+import { ExamAudioPlayer } from './exam-interface/exam-audio-player';
 import { Greeting } from './greeting';
 import { PreviewMessage, ThinkingMessage } from './message';
 
@@ -36,7 +37,7 @@ function PureMessages({
   hideControls,
   selectedModel,
 }: MessagesProps) {
-  const { examStarted } = useExamContext();
+  const { examStarted, currentSection, currentSubsection } = useExamContext();
   const {
     containerRef: messagesContainerRef,
     endRef: messagesEndRef,
@@ -48,6 +49,10 @@ function PureMessages({
     status,
   });
 
+  // Check if we're in a section that has audio files (TEA Section 2)
+  const isAudioSection =
+    examStarted && currentSection === '2' && currentSubsection;
+
   return (
     <div
       ref={messagesContainerRef}
@@ -55,6 +60,13 @@ function PureMessages({
     >
       {messages.length === 0 && !examStarted && (
         <Greeting selectedModel={selectedModel} />
+      )}
+
+      {/* Audio Player for TEA Section 2 */}
+      {isAudioSection && (
+        <div className="px-4">
+          <ExamAudioPlayer />
+        </div>
       )}
 
       {messages.map((message, index) => (

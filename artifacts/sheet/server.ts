@@ -1,8 +1,9 @@
-import { myProvider } from '@/lib/ai/providers';
-import { sheetPrompt, updateDocumentPrompt } from '@/lib/ai/prompts';
-import { createDocumentHandler } from '@/lib/artifacts/server';
 import { streamObject } from 'ai';
 import { z } from 'zod';
+
+import { sheetPrompt, updateDocumentPrompt } from '@/lib/ai/prompts';
+import { myProvider } from '@/lib/ai/providers';
+import { createDocumentHandler } from '@/lib/artifacts/server';
 import { MODEL_IDS } from '@/lib/types';
 
 export const sheetDocumentHandler = createDocumentHandler<'sheet'>({

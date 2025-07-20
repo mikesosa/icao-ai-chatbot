@@ -54,6 +54,38 @@
                 "Answer: 'What was the message?' and 'Who was speaking: pilot or controller?'",
                 "Report all information you can",
                 "You may use the words from the recording or your own words"
+              ],
+              "audioFiles": [
+                {
+                  "recording": 1,
+                  "title": "Recording 1 - Non-routine Situation",
+                  "description": "Listen carefully and identify the message and speaker"
+                },
+                {
+                  "recording": 2,
+                  "title": "Recording 2 - Non-routine Situation",
+                  "description": "Listen carefully and identify the message and speaker"
+                },
+                {
+                  "recording": 3,
+                  "title": "Recording 3 - Non-routine Situation",
+                  "description": "Listen carefully and identify the message and speaker"
+                },
+                {
+                  "recording": 4,
+                  "title": "Recording 4 - Non-routine Situation",
+                  "description": "Listen carefully and identify the message and speaker"
+                },
+                {
+                  "recording": 5,
+                  "title": "Recording 5 - Non-routine Situation",
+                  "description": "Listen carefully and identify the message and speaker"
+                },
+                {
+                  "recording": 6,
+                  "title": "Recording 6 - Non-routine Situation",
+                  "description": "Listen carefully and identify the message and speaker"
+                }
               ]
             },
             "2B": {
@@ -65,6 +97,28 @@
                 "Describe the problem completely",
                 "State what the speaker needs",
                 "Provide all additional details possible"
+              ],
+              "audioFiles": [
+                {
+                  "recording": 1,
+                  "title": "Recording 1 - Problem Description",
+                  "description": "Listen to the problem description and take notes"
+                },
+                {
+                  "recording": 2,
+                  "title": "Recording 2 - Problem Description",
+                  "description": "Listen to the problem description and take notes"
+                },
+                {
+                  "recording": 3,
+                  "title": "Recording 3 - Problem Description",
+                  "description": "Listen to the problem description and take notes"
+                },
+                {
+                  "recording": 4,
+                  "title": "Recording 4 - Problem Description",
+                  "description": "Listen to the problem description and take notes"
+                }
               ]
             },
             "2C": {
@@ -75,6 +129,23 @@
                 "You have 20 seconds to ask questions",
                 "Ask as many relevant questions as you can",
                 "Provide appropriate advice for the situation"
+              ],
+              "audioFiles": [
+                {
+                  "recording": 1,
+                  "title": "Recording 1 - General Situation",
+                  "description": "Listen and then ask relevant questions"
+                },
+                {
+                  "recording": 2,
+                  "title": "Recording 2 - General Situation",
+                  "description": "Listen and then ask relevant questions"
+                },
+                {
+                  "recording": 3,
+                  "title": "Recording 3 - General Situation",
+                  "description": "Listen and then ask relevant questions"
+                }
               ]
             }
           }
