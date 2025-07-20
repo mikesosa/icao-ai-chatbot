@@ -86,12 +86,11 @@ This tool helps maintain proper exam flow and section tracking for any exam type
 
       console.log('✅ [EXAM TOOL] Data stream event sent successfully');
 
-      // Return a simple confirmation message
+      // Return success without a message to avoid duplicate responses
       return {
         success: true,
         action,
         targetSection,
-        message: `Exam section control executed: ${action}${targetSection ? ` to section ${targetSection}` : ''}`,
       };
     },
   });

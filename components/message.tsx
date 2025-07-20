@@ -8,12 +8,14 @@ import cx from 'classnames';
 import equal from 'fast-deep-equal';
 import { AnimatePresence, motion } from 'framer-motion';
 
+import { useExamContext } from '@/hooks/use-exam-context';
 import type { Vote } from '@/lib/db/schema';
 import { cn, sanitizeText } from '@/lib/utils';
 
 import { AudioPlayer } from './audio-player';
 import { DocumentToolCall, DocumentToolResult } from './document';
 import { DocumentPreview } from './document-preview';
+import { ExamAudioPlayer } from './exam-interface/exam-audio-player';
 import { PencilEditIcon, SparklesIcon } from './icons';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
@@ -46,6 +48,11 @@ const PurePreviewMessage = ({
   hideControls?: boolean;
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const { examStarted, currentSection, currentSubsection } = useExamContext();
+
+  // Check if we're in a section that has audio files (TEA Section 2)
+  const isAudioSection =
+    examStarted && currentSection === '2' && !!currentSubsection;
 
   return (
     <AnimatePresence>
@@ -137,6 +144,18 @@ const PurePreviewMessage = ({
                         })}
                       >
                         <Markdown>{sanitizeText(part.text)}</Markdown>
+
+                        {/* Audio Player for TEA Section 2 - integrated into AI response */}
+                        {message.role === 'assistant' &&
+                          isAudioSection &&
+                          (part.text.toLowerCase().includes('recording') ||
+                            part.text.toLowerCase().includes('audio') ||
+                            part.text.toLowerCase().includes('listen') ||
+                            part.text.toLowerCase().includes('playback')) && (
+                            <div className="mt-4">
+                              <ExamAudioPlayer />
+                            </div>
+                          )}
                       </div>
                     </div>
                   );

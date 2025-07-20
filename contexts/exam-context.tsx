@@ -1,6 +1,12 @@
 'use client';
 
-import { type ReactNode, createContext, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  createContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import type {
   AudioFile,
@@ -115,6 +121,33 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     action: '',
     timestamp: 0,
   });
+
+  // Add a flag to prevent multiple simultaneous calls
+  const isProcessingExamControl = useRef(false);
+
+  // Auto-select first subsection when section changes
+  useEffect(() => {
+    if (examStarted && currentSection && !currentSubsection && examConfig) {
+      const sectionConfig =
+        examConfig.examConfig.sections[Number(currentSection)];
+      if (sectionConfig?.subsections) {
+        const subsectionKeys = Object.keys(sectionConfig.subsections).sort();
+        if (subsectionKeys.length > 0) {
+          console.log(
+            '🎯 [EXAM CONTEXT] Auto-selecting first subsection:',
+            subsectionKeys[0],
+          );
+          setCurrentSubsection(subsectionKeys[0]);
+        }
+      }
+    }
+  }, [
+    examStarted,
+    currentSection,
+    currentSubsection,
+    examConfig,
+    setCurrentSubsection,
+  ]);
 
   const readyToStartExam = (modelId: string) => {
     if (isExamModel(modelId)) {
@@ -251,9 +284,14 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     const section = currentSection;
     const subsection = currentSubsection;
 
-    return `/api/audio?exam=${exam}&section=${section}${
-      subsection ? subsection.toLowerCase() : ''
-    }&recording=${recording}`;
+    // For TEA exam, combine section and subsection properly
+    // Section 2 with subsection 2A should become "2a"
+    const sectionParam =
+      exam === 'tea' && section === '2'
+        ? `2${subsection.toLowerCase().replace('2', '')}`
+        : section;
+
+    return `/api/audio?exam=${exam}&section=${sectionParam}&recording=${recording}`;
   };
 
   // Helper function to get the next subsection in sequence using exam configuration
@@ -294,6 +332,15 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       | 'complete_exam',
     targetSection?: string,
   ) => {
+    // Prevent multiple simultaneous calls
+    if (isProcessingExamControl.current) {
+      console.log(
+        '🚫 [EXAM CONTEXT] Ignoring action - already processing:',
+        action,
+      );
+      return;
+    }
+
     // Ignore all exam control actions if exam is not started (except complete_exam which can be called anytime)
     if (!examStarted && action !== 'complete_exam') {
       console.log(
@@ -337,6 +384,9 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       );
       return;
     }
+
+    // Set processing flag
+    isProcessingExamControl.current = true;
 
     // Update last call tracking
     lastExamControlCall.current = { action, timestamp: now };
@@ -453,6 +503,9 @@ export function ExamProvider({ children }: { children: ReactNode }) {
         endExam();
         break;
     }
+
+    // Clear processing flag
+    isProcessingExamControl.current = false;
   };
 
   const contextValue: ExamContextType = {
