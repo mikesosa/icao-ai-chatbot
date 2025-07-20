@@ -1,22 +1,25 @@
 'use client';
 
+import { useEffect, useMemo } from 'react';
+
 import {
   CheckCircle,
-  Circle,
+  ChevronLeft,
   ChevronRight,
+  Circle,
   Play,
   Square,
-  ChevronLeft,
 } from 'lucide-react';
-import { useEffect } from 'react';
+
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+
 import type {
-  ExamSection,
-  ExamControlsConfig,
   CompleteExamConfig,
+  ExamControlsConfig,
+  ExamSection,
 } from './exam';
 
 interface ExamSectionControlsProps {
@@ -50,8 +53,10 @@ export function ExamSectionControls({
   const canGoToNext = currentSection < controlsConfig.totalSections;
 
   // Get current section's subsections
-  const currentSectionSubsections =
-    examConfig.examConfig.sections[currentSection]?.subsections || {};
+  const currentSectionSubsections = useMemo(
+    () => examConfig.examConfig.sections[currentSection]?.subsections || {},
+    [examConfig, currentSection],
+  );
   const hasSubsections = Object.keys(currentSectionSubsections).length > 0;
 
   // Auto-select first subsection when entering a section with subsections but no current subsection

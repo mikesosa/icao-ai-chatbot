@@ -1,8 +1,9 @@
-import { expect, test } from '../fixtures';
-import { AuthPage } from '../pages/auth';
-import { generateRandomTestUser } from '../helpers';
-import { ChatPage } from '../pages/chat';
 import { getMessageByErrorCode } from '@/lib/errors';
+
+import { expect, test } from '../fixtures';
+import { generateRandomTestUser } from '../helpers';
+import { AuthPage } from '../pages/auth';
+import { ChatPage } from '../pages/chat';
 
 test.describe
   .serial('Guest Session', () => {
@@ -15,11 +16,11 @@ test.describe
         throw new Error('Failed to load page');
       }
 
-      let request = response.request();
+      let request: any = response.request();
 
       const chain = [];
 
-      while (request) {
+      while (request !== null) {
         chain.unshift(request.url());
         request = request.redirectedFrom();
       }
@@ -57,7 +58,7 @@ test.describe
         throw new Error('Failed to load page');
       }
 
-      let request = response.request();
+      let request: any = response.request();
 
       const chain = [];
 

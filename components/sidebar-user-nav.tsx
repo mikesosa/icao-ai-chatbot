@@ -1,12 +1,26 @@
 'use client';
 
-import { ChevronUp } from 'lucide-react';
+import { useState } from 'react';
+
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+
+import { ChevronUp } from 'lucide-react';
 import type { User } from 'next-auth';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
-import { useState } from 'react';
 
+import { clearAllChats } from '@/app/(chat)/actions';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,21 +33,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useRouter } from 'next/navigation';
-import { toast } from './toast';
-import { LoaderIcon } from './icons';
 import { guestRegex } from '@/lib/constants';
-import { clearAllChats } from '@/app/(chat)/actions';
+
+import { LoaderIcon } from './icons';
+import { toast } from './toast';
 
 export function SidebarUserNav({ user }: { user: User }) {
   const router = useRouter();
@@ -53,7 +56,7 @@ export function SidebarUserNav({ user }: { user: User }) {
 
       // Redirect to home page after clearing
       router.push('/');
-    } catch (error) {
+    } catch (_error) {
       toast({
         type: 'error',
         description: 'Failed to clear all chats. Please try again.',

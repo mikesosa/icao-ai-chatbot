@@ -1,3 +1,6 @@
+import { after } from 'next/server';
+
+import { geolocation } from '@vercel/functions';
 import {
   appendClientMessage,
   appendResponseMessages,
@@ -5,9 +8,27 @@ import {
   smoothStream,
   streamText,
 } from 'ai';
-import { auth, type UserType } from '@/app/(auth)/auth';
-import { type RequestHints, systemPrompt, isExamEvaluator } from '@/lib/ai/prompts';
+import { differenceInSeconds } from 'date-fns';
+import {
+  type ResumableStreamContext,
+  createResumableStreamContext,
+} from 'resumable-stream';
+
+import { type UserType, auth } from '@/app/(auth)/auth';
 import type { SerializedCompleteExamConfig } from '@/components/exam-interface/exam';
+import { entitlementsByUserType } from '@/lib/ai/entitlements';
+import {
+  type RequestHints,
+  isExamEvaluator,
+  systemPrompt,
+} from '@/lib/ai/prompts';
+import { myProvider } from '@/lib/ai/providers';
+import { createDocument } from '@/lib/ai/tools/create-document';
+import { examSectionControl } from '@/lib/ai/tools/exam-section-control';
+import { getWeather } from '@/lib/ai/tools/get-weather';
+import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
+import { updateDocument } from '@/lib/ai/tools/update-document';
+import { isProductionEnvironment } from '@/lib/constants';
 import {
   createStreamId,
   deleteChatById,
@@ -18,27 +39,14 @@ import {
   saveChat,
   saveMessages,
 } from '@/lib/db/queries';
-import { generateUUID, getTrailingMessageId } from '@/lib/utils';
-import { generateTitleFromUserMessage } from '../../actions';
-import { createDocument } from '@/lib/ai/tools/create-document';
-import { updateDocument } from '@/lib/ai/tools/update-document';
-import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
-import { getWeather } from '@/lib/ai/tools/get-weather';
-import { examSectionControl } from '@/lib/ai/tools/exam-section-control';
-import { isProductionEnvironment } from '@/lib/constants';
-import { myProvider } from '@/lib/ai/providers';
-import { entitlementsByUserType } from '@/lib/ai/entitlements';
-import { postRequestBodySchema, type PostRequestBody } from './schema';
-import { geolocation } from '@vercel/functions';
-import {
-  createResumableStreamContext,
-  type ResumableStreamContext,
-} from 'resumable-stream';
-import { after } from 'next/server';
 import type { Chat } from '@/lib/db/schema';
-import { differenceInSeconds } from 'date-fns';
 import { ChatSDKError } from '@/lib/errors';
+import { generateUUID, getTrailingMessageId } from '@/lib/utils';
+
+import { generateTitleFromUserMessage } from '../../actions';
 import examConfigsData from '../exam-configs/exam-configs.json';
+
+import { type PostRequestBody, postRequestBodySchema } from './schema';
 
 export const maxDuration = 60;
 
@@ -47,19 +55,23 @@ let globalStreamContext: ResumableStreamContext | null = null;
 function getStreamContext() {
   if (!globalStreamContext) {
     const redisUrl = process.env.REDIS_URL;
-    
+
     if (!redisUrl) {
-      console.log(' > Resumable streams are disabled: REDIS_URL not configured');
+      console.log(
+        ' > Resumable streams are disabled: REDIS_URL not configured',
+      );
       return null;
     }
-    
+
     try {
       new URL(redisUrl);
     } catch {
-      console.log(' > Resumable streams are disabled: REDIS_URL has invalid format');
+      console.log(
+        ' > Resumable streams are disabled: REDIS_URL has invalid format',
+      );
       return null;
     }
-    
+
     try {
       globalStreamContext = createResumableStreamContext({
         waitUntil: after,
@@ -69,14 +81,17 @@ function getStreamContext() {
         console.log(
           ' > Resumable streams are disabled due to missing REDIS_URL',
         );
-      } else if (error.code === 'ERR_INVALID_URL' || error.message.includes('Invalid URL')) {
+      } else if (
+        error.code === 'ERR_INVALID_URL' ||
+        error.message.includes('Invalid URL')
+      ) {
         console.log(
           ' > Resumable streams are disabled due to invalid REDIS_URL configuration',
         );
       } else {
         console.log(
           ' > Resumable streams are disabled due to configuration error:',
-          error.message
+          error.message,
         );
         console.error(error);
       }
@@ -98,8 +113,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { id, message, selectedChatModel, selectedVisibilityType, modelType } =
-      requestBody;
+    const {
+      id,
+      message,
+      selectedChatModel,
+      selectedVisibilityType,
+      modelType,
+    } = requestBody;
 
     const session = await auth();
 
@@ -171,25 +191,36 @@ export async function POST(request: Request) {
     // Load exam configuration if this is an exam evaluator model
     let examConfig: SerializedCompleteExamConfig | undefined;
     let currentSection: string | undefined;
-    
+
     if (isExamEvaluator(selectedChatModel)) {
       try {
         // Load exam config from imported data
-        const examConfigs = examConfigsData as Record<string, SerializedCompleteExamConfig>;
+        const examConfigs = examConfigsData as Record<
+          string,
+          SerializedCompleteExamConfig
+        >;
         examConfig = examConfigs[selectedChatModel];
-        
+
         if (examConfig) {
-          console.log('✅ [PROMPT SYSTEM] Exam config loaded for:', examConfig.name);
+          console.log(
+            '✅ [PROMPT SYSTEM] Exam config loaded for:',
+            examConfig.name,
+          );
         } else {
-          console.warn('⚠️ [PROMPT SYSTEM] No exam config found for model:', selectedChatModel);
+          console.warn(
+            '⚠️ [PROMPT SYSTEM] No exam config found for model:',
+            selectedChatModel,
+          );
         }
-        
+
         // TODO: Extract current section from messages or context if needed
         // For now, we'll let the AI determine the appropriate section
         // currentSection could be extracted from conversation context in the future
-        
       } catch (error) {
-        console.error('❌ [PROMPT SYSTEM] Failed to load exam configuration:', error);
+        console.error(
+          '❌ [PROMPT SYSTEM] Failed to load exam configuration:',
+          error,
+        );
         // Continue without exam config - will use fallback prompt
       }
     }
@@ -199,11 +230,11 @@ export async function POST(request: Request) {
 
     const stream = createDataStream({
       execute: (dataStream) => {
-        const systemPromptContent = systemPrompt({ 
-          selectedChatModel, 
-          requestHints, 
+        const systemPromptContent = systemPrompt({
+          selectedChatModel,
+          requestHints,
           examConfig,
-          currentSection 
+          currentSection,
         });
 
         const result = streamText({
@@ -215,19 +246,19 @@ export async function POST(request: Request) {
             selectedChatModel === 'chat-model-reasoning'
               ? []
               : isExamEvaluator(selectedChatModel)
-              ? [
-                  'getWeather',
-                  'createDocument',
-                  'updateDocument',
-                  'requestSuggestions',
-                  'examSectionControl',
-                ]
-              : [
-                  'getWeather',
-                  'createDocument',
-                  'updateDocument',
-                  'requestSuggestions',
-                ],
+                ? [
+                    'getWeather',
+                    'createDocument',
+                    'updateDocument',
+                    'requestSuggestions',
+                    'examSectionControl',
+                  ]
+                : [
+                    'getWeather',
+                    'createDocument',
+                    'updateDocument',
+                    'requestSuggestions',
+                  ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
           tools: {

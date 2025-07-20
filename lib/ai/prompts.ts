@@ -1,7 +1,8 @@
-import type { ArtifactKind } from '@/components/artifact';
 import type { Geo } from '@vercel/functions';
-import { MODEL_IDS } from '@/lib/types';
+
+import type { ArtifactKind } from '@/components/artifact';
 import type { SerializedCompleteExamConfig } from '@/components/exam-interface/exam';
+import { MODEL_IDS } from '@/lib/types';
 
 // ==========================================
 // CORE PROMPTS
@@ -43,10 +44,14 @@ export const regularPrompt =
 
 // Aviation-specific prompts by model
 export const modelSpecificPrompts = {
-  [MODEL_IDS.CHAT_MODEL]: 'You are a civil aviation expert who helps with general queries about ICAO, aeronautical regulations, flight procedures, and operational safety. Provide clear answers and cite relevant ICAO annexes when applicable.',
-  [MODEL_IDS.CHAT_MODEL_REASONING]: 'You are a technical analyst specialized in ICAO regulations. Use detailed reasoning to explain complex regulations, analyze specific cases, and provide precise technical interpretations with references to official documents.',
-  [MODEL_IDS.TITLE_MODEL]: 'Create concise titles for conversations about civil aviation and ICAO regulations.',
-  [MODEL_IDS.ARTIFACT_MODEL]: 'Generate technical documents, procedures, and aviation-related artifacts following ICAO standards.',
+  [MODEL_IDS.CHAT_MODEL]:
+    'You are a civil aviation expert who helps with general queries about ICAO, aeronautical regulations, flight procedures, and operational safety. Provide clear answers and cite relevant ICAO annexes when applicable.',
+  [MODEL_IDS.CHAT_MODEL_REASONING]:
+    'You are a technical analyst specialized in ICAO regulations. Use detailed reasoning to explain complex regulations, analyze specific cases, and provide precise technical interpretations with references to official documents.',
+  [MODEL_IDS.TITLE_MODEL]:
+    'Create concise titles for conversations about civil aviation and ICAO regulations.',
+  [MODEL_IDS.ARTIFACT_MODEL]:
+    'Generate technical documents, procedures, and aviation-related artifacts following ICAO standards.',
 };
 
 export interface RequestHints {
@@ -73,10 +78,10 @@ About the origin of user's request:
  */
 export const buildExamEvaluatorPrompt = (
   examConfig: SerializedCompleteExamConfig,
-  section?: string
+  section?: string,
 ): string => {
   let prompt = `${examConfig.aiConfig.mainPrompt}\n\n${examConfig.aiConfig.evaluationCriteria}\n\n`;
-  
+
   if (section && examConfig.aiConfig.sections[section]) {
     const sectionPrompt = examConfig.aiConfig.sections[section].prompt;
     prompt += `${sectionPrompt}\n\n`;
@@ -105,12 +110,12 @@ SECTION CONTROL:
 - Respond naturally to the candidate indicating the section change
 
 After completing all sections, provide a complete evaluation.`;
-    
+
     prompt += generalInstructions;
   }
-  
+
   prompt += `\n\n${examConfig.aiConfig.finalEvaluationPrompt}`;
-  
+
   return prompt;
 };
 
@@ -119,7 +124,7 @@ After completing all sections, provide a complete evaluation.`;
  */
 export const getExamSectionPrompt = (
   examConfig: SerializedCompleteExamConfig,
-  section: string
+  section: string,
 ): string => {
   if (examConfig.aiConfig.sections[section]) {
     return examConfig.aiConfig.sections[section].prompt;
@@ -131,7 +136,9 @@ export const getExamSectionPrompt = (
  * Checks if a model ID is an exam evaluator
  */
 export const isExamEvaluator = (modelId: string): boolean => {
-  return modelId === MODEL_IDS.TEA_EVALUATOR || modelId === MODEL_IDS.ELPAC_EVALUATOR;
+  return (
+    modelId === MODEL_IDS.TEA_EVALUATOR || modelId === MODEL_IDS.ELPAC_EVALUATOR
+  );
 };
 
 /**
@@ -149,23 +156,32 @@ export const systemPrompt = ({
   currentSection?: string;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
-  
+
   // Handle exam evaluator models with dynamic configuration
   if (isExamEvaluator(selectedChatModel) && examConfig) {
-    console.log('🎯 [PROMPT SYSTEM] Using dynamic exam configuration for:', examConfig.name);
+    console.log(
+      '🎯 [PROMPT SYSTEM] Using dynamic exam configuration for:',
+      examConfig.name,
+    );
     const builtPrompt = buildExamEvaluatorPrompt(examConfig, currentSection);
     return `${builtPrompt}\n\n${requestPrompt}`;
   }
-  
+
   // Fallback for exam evaluators without config (shouldn't happen in production)
   if (isExamEvaluator(selectedChatModel)) {
-    console.warn('⚠️ [PROMPT SYSTEM] Using fallback prompt for exam evaluator (no config found)');
-    const fallbackPrompt = 'You are an aviation exam evaluator. Please configure the exam properly to proceed.';
+    console.warn(
+      '⚠️ [PROMPT SYSTEM] Using fallback prompt for exam evaluator (no config found)',
+    );
+    const fallbackPrompt =
+      'You are an aviation exam evaluator. Please configure the exam properly to proceed.';
     return `${fallbackPrompt}\n\n${requestPrompt}`;
   }
-  
+
   // Use model-specific prompt if available, otherwise use regular prompt
-  const basePrompt = modelSpecificPrompts[selectedChatModel as keyof typeof modelSpecificPrompts] || regularPrompt;
+  const basePrompt =
+    modelSpecificPrompts[
+      selectedChatModel as keyof typeof modelSpecificPrompts
+    ] || regularPrompt;
 
   if (selectedChatModel === MODEL_IDS.CHAT_MODEL_REASONING) {
     return `${basePrompt}\n\n${requestPrompt}`;
@@ -181,16 +197,20 @@ export const systemPrompt = ({
 /**
  * @deprecated Use buildExamEvaluatorPrompt with exam config instead
  */
-export const createTeaEvaluatorPrompt = (section?: 1 | 2 | 3) => {
-  console.warn('createTeaEvaluatorPrompt is deprecated. Use dynamic exam config instead.');
+export const createTeaEvaluatorPrompt = (_section?: 1 | 2 | 3) => {
+  console.warn(
+    'createTeaEvaluatorPrompt is deprecated. Use dynamic exam config instead.',
+  );
   return 'Please configure the exam properly using dynamic configuration.';
 };
 
 /**
  * @deprecated Use getExamSectionPrompt with exam config instead
  */
-export const getTeaSectionPrompt = (section: 1 | 2 | 3): string => {
-  console.warn('getTeaSectionPrompt is deprecated. Use dynamic exam config instead.');
+export const getTeaSectionPrompt = (_section: 1 | 2 | 3): string => {
+  console.warn(
+    'getTeaSectionPrompt is deprecated. Use dynamic exam config instead.',
+  );
   return '';
 };
 
@@ -256,21 +276,29 @@ export const createDynamicContext = (userInfo?: {
   specialty?: string;
 }) => {
   if (!userInfo) return '';
-  
+
   const roleContext = {
-    pilot: 'Como piloto, enfócate en procedimientos operacionales, limitaciones de aeronave y aspectos prácticos del vuelo.',
-    controller: 'Como controlador de tráfico aéreo, prioriza información sobre separación, procedimientos ATC y coordinación.',
-    technician: 'Como técnico aeronáutico, enfócate en aspectos de mantenimiento, certificación y estándares técnicos.',
-    student: 'Explica conceptos de manera didáctica, usa ejemplos prácticos y proporciona contexto educativo.',
-    inspector: 'Como inspector de aviación civil, enfócate en cumplimiento normativo, auditorías y certificaciones.'
+    pilot:
+      'Como piloto, enfócate en procedimientos operacionales, limitaciones de aeronave y aspectos prácticos del vuelo.',
+    controller:
+      'Como controlador de tráfico aéreo, prioriza información sobre separación, procedimientos ATC y coordinación.',
+    technician:
+      'Como técnico aeronáutico, enfócate en aspectos de mantenimiento, certificación y estándares técnicos.',
+    student:
+      'Explica conceptos de manera didáctica, usa ejemplos prácticos y proporciona contexto educativo.',
+    inspector:
+      'Como inspector de aviación civil, enfócate en cumplimiento normativo, auditorías y certificaciones.',
   };
-  
+
   const experienceContext = {
-    beginner: 'Usa lenguaje accesible y proporciona explicaciones básicas de términos técnicos.',
-    intermediate: 'Asume conocimiento básico pero explica conceptos avanzados cuando sea necesario.',
-    expert: 'Puedes usar terminología técnica avanzada y referencias específicas a normativas.'
+    beginner:
+      'Usa lenguaje accesible y proporciona explicaciones básicas de términos técnicos.',
+    intermediate:
+      'Asume conocimiento básico pero explica conceptos avanzados cuando sea necesario.',
+    expert:
+      'Puedes usar terminología técnica avanzada y referencias específicas a normativas.',
   };
-  
+
   let context = '';
   if (userInfo.role) {
     context += `\n\nContexto del usuario: ${roleContext[userInfo.role]}`;
@@ -281,6 +309,6 @@ export const createDynamicContext = (userInfo?: {
   if (userInfo.specialty) {
     context += `\n\nEspecialidad: Ten en cuenta que el usuario se especializa en ${userInfo.specialty}.`;
   }
-  
+
   return context;
 };

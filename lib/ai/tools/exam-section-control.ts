@@ -1,9 +1,13 @@
+import { type DataStreamWriter, tool } from 'ai';
 import { z } from 'zod';
-import { tool } from 'ai';
-import type { DataStreamWriter } from 'ai';
 
-interface ExamSectionControlParams {
-  action: 'advance_to_next' | 'complete_and_advance' | 'complete_current' | 'advance_to_section' | 'complete_exam';
+interface _ExamSectionControlParams {
+  action:
+    | 'advance_to_next'
+    | 'complete_and_advance'
+    | 'complete_current'
+    | 'advance_to_section'
+    | 'complete_exam';
   targetSection?: string;
   reason?: string;
 }
@@ -30,15 +34,28 @@ IMPORTANT: This tool handles section, subsection progression AND exam completion
 
 This tool helps maintain proper exam flow and section tracking for any exam type with multiple sections.`,
     parameters: z.object({
-      action: z.enum(['advance_to_next', 'complete_current', 'advance_to_section', 'complete_exam']).describe(
-        'Action to take: advance_to_next (advance to next subsection or section naturally), complete_current (just mark as complete), advance_to_section (move to specific section), complete_exam (finish entire exam and provide final evaluation)'
-      ),
-      targetSection: z.string().optional().describe(
-        'Target section number (e.g., "1", "2", "3", etc.) when using advance_to_section action'
-      ),
-      reason: z.string().optional().describe(
-        'Brief reason for the section change (e.g., "section objectives completed", "user requested next section")'
-      ),
+      action: z
+        .enum([
+          'advance_to_next',
+          'complete_current',
+          'advance_to_section',
+          'complete_exam',
+        ])
+        .describe(
+          'Action to take: advance_to_next (advance to next subsection or section naturally), complete_current (just mark as complete), advance_to_section (move to specific section), complete_exam (finish entire exam and provide final evaluation)',
+        ),
+      targetSection: z
+        .string()
+        .optional()
+        .describe(
+          'Target section number (e.g., "1", "2", "3", etc.) when using advance_to_section action',
+        ),
+      reason: z
+        .string()
+        .optional()
+        .describe(
+          'Brief reason for the section change (e.g., "section objectives completed", "user requested next section")',
+        ),
     }),
     execute: async ({ action, targetSection, reason }) => {
       console.log('🎯 [EXAM TOOL] examSectionControl called:', {
@@ -56,7 +73,10 @@ This tool helps maintain proper exam flow and section tracking for any exam type
         timestamp: new Date().toISOString(),
       };
 
-      console.log('📤 [EXAM TOOL] Sending data stream event:', examControlEvent);
+      console.log(
+        '📤 [EXAM TOOL] Sending data stream event:',
+        examControlEvent,
+      );
 
       // Write the event to the data stream so client can process it
       dataStream.writeData({
@@ -74,4 +94,4 @@ This tool helps maintain proper exam flow and section tracking for any exam type
         message: `Exam section control executed: ${action}${targetSection ? ` to section ${targetSection}` : ''}`,
       };
     },
-  }); 
+  });

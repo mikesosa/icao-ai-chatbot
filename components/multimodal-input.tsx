@@ -1,34 +1,35 @@
 'use client';
 
-import type { Attachment, UIMessage } from 'ai';
-import cx from 'classnames';
-import type React from 'react';
 import {
-  useRef,
-  useEffect,
-  useState,
-  useCallback,
+  type ChangeEvent,
   type Dispatch,
   type SetStateAction,
-  type ChangeEvent,
   memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
 } from 'react';
+
+import type { UseChatHelpers } from '@ai-sdk/react';
+import type { Attachment, UIMessage } from 'ai';
+import cx from 'classnames';
+import equal from 'fast-deep-equal';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
-import { ArrowUpIcon, PaperclipIcon, StopIcon, MicrophoneIcon } from './icons';
+import { useExamContext } from '@/hooks/use-exam-context';
+import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
+
+import AudioControls from './audio-controls';
+import { ArrowUpIcon, MicrophoneIcon, PaperclipIcon, StopIcon } from './icons';
 import { PreviewAttachment } from './preview-attachment';
+import { SuggestedActions } from './suggested-actions';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
-import { SuggestedActions } from './suggested-actions';
-import equal from 'fast-deep-equal';
-import type { UseChatHelpers } from '@ai-sdk/react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown } from 'lucide-react';
-import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
-import AudioControls from './audio-controls';
-import { useExamContext } from '@/hooks/use-exam-context';
 
 function PureMultimodalInput({
   chatId,
@@ -158,12 +159,12 @@ function PureMultimodalInput({
         return {
           url,
           name: pathname,
-          contentType: contentType,
+          contentType,
         };
       }
       const { error } = await response.json();
       toast.error(error);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to upload file, please try again!');
     }
   };
@@ -204,7 +205,7 @@ function PureMultimodalInput({
 
   // Handle transcript completion from audio controls
   const handleTranscriptComplete = useCallback(
-    (transcript: string) => {
+    (_transcript: string) => {
       // Since we're streaming the transcript in real-time, just submit the form
       // The transcript is already in the input field
       submitForm();

@@ -1,11 +1,15 @@
 'use client';
 
-import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
-import { useParams, useRouter } from 'next/navigation';
-import type { User } from 'next-auth';
 import { useState } from 'react';
-import { toast } from 'sonner';
+
+import { useParams, useRouter } from 'next/navigation';
+
+import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
 import { motion } from 'framer-motion';
+import type { User } from 'next-auth';
+import { toast } from 'sonner';
+import useSWRInfinite from 'swr/infinite';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,13 +26,13 @@ import {
   SidebarMenu,
   useSidebar,
 } from '@/components/ui/sidebar';
-import type { Chat } from '@/lib/db/schema';
-import { fetcher } from '@/lib/utils';
-import { ChatItem } from './sidebar-history-item';
-import useSWRInfinite from 'swr/infinite';
-import { LoaderIcon } from './icons';
-import { MODEL_TYPES, MODEL_ID_TO_TYPE_MAP } from '@/lib/types';
 import { chatModels } from '@/lib/ai/models';
+import type { Chat } from '@/lib/db/schema';
+import { MODEL_ID_TO_TYPE_MAP, MODEL_TYPES } from '@/lib/types';
+import { fetcher } from '@/lib/utils';
+
+import { LoaderIcon } from './icons';
+import { ChatItem } from './sidebar-history-item';
 
 type DateGroupedChats = {
   today: Chat[];

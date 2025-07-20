@@ -1,6 +1,16 @@
 'use client';
 
-import type { Message } from 'ai';
+import {
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+  memo,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+
+import type { UseChatHelpers } from '@ai-sdk/react';
 import cx from 'classnames';
 import {
   AnimatePresence,
@@ -8,17 +18,9 @@ import {
   useMotionValue,
   useTransform,
 } from 'framer-motion';
-import {
-  type Dispatch,
-  memo,
-  ReactNode,
-  type SetStateAction,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
-import { useOnClickOutside } from 'usehooks-ts';
 import { nanoid } from 'nanoid';
+import { useOnClickOutside } from 'usehooks-ts';
+
 import {
   Tooltip,
   TooltipContent,
@@ -26,10 +28,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+import { type ArtifactKind, artifactDefinitions } from './artifact';
+import type { ArtifactToolbarItem } from './create-artifact';
 import { ArrowUpIcon, StopIcon, SummarizeIcon } from './icons';
-import { artifactDefinitions, ArtifactKind } from './artifact';
-import { ArtifactToolbarItem } from './create-artifact';
-import { UseChatHelpers } from '@ai-sdk/react';
 
 type ToolProps = {
   description: string;
@@ -131,7 +132,7 @@ const Tool = ({
   );
 };
 
-const randomArr = [...Array(6)].map((x) => nanoid(5));
+const randomArr = [...Array(6)].map((_x) => nanoid(5));
 
 const ReadingLevelSelector = ({
   setSelectedTool,

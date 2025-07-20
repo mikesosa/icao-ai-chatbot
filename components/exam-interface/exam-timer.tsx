@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
 import { Clock } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import type { ExamSection, ExamConfig } from './exam';
+
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+
+import type { ExamConfig, ExamSection } from './exam';
 
 interface ExamTimerProps {
   currentSection: ExamSection;
@@ -67,7 +70,7 @@ export function ExamTimer({
   };
 
   // Get time color based on remaining time
-  const getTimeColor = (): string => {
+  const _getTimeColor = (): string => {
     if (timeLeft <= 60) return 'text-red-500'; // Last minute
     if (timeLeft <= 120) return 'text-orange-500'; // Last 2 minutes
     return 'text-gray-800';

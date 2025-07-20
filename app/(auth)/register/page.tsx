@@ -1,15 +1,17 @@
 'use client';
 
+import { useActionState, useEffect, useState } from 'react';
+
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useActionState, useEffect, useState } from 'react';
+
+import { useSession } from 'next-auth/react';
 
 import { AuthForm } from '@/components/auth-form';
 import { SubmitButton } from '@/components/submit-button';
-
-import { register, type RegisterActionState } from '../actions';
 import { toast } from '@/components/toast';
-import { useSession } from 'next-auth/react';
+
+import { type RegisterActionState, register } from '../actions';
 
 export default function Page() {
   const router = useRouter();
@@ -43,7 +45,7 @@ export default function Page() {
       updateSession();
       router.refresh();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
   const handleSubmit = (formData: FormData) => {

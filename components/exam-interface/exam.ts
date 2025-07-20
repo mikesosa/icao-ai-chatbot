@@ -98,7 +98,6 @@ export interface ExamSectionConfig {
 export interface ExamConfig {
   name: string;
   sections: Record<ExamSection, ExamSectionConfig>;
-  
 }
 
 export interface ExamSectionInfo {

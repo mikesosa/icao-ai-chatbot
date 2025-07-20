@@ -1,9 +1,9 @@
 'use client';
 
-import { useSidebar } from '@/components/ui/sidebar';
-import { MODEL_IDS, MODEL_TYPES } from '@/lib/types';
-import { createContext, useState, useRef, ReactNode } from 'react';
+import { type ReactNode, createContext, useRef, useState } from 'react';
+
 import type { CompleteExamConfig } from '@/components/exam-interface/exam';
+import { useSidebar } from '@/components/ui/sidebar';
 
 // Define the exam context interface
 interface ExamContextType {
@@ -284,7 +284,7 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     // Update last call tracking
     lastExamControlCall.current = { action, timestamp: now };
 
-    const currentSectionNum = parseInt(currentSection || '1');
+    const currentSectionNum = Number.parseInt(currentSection || '1');
 
     switch (action) {
       case 'complete_current':
@@ -372,7 +372,7 @@ export function ExamProvider({ children }: { children: ReactNode }) {
 
       case 'advance_to_section':
         if (targetSection) {
-          const targetSectionNum = parseInt(targetSection);
+          const targetSectionNum = Number.parseInt(targetSection);
 
           // Validate target section is within bounds
           if (targetSectionNum >= 1 && targetSectionNum <= totalSections) {

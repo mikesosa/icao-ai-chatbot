@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
+import type { UseChatHelpers } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
 import { toast } from 'sonner';
+
+import { useExamContext } from '@/hooks/use-exam-context';
+
+import { useSidebar } from '../ui/sidebar';
+
+import type { CompleteExamConfig, ExamSection } from './exam';
 import { ExamSectionControls } from './exam-section-controls';
 import { ExamTimer } from './exam-timer';
-import type { UIMessage } from 'ai';
-import { useExamContext } from '@/hooks/use-exam-context';
-import type { CompleteExamConfig, ExamSection } from './exam';
-import { useSidebar } from '../ui/sidebar';
-import type { UseChatHelpers } from '@ai-sdk/react';
 
 interface ExamSidebarProps {
   initialMessages: UIMessage[];
@@ -46,10 +50,10 @@ export function ExamSidebar({
   }, [examConfig, setExamConfig]);
 
   // Local state for UI
-  const [showInstructions, setShowInstructions] = useState(true);
+  const [_showInstructions, _setShowInstructions] = useState(true);
 
   // Chat messages with initial instructions
-  const [messages, setMessages] = useState<UIMessage[]>(() => {
+  const [_messages, _setMessages] = useState<UIMessage[]>(() => {
     if (initialMessages.length === 0) {
       return [
         {
@@ -77,7 +81,7 @@ export function ExamSidebar({
       undefined,
       examConfig.controlsConfig.totalSections,
     );
-    setShowInstructions(false);
+    _setShowInstructions(false);
     setCurrentSection('1');
     setCurrentSubsection(null);
     setOpen(false);
@@ -86,8 +90,10 @@ export function ExamSidebar({
   };
 
   const handleSectionChange = (section: ExamSection) => {
-    const currentSectionNum = parseInt(currentSection || '1');
-    const completedSectionNums = completedSections.map((s) => parseInt(s));
+    const currentSectionNum = Number.parseInt(currentSection || '1');
+    const completedSectionNums = completedSections.map((s) =>
+      Number.parseInt(s),
+    );
 
     // Progressive lock: Only allow going to completed sections or current section
     if (
@@ -137,11 +143,13 @@ export function ExamSidebar({
   };
 
   const handleSubsectionChange = (subsectionId: string) => {
-    const currentSectionNum = parseInt(currentSection || '1');
-    const completedSectionNums = completedSections.map((s) => parseInt(s));
+    const currentSectionNum = Number.parseInt(currentSection || '1');
+    const completedSectionNums = completedSections.map((s) =>
+      Number.parseInt(s),
+    );
 
     // Get the section number from subsection ID (e.g., "2A" -> section 2)
-    const subsectionSection = parseInt(subsectionId.charAt(0));
+    const subsectionSection = Number.parseInt(subsectionId.charAt(0));
 
     // Progressive lock: Only allow subsections of completed sections or current section
     if (
@@ -202,7 +210,7 @@ export function ExamSidebar({
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {examStarted && (
         <ExamTimer
-          currentSection={parseInt(currentSection || '1') as ExamSection}
+          currentSection={Number.parseInt(currentSection || '1') as ExamSection}
           examConfig={examConfig.examConfig}
           onSectionComplete={handleSectionComplete}
           onTimerWarning={handleTimerWarning}
@@ -210,10 +218,10 @@ export function ExamSidebar({
       )}
 
       <ExamSectionControls
-        currentSection={parseInt(currentSection || '1') as ExamSection}
+        currentSection={Number.parseInt(currentSection || '1') as ExamSection}
         currentSubsection={currentSubsection}
         completedSections={
-          completedSections.map((s) => parseInt(s)) as ExamSection[]
+          completedSections.map((s) => Number.parseInt(s)) as ExamSection[]
         }
         completedSubsections={completedSubsections}
         onSectionChange={handleSectionChange}

@@ -1,15 +1,17 @@
 'use client';
 
+import { Suspense, useActionState, useEffect, useState } from 'react';
+
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useActionState, useEffect, useState, Suspense } from 'react';
-import { toast } from '@/components/toast';
+
+import { useSession } from 'next-auth/react';
 
 import { AuthForm } from '@/components/auth-form';
 import { SubmitButton } from '@/components/submit-button';
+import { toast } from '@/components/toast';
 
-import { login, type LoginActionState } from '../actions';
-import { useSession } from 'next-auth/react';
+import { type LoginActionState, login } from '../actions';
 
 // Componente que usa useSearchParams
 function LoginForm() {
@@ -47,7 +49,7 @@ function LoginForm() {
       const redirectTo = callbackUrl ? decodeURIComponent(callbackUrl) : '/';
       router.push(redirectTo);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status, router, callbackUrl]);
 
   const handleSubmit = (formData: FormData) => {
@@ -86,13 +88,13 @@ function LoginForm() {
 function LoginFormSkeleton() {
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-4 text-center sm:px-16">
-      <div className="h-7 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-      <div className="h-4 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+      <div className="h-7 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+      <div className="h-4 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
       <div className="w-full mt-4">
         <div className="space-y-4">
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
         </div>
       </div>
     </div>
@@ -101,8 +103,8 @@ function LoginFormSkeleton() {
 
 export default function Page() {
   return (
-        <Suspense fallback={<LoginFormSkeleton />}>
-          <LoginForm />
-        </Suspense>
+    <Suspense fallback={<LoginFormSkeleton />}>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { Phone } from 'lucide-react';
-import { Button } from './ui/button';
-import { MODEL_IDS } from '@/lib/types';
+
 import { useExamContext } from '@/hooks/use-exam-context';
+import { MODEL_IDS } from '@/lib/types';
+
+import { Button } from './ui/button';
 
 interface GreetingProps {
   selectedModel?: string;

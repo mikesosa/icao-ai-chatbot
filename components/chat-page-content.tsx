@@ -1,8 +1,9 @@
 'use client';
 
-import { ChatPageLayout } from '@/components/chat-page-layout';
-import { Session } from 'next-auth';
 import type { UIMessage } from 'ai';
+import type { Session } from 'next-auth';
+
+import { ChatPageLayout } from '@/components/chat-page-layout';
 
 interface ChatPageContentProps {
   session: Session;

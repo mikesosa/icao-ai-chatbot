@@ -1,11 +1,12 @@
 'use client';
 
-import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef } from 'react';
-import { artifactDefinitions, ArtifactKind } from './artifact';
-import { Suggestion } from '@/lib/db/schema';
+
 import { initialArtifactData, useArtifact } from '@/hooks/use-artifact';
 import { useExamContext } from '@/hooks/use-exam-context';
+import type { Suggestion } from '@/lib/db/schema';
+
+import { type ArtifactKind, artifactDefinitions } from './artifact';
 
 export type DataStreamDelta = {
   type:
@@ -37,7 +38,7 @@ type ExamSectionControlResult = {
 };
 
 export function DataStreamHandler({
-  id,
+  id: _id,
   dataStream,
 }: {
   id: string;

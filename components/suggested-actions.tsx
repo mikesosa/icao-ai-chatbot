@@ -1,9 +1,11 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Button } from './ui/button';
 import { memo } from 'react';
+
 import type { UseChatHelpers } from '@ai-sdk/react';
+import { motion } from 'framer-motion';
+
+import { Button } from './ui/button';
 import type { VisibilityType } from './visibility-selector';
 
 interface SuggestedActionsProps {
@@ -15,7 +17,7 @@ interface SuggestedActionsProps {
 function PureSuggestedActions({
   chatId,
   append,
-  selectedVisibilityType,
+  selectedVisibilityType: _selectedVisibilityType,
 }: SuggestedActionsProps) {
   const suggestedActions: any[] = [
     // {

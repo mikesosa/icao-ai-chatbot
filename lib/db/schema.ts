@@ -1,15 +1,16 @@
 import type { InferSelectModel } from 'drizzle-orm';
 import {
-  pgTable,
-  varchar,
-  timestamp,
-  json,
-  uuid,
-  text,
-  primaryKey,
-  foreignKey,
   boolean,
+  foreignKey,
+  json,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+  varchar,
 } from 'drizzle-orm/pg-core';
+
 import { MODEL_TYPE_VALUES } from '@/lib/types';
 
 export const user = pgTable('User', {
@@ -30,8 +31,9 @@ export const chat = pgTable('Chat', {
   visibility: varchar('visibility', { enum: ['public', 'private'] })
     .notNull()
     .default('private'),
-  modelType: varchar('modelType', { enum: MODEL_TYPE_VALUES })
-    .default('general'),
+  modelType: varchar('modelType', { enum: MODEL_TYPE_VALUES }).default(
+    'general',
+  ),
 });
 
 export type Chat = InferSelectModel<typeof chat>;

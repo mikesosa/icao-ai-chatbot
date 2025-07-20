@@ -57,6 +57,7 @@ export class ChatSDKError extends Error {
     const { message, cause, statusCode } = this;
 
     if (visibility === 'log') {
+      // eslint-disable-next-line no-console
       console.error({
         code,
         message,
