@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Mic, MicOff, RotateCcw, Square } from 'lucide-react';
+import { ArrowBigUp, Mic, MicOff, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import MicFFT from '@/components/mic-fft';
@@ -413,27 +413,21 @@ export default function AudioControls({
     }
   };
 
-  const discardRecording = () => {
+  const cancelRecording = () => {
+    // Stop recording completely
+    stopRecording();
+
     // Clear all transcript states
     setTranscript('');
     setInterimTranscript('');
     transcriptRef.current = '';
-
-    // Restart speech recognition to ensure fresh session
-    stopSpeechRecognition();
-    if (!isMutedRef.current) {
-      // Small delay to ensure clean restart
-      setTimeout(() => {
-        startSpeechRecognition();
-      }, 100);
-    }
 
     // Clear the parent's transcript update
     setTimeout(() => {
       onTranscriptUpdate?.('');
     }, 0);
 
-    toast.success('Recording cleared - speak again');
+    toast.info('Recording cancelled');
   };
 
   const disconnect = () => {
@@ -562,23 +556,24 @@ export default function AudioControls({
 
               <Button
                 className="flex items-center gap-1 rounded-full"
-                onClick={discardRecording}
+                onClick={cancelRecording}
                 type="button"
                 variant={'outline'}
-                title="Discard recording and start fresh"
+                title="Cancel recording"
               >
-                <RotateCcw className="size-4" />
-                <span>Reset</span>
+                <X className="size-4" />
+                <span>Cancel</span>
               </Button>
 
               <Button
                 className="flex items-center gap-1 rounded-full"
+                disabled={!transcriptRef.current.trim()}
                 onClick={disconnect}
                 type="button"
-                variant="destructive"
+                variant="secondary"
               >
                 <span>
-                  <Square
+                  <ArrowBigUp
                     className="size-4 opacity-50 fill-current"
                     strokeWidth={0}
                   />
