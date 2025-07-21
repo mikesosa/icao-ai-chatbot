@@ -48,6 +48,11 @@ export function DataStreamHandler({
   const { artifact, setArtifact, setMetadata } = useArtifact();
   const { handleAIExamControl } = useExamContext();
   const lastProcessedIndex = useRef(-1);
+  // Add a ref to track last processed audio-player recordingId and timestamp
+  const lastAudioPlayer = useRef<{
+    recordingId: string | null;
+    timestamp: number;
+  }>({ recordingId: null, timestamp: 0 });
 
   useEffect(() => {
     if (!dataStream?.length) return;
@@ -75,6 +80,21 @@ export function DataStreamHandler({
 
       // Handle audio player events
       if (delta.type === 'audio-player') {
+        // Prevent duplicate playAudio tool calls for the same recordingId within 2 seconds
+        const now = Date.now();
+        const recordingId = delta.content?.recordingId;
+        if (
+          recordingId &&
+          lastAudioPlayer.current.recordingId === recordingId &&
+          now - lastAudioPlayer.current.timestamp < 2000
+        ) {
+          console.warn(
+            '⏩ [DATA STREAM] Skipping duplicate audio-player event:',
+            recordingId,
+          );
+          return;
+        }
+        lastAudioPlayer.current = { recordingId, timestamp: now };
         console.log(
           '🎵 [DATA STREAM] Processing audio player data:',
           delta.content,
