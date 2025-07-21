@@ -20,8 +20,9 @@ export type DataStreamDelta = {
     | 'clear'
     | 'finish'
     | 'kind'
-    | 'exam-section-control';
-  content: string | Suggestion | ExamSectionControlResult;
+    | 'exam-section-control'
+    | 'audio-player';
+  content: string | Suggestion | ExamSectionControlResult | any;
 };
 
 type ExamSectionControlResult = {
@@ -55,15 +56,31 @@ export function DataStreamHandler({
     lastProcessedIndex.current = dataStream.length - 1;
 
     (newDeltas as DataStreamDelta[]).forEach((delta: DataStreamDelta) => {
+      console.log('📡 [DATA STREAM] Processing delta:', delta);
+
       // Handle exam section control events
       if (delta.type === 'exam-section-control') {
         const examControl = delta.content as ExamSectionControlResult;
+        console.log(
+          '📡 [DATA STREAM] Processing exam section control:',
+          examControl,
+        );
 
         handleAIExamControl(
           examControl.action,
           examControl.targetSection || undefined,
         );
         return; // Early return for exam control events
+      }
+
+      // Handle audio player events
+      if (delta.type === 'audio-player') {
+        console.log(
+          '🎵 [DATA STREAM] Processing audio player data:',
+          delta.content,
+        );
+        // Audio player data is handled by the message component
+        return; // Early return for audio player events
       }
 
       const artifactDefinition = artifactDefinitions.find(

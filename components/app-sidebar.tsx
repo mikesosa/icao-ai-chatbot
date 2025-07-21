@@ -17,14 +17,12 @@ import {
   SidebarMenu,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { useExamContext } from '@/hooks/use-exam-context';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
   const { setOpenMobile, setOpen } = useSidebar();
-  const { endExam } = useExamContext();
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
@@ -51,7 +49,8 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   onClick={() => {
                     setOpenMobile(false);
                     setOpen(false);
-                    endExam();
+                    // Only end exam if user explicitly wants to start a new chat
+                    // Don't automatically end exam on navigation
                     router.push('/');
                     router.refresh();
                   }}

@@ -15,7 +15,7 @@ import { cn, sanitizeText } from '@/lib/utils';
 import { AudioPlayer } from './audio-player';
 import { DocumentToolCall, DocumentToolResult } from './document';
 import { DocumentPreview } from './document-preview';
-import { ExamAudioPlayer } from './exam-interface/exam-audio-player';
+// ExamAudioPlayer removed - using unified AudioPlayer instead
 import { PencilEditIcon, SparklesIcon } from './icons';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
@@ -153,7 +153,14 @@ const PurePreviewMessage = ({
                             part.text.toLowerCase().includes('listen') ||
                             part.text.toLowerCase().includes('playback')) && (
                             <div className="mt-4">
-                              <ExamAudioPlayer />
+                              <AudioPlayer
+                                src={`/api/audio?exam=tea&section=${currentSubsection?.toLowerCase()}&recording=1`}
+                                title={`Recording ${currentSubsection}`}
+                                description="TEA Exam Listening Section"
+                                isExamRecording={true}
+                                recordingId={`tea-${currentSection}-${currentSubsection}`}
+                                subsection={currentSubsection}
+                              />
                             </div>
                           )}
                       </div>
@@ -242,11 +249,35 @@ const PurePreviewMessage = ({
                           isReadonly={isReadonly}
                         />
                       ) : toolName === 'playAudio' ? (
-                        <AudioPlayer
-                          src={result.details?.url || ''}
-                          title={result.details?.title || 'Audio Recording'}
-                          description={result.details?.description}
-                        />
+                        (() => {
+                          console.log(
+                            '🎵 [MESSAGE] Rendering playAudio tool result:',
+                            result,
+                          );
+                          console.log('🎵 [MESSAGE] Audio player props:', {
+                            src: result.details?.url || '',
+                            title: result.details?.title || 'Audio Recording',
+                            description: result.details?.description,
+                            recordingId: result.details?.recordingId,
+                            isExamRecording:
+                              result.details?.isExamRecording || false,
+                            subsection: result.details?.subsection,
+                            audioFile: result.details?.audioFile,
+                          });
+                          return (
+                            <AudioPlayer
+                              src={result.details?.url || ''}
+                              title={result.details?.title || 'Audio Recording'}
+                              description={result.details?.description}
+                              recordingId={result.details?.recordingId}
+                              isExamRecording={
+                                result.details?.isExamRecording || false
+                              }
+                              subsection={result.details?.subsection}
+                              audioFile={result.details?.audioFile}
+                            />
+                          );
+                        })()
                       ) : (
                         <pre>{JSON.stringify(result, null, 2)}</pre>
                       )}

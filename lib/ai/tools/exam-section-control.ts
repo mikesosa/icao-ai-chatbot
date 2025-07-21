@@ -91,6 +91,7 @@ This tool helps maintain proper exam flow and section tracking for any exam type
         success: true,
         action,
         targetSection,
+        message: null, // Ensure no message is displayed
       };
     },
   });

@@ -33,6 +33,7 @@ interface ExamContextType {
   audioFiles: AudioFile[];
   isAudioPlaying: boolean;
   audioProgress: number; // 0-100
+  activeAudioPlayerId: string | null;
 
   // Exam progress
   completedSections: string[];
@@ -62,6 +63,7 @@ interface ExamContextType {
   setCurrentAudioIndex: (index: number) => void;
   setIsAudioPlaying: (playing: boolean) => void;
   setAudioProgress: (progress: number) => void;
+  setActiveAudioPlayerId: (id: string | null) => void;
   playNextAudio: () => void;
   playPreviousAudio: () => void;
   getCurrentAudioFile: () => AudioFile | null;
@@ -108,6 +110,9 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
+  const [activeAudioPlayerId, setActiveAudioPlayerId] = useState<string | null>(
+    null,
+  );
 
   const [completedSections, setCompletedSections] = useState<string[]>([]);
   const [completedSubsections, setCompletedSubsections] = useState<string[]>(
@@ -124,6 +129,16 @@ export function ExamProvider({ children }: { children: ReactNode }) {
 
   // Add a flag to prevent multiple simultaneous calls
   const isProcessingExamControl = useRef(false);
+
+  // Debug logging for exam state changes
+  useEffect(() => {
+    console.log('🔍 [EXAM CONTEXT] State changed:', {
+      examStarted,
+      currentSection,
+      currentSubsection,
+      examType,
+    });
+  }, [examStarted, currentSection, currentSubsection, examType]);
 
   // Auto-select first subsection when section changes
   useEffect(() => {
@@ -191,6 +206,13 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       currentSection,
       currentSubsection,
     });
+
+    // Only end exam if explicitly requested or all sections are complete
+    if (!examStarted) {
+      console.log('🚫 [EXAM CONTEXT] Exam not started, ignoring endExam call');
+      return;
+    }
+
     setExamStarted(false);
     setExamType(null);
     setExamStartTime(null);
@@ -350,21 +372,32 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Debounce rapid duplicate calls (within 5 seconds)
+    // Prevent exam termination unless explicitly requested
+    if (action === 'complete_exam' && !examStarted) {
+      console.log(
+        '🚫 [EXAM CONTEXT] Ignoring complete_exam - exam not started:',
+        action,
+      );
+      return;
+    }
+
+    // Debounce rapid duplicate calls (within 2 seconds for same action, 10 seconds for different actions)
     const now = Date.now();
     const timeSinceLastCall = now - lastExamControlCall.current.timestamp;
     const isSameAction = lastExamControlCall.current.action === action;
+    const debounceTime = isSameAction ? 2000 : 10000; // 2s for same action, 10s for different
 
     // Log only when we will ignore (to reduce noise)
-    if (isSameAction && timeSinceLastCall < 5000) {
+    if (timeSinceLastCall < debounceTime) {
       console.log('🔍 [EXAM CONTEXT] Debounce check:', {
         action,
         timeSinceLastCall,
         willIgnore: true,
+        debounceTime,
       });
     }
 
-    if (isSameAction && timeSinceLastCall < 5000) {
+    if (timeSinceLastCall < debounceTime) {
       console.log(
         '🚫 [EXAM CONTEXT] Ignoring duplicate call:',
         action,
@@ -415,6 +448,12 @@ export function ExamProvider({ children }: { children: ReactNode }) {
               nextSubsection,
             );
             setCurrentSubsection(nextSubsection);
+
+            // Add cooldown to prevent rapid progression
+            setTimeout(() => {
+              isProcessingExamControl.current = false;
+            }, 3000); // 3 second cooldown after subsection change
+            return; // Early return to prevent further processing
           } else {
             // No more subsections in current section, advance to next section
             const nextSection = currentSectionNum + 1;
@@ -427,6 +466,12 @@ export function ExamProvider({ children }: { children: ReactNode }) {
               );
               setCurrentSection(nextSection.toString());
               setCurrentSubsection(null); // Will be auto-selected by useEffect
+
+              // Add cooldown to prevent rapid progression
+              setTimeout(() => {
+                isProcessingExamControl.current = false;
+              }, 3000); // 3 second cooldown after section change
+              return; // Early return to prevent further processing
             } else {
               console.warn(
                 '⚠️ [EXAM CONTEXT] Cannot advance: reached final section',
@@ -445,6 +490,12 @@ export function ExamProvider({ children }: { children: ReactNode }) {
             );
             setCurrentSection(nextSection.toString());
             setCurrentSubsection(null); // Will be auto-selected by useEffect
+
+            // Add cooldown to prevent rapid progression
+            setTimeout(() => {
+              isProcessingExamControl.current = false;
+            }, 3000); // 3 second cooldown after section change
+            return; // Early return to prevent further processing
           } else {
             console.warn(
               '⚠️ [EXAM CONTEXT] Cannot advance: reached final section',
@@ -494,14 +545,31 @@ export function ExamProvider({ children }: { children: ReactNode }) {
         }
         break;
 
-      case 'complete_exam':
+      case 'complete_exam': {
+        // Only allow exam completion if explicitly requested or all sections are done
+        console.log('🔍 [EXAM CONTEXT] Complete exam requested:', {
+          currentSection,
+          totalSections,
+          completedSections,
+        });
+
         // Mark current section as complete
         if (currentSection) {
           completeSection(currentSection);
         }
-        // End the exam
-        endExam();
+
+        // Only end exam if all sections are complete or explicitly requested
+        const allSectionsComplete = completedSections.length >= totalSections;
+        if (allSectionsComplete) {
+          console.log('✅ [EXAM CONTEXT] All sections complete, ending exam');
+          endExam();
+        } else {
+          console.log(
+            '⚠️ [EXAM CONTEXT] Exam not complete, ignoring endExam call',
+          );
+        }
         break;
+      }
     }
 
     // Clear processing flag
@@ -523,6 +591,7 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     audioFiles,
     isAudioPlaying,
     audioProgress,
+    activeAudioPlayerId,
     completedSections,
     completedSubsections,
     examProgress,
@@ -542,6 +611,7 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     setCurrentAudioIndex,
     setIsAudioPlaying,
     setAudioProgress,
+    setActiveAudioPlayerId,
     playNextAudio,
     playPreviousAudio,
     getCurrentAudioFile,

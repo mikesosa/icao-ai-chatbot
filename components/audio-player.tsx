@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { Pause, Play, RotateCcw, Volume2 } from 'lucide-react';
+import { CheckCircle, Pause, Play, RotateCcw, Volume2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useExamContext } from '@/hooks/use-exam-context';
 import { cn } from '@/lib/utils';
 
 interface AudioPlayerProps {
@@ -12,6 +13,12 @@ interface AudioPlayerProps {
   title?: string;
   description?: string;
   className?: string;
+  recordingId?: string; // Unique identifier for the recording
+  isExamRecording?: boolean; // Flag to indicate if this is an exam recording
+  isCompleted?: boolean; // Flag to indicate if this recording has been completed
+  onComplete?: () => void; // Callback when recording is completed
+  subsection?: string; // Exam subsection identifier
+  audioFile?: string; // Audio file name for reference
 }
 
 export function AudioPlayer({
@@ -19,6 +26,12 @@ export function AudioPlayer({
   title,
   description,
   className,
+  recordingId,
+  isExamRecording = false,
+  isCompleted = false,
+  onComplete,
+  subsection,
+  audioFile,
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -26,8 +39,18 @@ export function AudioPlayer({
   const [volume, setVolume] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Get exam context for global audio state management (optional)
+  const examContext = useExamContext();
+  const { activeAudioPlayerId, setActiveAudioPlayerId } = examContext || {};
+
+  // Check if this player is the active one (only if exam context is available)
+  const isActivePlayer = examContext
+    ? activeAudioPlayerId === recordingId
+    : true;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -35,12 +58,21 @@ export function AudioPlayer({
 
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration);
-    const handleEnded = () => setIsPlaying(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setHasPlayedOnce(true);
+      setActiveAudioPlayerId?.(null);
+      // Mark as completed if this is an exam recording
+      if (isExamRecording && !isCompleted && onComplete) {
+        onComplete();
+      }
+    };
     const handleCanPlay = () => setIsLoading(false);
     const handleLoadStart = () => setIsLoading(true);
     const handleError = () => {
       setError('Error loading audio file');
       setIsLoading(false);
+      setActiveAudioPlayerId?.(null);
     };
 
     audio.addEventListener('timeupdate', updateTime);
@@ -58,7 +90,7 @@ export function AudioPlayer({
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('error', handleError);
     };
-  }, []);
+  }, [isExamRecording, isCompleted, onComplete, setActiveAudioPlayerId]);
 
   const togglePlayPause = () => {
     const audio = audioRef.current;
@@ -66,10 +98,17 @@ export function AudioPlayer({
 
     if (isPlaying) {
       audio.pause();
+      setIsPlaying(false);
+      setActiveAudioPlayerId?.(null);
     } else {
+      // Stop any other playing audio first (only if exam context is available)
+      if (examContext && setActiveAudioPlayerId) {
+        setActiveAudioPlayerId(recordingId || '');
+      }
+
       audio.play();
+      setIsPlaying(true);
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,6 +126,7 @@ export function AudioPlayer({
 
     audio.currentTime = 0;
     setCurrentTime(0);
+    setHasPlayedOnce(false);
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,6 +144,13 @@ export function AudioPlayer({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  // Update local playing state when global state changes (only if exam context is available)
+  useEffect(() => {
+    if (examContext && !isActivePlayer && isPlaying) {
+      setIsPlaying(false);
+    }
+  }, [examContext, isActivePlayer, isPlaying]);
+
   if (error) {
     return (
       <div className={cn('bg-muted rounded-lg p-4', className)}>
@@ -113,20 +160,63 @@ export function AudioPlayer({
   }
 
   return (
-    <div className={cn('bg-card border rounded-lg p-4 space-y-3', className)}>
+    <div
+      className={cn(
+        'bg-card border rounded-lg p-4 space-y-3',
+        {
+          'ring-2 ring-primary/20': isExamRecording && isPlaying,
+          'ring-2 ring-green-500/20': isExamRecording && isCompleted,
+        },
+        className,
+      )}
+      data-recording-id={recordingId}
+      data-audio-file={audioFile}
+    >
       <audio ref={audioRef} src={src} preload="metadata" />
 
-      {/* Title and Description */}
-      {(title || description) && (
+      {/* Header with Recording Info */}
+      <div className="flex items-center justify-between">
         <div className="space-y-1">
           {title && (
-            <h4 className="text-sm font-medium text-foreground">{title}</h4>
+            <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+              {title}
+              {isExamRecording && isCompleted && (
+                <CheckCircle className="size-4 text-green-500" />
+              )}
+            </h4>
           )}
           {description && (
             <p className="text-xs text-muted-foreground">{description}</p>
           )}
+          {subsection && (
+            <p className="text-xs text-muted-foreground">
+              Section: {subsection}
+            </p>
+          )}
+          {recordingId && (
+            <p className="text-xs text-muted-foreground">ID: {recordingId}</p>
+          )}
         </div>
-      )}
+
+        {/* Status indicator for exam recordings */}
+        {isExamRecording && (
+          <div className="flex items-center gap-1">
+            {isCompleted ? (
+              <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                Completed
+              </span>
+            ) : hasPlayedOnce ? (
+              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                Played
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                Not played
+              </span>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Main Controls */}
       <div className="flex items-center gap-3">
@@ -197,11 +287,13 @@ export function AudioPlayer({
         </div>
       </div>
 
-      {/* Instructions if provided */}
-      <div className="text-xs text-muted-foreground">
-        💡 You may request repetition once if you didn&apos;t understand
-        something the first time
-      </div>
+      {/* Instructions for exam recordings */}
+      {isExamRecording && (
+        <div className="text-xs text-muted-foreground">
+          💡 You may request repetition once if you didn&apos;t understand
+          something the first time
+        </div>
+      )}
     </div>
   );
 }
