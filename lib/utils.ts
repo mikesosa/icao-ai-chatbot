@@ -90,7 +90,10 @@ export function getTrailingMessageId({
 }
 
 export function sanitizeText(text: string) {
-  return text.replace('<has_function_call>', '');
+  return text
+    .replace('<has_function_call>', '')
+    .replace(/<function_call>.*?<\/function_call>/gs, '')
+    .replace(/<function_call>.*?<\/function_call>/g, '');
 }
 
 export function getModelType(selectedChatModel: string): ModelType {

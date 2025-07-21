@@ -1,15 +1,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
+
 import {
   type APIRequestContext,
   type Browser,
   type BrowserContext,
-  expect,
   type Page,
+  expect,
 } from '@playwright/test';
 import { generateId } from 'ai';
-import { ChatPage } from './pages/chat';
 import { getUnixTime } from 'date-fns';
+
+import { ChatPage } from './pages/chat';
 
 export type UserContext = {
   context: BrowserContext;
@@ -20,7 +22,7 @@ export type UserContext = {
 export async function createAuthenticatedContext({
   browser,
   name,
-  chatModel = 'chat-model',
+  chatModel: _chatModel = 'chat-model',
 }: {
   browser: Browser;
   name: string;

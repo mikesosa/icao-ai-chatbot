@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
@@ -52,6 +52,43 @@ export function ExamSidebar({
   // Local state for UI
   const [_showInstructions, _setShowInstructions] = useState(true);
 
+  // Track last appended subsection to prevent duplicates
+  const lastAppendedSubsection = useRef<string | null>(null);
+
+  // Auto-append subsection message when subsection changes (including auto-selection)
+  useEffect(() => {
+    if (
+      currentSubsection &&
+      appendToChat &&
+      examConfig.messagesConfig.subsectionStartMessages &&
+      lastAppendedSubsection.current !== currentSubsection
+    ) {
+      const subsectionMessage =
+        examConfig.messagesConfig.subsectionStartMessages[currentSubsection];
+      console.log(
+        '📝 [EXAM SIDEBAR] Auto-appending subsection message for',
+        currentSubsection,
+        ':',
+        subsectionMessage,
+      );
+      if (subsectionMessage) {
+        console.log(
+          '📝 [EXAM SIDEBAR] Subsection message available but not appending to chat',
+        );
+        // Don't append instructions to chat - let AI provide them naturally
+        // appendToChat({
+        //   role: 'user',
+        //   content: subsectionMessage,
+        // });
+        lastAppendedSubsection.current = currentSubsection;
+      }
+    }
+  }, [
+    currentSubsection,
+    appendToChat,
+    examConfig.messagesConfig.subsectionStartMessages,
+  ]);
+
   // Chat messages with initial instructions
   const [_messages, _setMessages] = useState<UIMessage[]>(() => {
     if (initialMessages.length === 0) {
@@ -84,6 +121,7 @@ export function ExamSidebar({
     _setShowInstructions(false);
     setCurrentSection('1');
     setCurrentSubsection(null);
+    lastAppendedSubsection.current = null; // Reset tracking
     setOpen(false);
 
     toast.success(`Exam ${examConfig.name} started - Section 1`);
@@ -133,7 +171,7 @@ export function ExamSidebar({
         examConfig.messagesConfig.sectionStartMessages[section];
       if (sectionMessage) {
         appendToChat({
-          role: 'user',
+          role: 'assistant',
           content: sectionMessage,
         });
       }
@@ -178,13 +216,27 @@ export function ExamSidebar({
 
     setCurrentSubsection(subsectionId);
 
-    const subsectionMessage =
-      examConfig.messagesConfig.subsectionStartMessages?.[subsectionId];
-    if (appendToChat && subsectionMessage) {
-      appendToChat({
-        role: 'user',
-        content: subsectionMessage,
-      });
+    // Prevent duplicate message appending
+    if (lastAppendedSubsection.current !== subsectionId) {
+      const subsectionMessage =
+        examConfig.messagesConfig.subsectionStartMessages?.[subsectionId];
+      console.log(
+        '📝 [EXAM SIDEBAR] Subsection message for',
+        subsectionId,
+        ':',
+        subsectionMessage,
+      );
+      if (appendToChat && subsectionMessage) {
+        console.log(
+          '📝 [EXAM SIDEBAR] Subsection message available but not appending to chat',
+        );
+        // Don't append instructions to chat - let AI provide them naturally
+        // appendToChat({
+        //   role: 'user',
+        //   content: subsectionMessage,
+        // });
+        lastAppendedSubsection.current = subsectionId;
+      }
     }
 
     toast.info(`Changed to Subsection ${subsectionId}`);

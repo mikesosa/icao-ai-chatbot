@@ -1,6 +1,7 @@
 import { expect as baseExpect, test as baseTest } from '@playwright/test';
-import { createAuthenticatedContext, type UserContext } from './helpers';
 import { getUnixTime } from 'date-fns';
+
+import { type UserContext, createAuthenticatedContext } from './helpers';
 
 interface Fixtures {
   adaContext: UserContext;
@@ -8,7 +9,7 @@ interface Fixtures {
   curieContext: UserContext;
 }
 
-export const test = baseTest.extend<{}, Fixtures>({
+export const test = baseTest.extend<object, Fixtures>({
   adaContext: [
     async ({ browser }, use, workerInfo) => {
       const ada = await createAuthenticatedContext({

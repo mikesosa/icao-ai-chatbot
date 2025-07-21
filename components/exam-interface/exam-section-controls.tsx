@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import {
   CheckCircle,
@@ -60,21 +60,22 @@ export function ExamSectionControls({
   const hasSubsections = Object.keys(currentSectionSubsections).length > 0;
 
   // Auto-select first subsection when entering a section with subsections but no current subsection
-  useEffect(() => {
-    if (examStarted && hasSubsections && !currentSubsection) {
-      const firstSubsectionId = Object.keys(currentSectionSubsections)[0];
-      if (firstSubsectionId) {
-        onSubsectionChange(firstSubsectionId);
-      }
-    }
-  }, [
-    currentSection,
-    hasSubsections,
-    currentSubsection,
-    examStarted,
-    onSubsectionChange,
-    currentSectionSubsections,
-  ]);
+  // REMOVED: This was causing duplication with the exam context auto-selection
+  // useEffect(() => {
+  //   if (examStarted && hasSubsections && !currentSubsection) {
+  //     const firstSubsectionId = Object.keys(currentSectionSubsections)[0];
+  //     if (firstSubsectionId) {
+  //       onSubsectionChange(firstSubsectionId);
+  //     }
+  //   }
+  // }, [
+  //   currentSection,
+  //   hasSubsections,
+  //   currentSubsection,
+  //   examStarted,
+  //   onSubsectionChange,
+  //   currentSectionSubsections,
+  // ]);
 
   const handleSectionChange = (direction: 1 | -1) => {
     if (direction === 1 && canGoToNext) {
