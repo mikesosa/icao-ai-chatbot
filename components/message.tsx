@@ -278,7 +278,7 @@ const PurePreviewMessage = ({
                             />
                           );
                         })()
-                      ) : (
+                      ) : toolName === 'examSectionControl' ? null : ( // Hide examSectionControl results completely
                         <pre>{JSON.stringify(result, null, 2)}</pre>
                       )}
                     </div>

@@ -241,7 +241,7 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: systemPromptContent,
           messages,
-          maxSteps: 5,
+          maxSteps: isExamEvaluator(selectedChatModel) ? 2 : 5,
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []
