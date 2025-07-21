@@ -9,8 +9,11 @@ import { ChevronUp } from 'lucide-react';
 import type { User } from 'next-auth';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
+import { useSWRConfig } from 'swr';
+import { unstable_serialize } from 'swr/infinite';
 
 import { clearAllChats } from '@/app/(chat)/actions';
+import { getChatHistoryPaginationKey } from '@/components/sidebar-history';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +46,7 @@ export function SidebarUserNav({ user }: { user: User }) {
   const { data, status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
   const [showClearDialog, setShowClearDialog] = useState(false);
+  const { mutate } = useSWRConfig();
 
   const isGuest = guestRegex.test(data?.user?.email ?? '');
 
@@ -53,6 +57,9 @@ export function SidebarUserNav({ user }: { user: User }) {
         type: 'success',
         description: 'All chats have been cleared successfully!',
       });
+
+      // Invalidate all chat history cache
+      mutate(unstable_serialize(getChatHistoryPaginationKey));
 
       // Redirect to home page after clearing
       router.push('/');
