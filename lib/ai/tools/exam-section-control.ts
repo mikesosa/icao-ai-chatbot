@@ -64,6 +64,20 @@ This tool helps maintain proper exam flow and section tracking for any exam type
         reason,
       });
 
+      // Prevent advance_to_next calls that mention automatic advancement
+      if (
+        action === 'advance_to_next' &&
+        reason?.includes('automatically advancing')
+      ) {
+        console.log(
+          '🚫 [EXAM TOOL] Preventing advance_to_next with automatic advancement reason',
+        );
+        return {
+          success: false,
+          message: 'Automatic advancement is handled by the system',
+        };
+      }
+
       // Create the exam control event (ensure all values are serializable)
       const examControlEvent = {
         type: 'exam-section-control' as const,
