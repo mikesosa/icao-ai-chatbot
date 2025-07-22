@@ -25,7 +25,9 @@ import {
 import { myProvider } from '@/lib/ai/providers';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { examSectionControl } from '@/lib/ai/tools/exam-section-control';
+import { getAudioTranscript } from '@/lib/ai/tools/get-audio-transcript';
 import { getWeather } from '@/lib/ai/tools/get-weather';
+import { playAudioTool } from '@/lib/ai/tools/play-audio';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { isProductionEnvironment } from '@/lib/constants';
@@ -252,6 +254,8 @@ export async function POST(request: Request) {
                     'updateDocument',
                     'requestSuggestions',
                     'examSectionControl',
+                    'playAudio',
+                    'getAudioTranscript',
                   ]
                 : [
                     'getWeather',
@@ -270,6 +274,8 @@ export async function POST(request: Request) {
               dataStream,
             }),
             examSectionControl: examSectionControl({ dataStream }),
+            playAudio: playAudioTool({ session, dataStream }),
+            getAudioTranscript: getAudioTranscript({ examConfig }),
           },
           onFinish: async ({ response }) => {
             if (session.user?.id) {
