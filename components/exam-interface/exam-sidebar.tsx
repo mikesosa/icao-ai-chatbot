@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import { toast } from 'sonner';
 
@@ -17,14 +16,9 @@ import { ExamTimer } from './exam-timer';
 interface ExamSidebarProps {
   initialMessages: UIMessage[];
   examConfig: CompleteExamConfig;
-  appendToChat: UseChatHelpers['append'] | null;
 }
 
-export function ExamSidebar({
-  initialMessages,
-  examConfig,
-  appendToChat,
-}: ExamSidebarProps) {
+export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
   // Use exam context state instead of local state
   const { setOpen } = useSidebar();
 
@@ -55,39 +49,15 @@ export function ExamSidebar({
   // Track last appended subsection to prevent duplicates
   const lastAppendedSubsection = useRef<string | null>(null);
 
-  // Auto-append subsection message when subsection changes (including auto-selection)
+  // Track subsection changes for potential future use
   useEffect(() => {
     if (
       currentSubsection &&
-      appendToChat &&
-      examConfig.messagesConfig.subsectionStartMessages &&
       lastAppendedSubsection.current !== currentSubsection
     ) {
-      const subsectionMessage =
-        examConfig.messagesConfig.subsectionStartMessages[currentSubsection];
-      console.log(
-        '📝 [EXAM SIDEBAR] Auto-appending subsection message for',
-        currentSubsection,
-        ':',
-        subsectionMessage,
-      );
-      if (subsectionMessage) {
-        console.log(
-          '📝 [EXAM SIDEBAR] Subsection message available but not appending to chat',
-        );
-        // Don't append instructions to chat - let AI provide them naturally
-        // appendToChat({
-        //   role: 'user',
-        //   content: subsectionMessage,
-        // });
-        lastAppendedSubsection.current = currentSubsection;
-      }
+      lastAppendedSubsection.current = currentSubsection;
     }
-  }, [
-    currentSubsection,
-    appendToChat,
-    examConfig.messagesConfig.subsectionStartMessages,
-  ]);
+  }, [currentSubsection]);
 
   // Chat messages with initial instructions
   const [_messages, _setMessages] = useState<UIMessage[]>(() => {
@@ -165,18 +135,6 @@ export function ExamSidebar({
     setCurrentSection(section.toString());
     setCurrentSubsection(null); // Reset subsection when changing sections
 
-    // Send section start message to chat if appendToChat is available
-    if (appendToChat && examConfig.messagesConfig.sectionStartMessages) {
-      const sectionMessage =
-        examConfig.messagesConfig.sectionStartMessages[section];
-      if (sectionMessage) {
-        appendToChat({
-          role: 'assistant',
-          content: sectionMessage,
-        });
-      }
-    }
-
     toast.info(`Changed to Section ${section}`);
   };
 
@@ -216,27 +174,9 @@ export function ExamSidebar({
 
     setCurrentSubsection(subsectionId);
 
-    // Prevent duplicate message appending
+    // Track subsection change
     if (lastAppendedSubsection.current !== subsectionId) {
-      const subsectionMessage =
-        examConfig.messagesConfig.subsectionStartMessages?.[subsectionId];
-      console.log(
-        '📝 [EXAM SIDEBAR] Subsection message for',
-        subsectionId,
-        ':',
-        subsectionMessage,
-      );
-      if (appendToChat && subsectionMessage) {
-        console.log(
-          '📝 [EXAM SIDEBAR] Subsection message available but not appending to chat',
-        );
-        // Don't append instructions to chat - let AI provide them naturally
-        // appendToChat({
-        //   role: 'user',
-        //   content: subsectionMessage,
-        // });
-        lastAppendedSubsection.current = subsectionId;
-      }
+      lastAppendedSubsection.current = subsectionId;
     }
 
     toast.info(`Changed to Subsection ${subsectionId}`);

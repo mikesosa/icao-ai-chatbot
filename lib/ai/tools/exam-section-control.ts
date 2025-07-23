@@ -16,14 +16,24 @@ interface ExamSectionControlProps {
   dataStream: DataStreamWriter;
 }
 
+// Add server-side debouncing to prevent AI from making multiple rapid calls
+const lastCallTracker = new Map<
+  string,
+  { action: string; timestamp: number; successful: boolean }
+>();
+
 export const examSectionControl = ({ dataStream }: ExamSectionControlProps) =>
   tool({
-    description: `Control exam section progression and completion during any type of evaluation or assessment. Use this tool when:
+    description: `Control exam section progression and completion during any type of evaluation or assessment. Use this tool ONLY ONCE per section change request.
+
+Use this tool when:
 - User indicates readiness to move to next part (e.g., "let's go to the next section", "skip this part")
 - Current section/subsection objectives have been met
 - Time to advance naturally in the exam flow
 - Need to mark current section as completed
 - User requests to finish the exam or all sections are complete
+
+CRITICAL: This tool should only be called ONCE per user request. Do not call it multiple times for the same action.
 
 IMPORTANT: This tool handles section, subsection progression AND exam completion:
 - If user says "next section" while in a subsection, advance to the next subsection FIRST
@@ -64,6 +74,60 @@ This tool helps maintain proper exam flow and section tracking for any exam type
         reason,
       });
 
+      // Prevent advance_to_next calls that mention automatic advancement
+      if (
+        action === 'advance_to_next' &&
+        reason?.includes('automatically advancing')
+      ) {
+        console.log(
+          '🚫 [EXAM TOOL] Preventing advance_to_next with automatic advancement reason',
+        );
+        return {
+          success: false,
+          message:
+            'Automatic advancement is handled by the system. Do not call this tool for automatic progression.',
+        };
+      }
+
+      // Enhanced server-side debouncing - prevent multiple rapid calls
+      const sessionKey = `${action}-${targetSection || 'none'}`;
+      const now = Date.now();
+      const lastCall = lastCallTracker.get(sessionKey);
+
+      // Check if we recently had a successful call for the same action
+      if (lastCall) {
+        const timeSinceLastCall = now - lastCall.timestamp;
+
+        // If the last call was successful and within 10 seconds, completely block it
+        if (lastCall.successful && timeSinceLastCall < 10000) {
+          console.log('🚫 [EXAM TOOL] Blocking duplicate successful call:', {
+            action,
+            targetSection,
+            timeSinceLastCall,
+            lastCallWasSuccessful: lastCall.successful,
+          });
+          // Return minimal response - no user-visible message
+          return {
+            success: false,
+            duplicate: true,
+          };
+        }
+
+        // For any call within 5 seconds, block it
+        if (timeSinceLastCall < 5000) {
+          console.log('🚫 [EXAM TOOL] Debouncing rapid call:', {
+            action,
+            targetSection,
+            timeSinceLastCall,
+          });
+          // Return minimal response - no user-visible message
+          return {
+            success: false,
+            debounced: true,
+          };
+        }
+      }
+
       // Create the exam control event (ensure all values are serializable)
       const examControlEvent = {
         type: 'exam-section-control' as const,
@@ -86,12 +150,19 @@ This tool helps maintain proper exam flow and section tracking for any exam type
 
       console.log('✅ [EXAM TOOL] Data stream event sent successfully');
 
-      // Return success without a message to avoid duplicate responses
+      // Update the call tracker with successful call
+      lastCallTracker.set(sessionKey, {
+        action,
+        timestamp: now,
+        successful: true,
+      });
+
+      // Return minimal success response - no user-visible message
       return {
         success: true,
         action,
         targetSection,
-        message: null, // Ensure no message is displayed
+        completed: true,
       };
     },
   });

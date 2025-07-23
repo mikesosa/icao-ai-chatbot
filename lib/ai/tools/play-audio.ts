@@ -70,6 +70,14 @@ export const playAudioTool = ({
         .describe(
           'Exam subsection identifier (e.g., "2A", "Part 1", "Listening Section")',
         ),
+      recordingNumber: z
+        .number()
+        .min(1)
+        .max(6)
+        .optional()
+        .describe(
+          'Specific recording number to play (1-6). If not provided, will select randomly.',
+        ),
       isExamRecording: z
         .boolean()
         .optional()
@@ -88,6 +96,7 @@ export const playAudioTool = ({
       title,
       description,
       subsection,
+      recordingNumber,
       isExamRecording = false,
       recordingId,
     }) => {
@@ -95,6 +104,7 @@ export const playAudioTool = ({
         title,
         description,
         subsection,
+        recordingNumber,
         isExamRecording,
         recordingId,
       });
@@ -114,10 +124,24 @@ export const playAudioTool = ({
           };
         }
 
-        // Randomly select an audio file
-        const audioFile =
-          audioFiles[Math.floor(Math.random() * audioFiles.length)];
-        console.log('🎵 [PLAY AUDIO TOOL] Selected audio file:', audioFile);
+        // Select audio file based on recordingNumber or randomly
+        let audioFile: string;
+        if (recordingNumber && isExamRecording && subsection) {
+          // For exam recordings with specific number, construct the filename
+          const examSection = subsection.toLowerCase();
+          audioFile = `${examSection}-recording-${recordingNumber.toString().padStart(2, '0')}.mp3`;
+          console.log(
+            '🎵 [PLAY AUDIO TOOL] Using specific recording:',
+            audioFile,
+          );
+        } else {
+          // Randomly select an audio file (original behavior)
+          audioFile = audioFiles[Math.floor(Math.random() * audioFiles.length)];
+          console.log(
+            '🎵 [PLAY AUDIO TOOL] Randomly selected audio file:',
+            audioFile,
+          );
+        }
 
         // Create the audio URL that points to our audio serving endpoint
         let audioUrl: string;
@@ -125,7 +149,8 @@ export const playAudioTool = ({
           // For exam recordings, use the exam-specific format
           // Convert subsection like "2A" to section format like "2a"
           const examSection = subsection.toLowerCase();
-          audioUrl = `/api/audio?exam=tea&section=${examSection}&recording=1`;
+          const recording = recordingNumber || 1; // Use specific recording or default to 1
+          audioUrl = `/api/audio?exam=tea&section=${examSection}&recording=${recording}`;
           console.log(
             '🎵 [PLAY AUDIO TOOL] Generated exam audio URL:',
             audioUrl,
@@ -172,18 +197,23 @@ export const playAudioTool = ({
         console.log('🎵 [PLAY AUDIO TOOL] Data stream write completed');
 
         // Return success message with details for the AI
+        const selectionMethod = recordingNumber
+          ? `specific recording #${recordingNumber}`
+          : `randomly selected from ${audioFiles.length} available files`;
         const result = {
           success: true,
-          message: `Audio player created for ${audioFile} (randomly selected from ${audioFiles.length} available files)`,
+          message: `Audio player created for ${audioFile} (${selectionMethod})`,
           details: {
             audioFile,
             title,
             description,
             subsection,
+            recordingNumber,
             recordingId: finalRecordingId,
             isExamRecording,
             url: audioUrl,
             availableFiles: audioFiles.length,
+            selectionMethod,
           },
         };
         console.log('🎵 [PLAY AUDIO TOOL] Returning result:', result);

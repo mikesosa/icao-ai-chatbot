@@ -8,7 +8,6 @@ import cx from 'classnames';
 import equal from 'fast-deep-equal';
 import { AnimatePresence, motion } from 'framer-motion';
 
-import { useExamContext } from '@/hooks/use-exam-context';
 import type { Vote } from '@/lib/db/schema';
 import { cn, sanitizeText } from '@/lib/utils';
 
@@ -48,11 +47,6 @@ const PurePreviewMessage = ({
   hideControls?: boolean;
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
-  const { examStarted, currentSection, currentSubsection } = useExamContext();
-
-  // Check if we're in a section that has audio files (TEA Section 2)
-  const isAudioSection =
-    examStarted && currentSection === '2' && !!currentSubsection;
 
   return (
     <AnimatePresence>
@@ -144,25 +138,6 @@ const PurePreviewMessage = ({
                         })}
                       >
                         <Markdown>{sanitizeText(part.text)}</Markdown>
-
-                        {/* Audio Player for TEA Section 2 - integrated into AI response */}
-                        {message.role === 'assistant' &&
-                          isAudioSection &&
-                          (part.text.toLowerCase().includes('recording') ||
-                            part.text.toLowerCase().includes('audio') ||
-                            part.text.toLowerCase().includes('listen') ||
-                            part.text.toLowerCase().includes('playback')) && (
-                            <div className="mt-4">
-                              <AudioPlayer
-                                src={`/api/audio?exam=tea&section=${currentSubsection?.toLowerCase()}&recording=1`}
-                                title={`Recording ${currentSubsection}`}
-                                description="TEA Exam Listening Section"
-                                isExamRecording={true}
-                                recordingId={`tea-${currentSection}-${currentSubsection}`}
-                                subsection={currentSubsection}
-                              />
-                            </div>
-                          )}
                       </div>
                     </div>
                   );
@@ -278,7 +253,9 @@ const PurePreviewMessage = ({
                             />
                           );
                         })()
-                      ) : (
+                      ) : toolName ===
+                        'examSectionControl' ? null : toolName ===
+                        'getAudioTranscript' ? null : ( // Hide examSectionControl and getAudioTranscript results completely
                         <pre>{JSON.stringify(result, null, 2)}</pre>
                       )}
                     </div>

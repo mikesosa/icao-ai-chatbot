@@ -124,9 +124,18 @@ export function AudioPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
+    // Only reset the audio to the beginning and play it again
     audio.currentTime = 0;
     setCurrentTime(0);
     setHasPlayedOnce(false);
+    // Do not change section/subsection or trigger any advancement
+    if (!isPlaying) {
+      audio.play();
+      setIsPlaying(true);
+      if (examContext && setActiveAudioPlayerId) {
+        setActiveAudioPlayerId(recordingId || '');
+      }
+    }
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {

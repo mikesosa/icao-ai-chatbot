@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import type { Session } from 'next-auth';
 import useSWR from 'swr';
@@ -45,8 +44,7 @@ export function ChatPageLayout({
     }
   }, [examConfig, setExamConfig]);
 
-  // Create refs to store the chat's append function and data stream
-  const appendRef = useRef<UseChatHelpers['append'] | null>(null);
+  // Create refs to store the data stream
   const [dataStream, setDataStream] = useState<any[]>([]);
 
   return (
@@ -79,9 +77,6 @@ export function ChatPageLayout({
           isReadonly={isReadonly}
           session={session}
           autoResume={autoResume}
-          onAppendRef={(append) => {
-            appendRef.current = append;
-          }}
           onDataStreamUpdate={(data) => {
             setDataStream(data || []);
           }}
@@ -93,7 +88,6 @@ export function ChatPageLayout({
           <ExamSidebar
             initialMessages={initialMessages}
             examConfig={examConfig}
-            appendToChat={appendRef.current}
           />
         </div>
       )}
