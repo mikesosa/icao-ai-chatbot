@@ -124,7 +124,11 @@
   },
   "packageManager": "pnpm@9.12.3",
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": ["biome check --apply --unsafe", "eslint --fix"],
-    "*.{json,yml,yaml}": ["biome format --write"]
+    "*.{ts,tsx,js,jsx}": ["biome check --write --unsafe", "eslint --fix"],
+    "*.{yml,yaml}": ["biome format --write"],
+    "package.json": ["biome format --write"],
+    "tsconfig*.json": ["biome format --write"],
+    "components.json": ["biome format --write"],
+    "biome.jsonc": ["biome format --write"]
   }
 }

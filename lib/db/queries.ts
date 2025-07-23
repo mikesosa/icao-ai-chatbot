@@ -56,11 +56,26 @@ export async function getUser(email: string): Promise<Array<User>> {
   }
 }
 
-export async function createUser(email: string, password: string) {
+export async function createUser(
+  email: string,
+  password: string,
+  role = 'regular',
+) {
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    return await db.insert(user).values({ email, password: hashedPassword });
+    return await db
+      .insert(user)
+      .values({
+        email,
+        password: hashedPassword,
+        role,
+      })
+      .returning({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      });
   } catch (_error) {
     throw new ChatSDKError('bad_request:database', 'Failed to create user');
   }
@@ -71,14 +86,54 @@ export async function createGuestUser() {
   const password = generateHashedPassword(generateUUID());
 
   try {
-    return await db.insert(user).values({ email, password }).returning({
-      id: user.id,
-      email: user.email,
-    });
+    return await db
+      .insert(user)
+      .values({
+        email,
+        password,
+        role: 'guest',
+      })
+      .returning({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      });
   } catch (_error) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to create guest user',
+    );
+  }
+}
+
+// New function to get users by role
+export async function getUsersByRole(role: string): Promise<Array<User>> {
+  try {
+    return await db.select().from(user).where(eq(user.role, role));
+  } catch (_error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get users by role',
+    );
+  }
+}
+
+// New function to update user role
+export async function updateUserRole(userId: string, newRole: string) {
+  try {
+    return await db
+      .update(user)
+      .set({ role: newRole })
+      .where(eq(user.id, userId))
+      .returning({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      });
+  } catch (_error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update user role',
     );
   }
 }

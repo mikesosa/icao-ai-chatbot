@@ -64,6 +64,13 @@
       "when": 1751681612806,
       "tag": "0008_wild_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1753234084886,
+      "tag": "0009_eminent_frightful_four",
+      "breakpoints": true
     }
   ]
 }

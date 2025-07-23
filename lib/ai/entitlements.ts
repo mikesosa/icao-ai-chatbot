@@ -6,6 +6,7 @@ import type { ChatModel } from './models';
 interface Entitlements {
   maxMessagesPerDay: number;
   availableChatModelIds: Array<ChatModel['id']>;
+  canSkipExamSections?: boolean;
 }
 
 export const entitlementsByUserType: Record<UserType, Entitlements> = {
@@ -18,6 +19,7 @@ export const entitlementsByUserType: Record<UserType, Entitlements> = {
       MODEL_IDS.CHAT_MODEL,
       MODEL_IDS.CHAT_MODEL_REASONING,
     ],
+    canSkipExamSections: false,
   },
 
   /*
@@ -31,9 +33,20 @@ export const entitlementsByUserType: Record<UserType, Entitlements> = {
       MODEL_IDS.TEA_EVALUATOR,
       MODEL_IDS.ELPAC_EVALUATOR,
     ],
+    canSkipExamSections: false,
   },
 
   /*
-   * TODO: For users with an account and a paid membership
+   * For admin users with special privileges
    */
+  admin: {
+    maxMessagesPerDay: -1, // unlimited
+    availableChatModelIds: [
+      MODEL_IDS.CHAT_MODEL,
+      MODEL_IDS.CHAT_MODEL_REASONING,
+      MODEL_IDS.TEA_EVALUATOR,
+      MODEL_IDS.ELPAC_EVALUATOR,
+    ],
+    canSkipExamSections: true,
+  },
 };
