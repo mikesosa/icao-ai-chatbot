@@ -84,18 +84,15 @@ export function ExamTimer({
         {/* Section Display */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock className="size-4 text-blue-600" />
+            <Clock className="size-4" />
             <span className="font-semibold">Section {currentSection}</span>
           </div>
           <Badge variant="outline">{formatTime(sectionDuration)}</Badge>
         </div>
 
         {/* Timer Display */}
-        <div className="text-center space-y-2">
-          <div className="text-2xl font-mono font-bold">
-            {formatTime(timeLeft)}
-          </div>
-          <div className="text-xs text-gray-500 mb-3">Running</div>
+        <div className="text-2xl font-mono font-bold text-center mb-2">
+          {formatTime(timeLeft)}
         </div>
 
         {/* Progress Bar */}

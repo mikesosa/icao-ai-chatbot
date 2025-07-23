@@ -2,19 +2,12 @@
 
 import { useMemo } from 'react';
 
-import {
-  CheckCircle,
-  ChevronLeft,
-  ChevronRight,
-  Circle,
-  Play,
-  Square,
-} from 'lucide-react';
+import { CheckCircle, Circle, Play, Square } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 
 import type {
   CompleteExamConfig,
@@ -49,8 +42,9 @@ export function ExamSectionControls({
   controlsConfig,
   examConfig,
 }: ExamSectionControlsProps) {
-  const canGoToPrevious = currentSection > 1;
-  const canGoToNext = currentSection < controlsConfig.totalSections;
+  const { data: session } = useSession();
+  const userType = session?.user?.type || 'guest';
+  const isAdmin = userType === 'admin';
 
   // Get current section's subsections
   const currentSectionSubsections = useMemo(
@@ -59,71 +53,13 @@ export function ExamSectionControls({
   );
   const hasSubsections = Object.keys(currentSectionSubsections).length > 0;
 
-  // Auto-select first subsection when entering a section with subsections but no current subsection
-  // REMOVED: This was causing duplication with the exam context auto-selection
-  // useEffect(() => {
-  //   if (examStarted && hasSubsections && !currentSubsection) {
-  //     const firstSubsectionId = Object.keys(currentSectionSubsections)[0];
-  //     if (firstSubsectionId) {
-  //       onSubsectionChange(firstSubsectionId);
-  //     }
-  //   }
-  // }, [
-  //   currentSection,
-  //   hasSubsections,
-  //   currentSubsection,
-  //   examStarted,
-  //   onSubsectionChange,
-  //   currentSectionSubsections,
-  // ]);
-
-  const handleSectionChange = (direction: 1 | -1) => {
-    if (direction === 1 && canGoToNext) {
-      onSectionChange((currentSection + 1) as ExamSection);
-    } else if (direction === -1 && canGoToPrevious) {
-      onSectionChange((currentSection - 1) as ExamSection);
-    }
-  };
-
   return (
-    <Card className="w-full bg-sidebar">
-      <CardHeader>
-        <CardTitle className="text-lg">
-          Exam {controlsConfig.name} {examStarted ? ' - In progress' : ''}
-        </CardTitle>
-      </CardHeader>
-
-      <CardContent className="space-y-6">
-        {/* Start/End Exam Controls */}
-        <div className="flex flex-col gap-3">
-          {!examStarted ? (
-            <Button
-              onClick={onStartExam}
-              className="w-full"
-              variant="default"
-              size="lg"
-            >
-              <Play className="size-4 mr-2" />
-              Start Exam
-            </Button>
-          ) : (
-            <Button
-              onClick={onEndExam}
-              className="w-full fill-current"
-              variant="destructive"
-              size="lg"
-            >
-              <Square className="size-4 mr-2" />
-              End Exam
-            </Button>
-          )}
-        </div>
-
-        {/* Section Navigation */}
-        {examStarted && (
-          <>
-            <Separator />
-            <div className="space-y-4">
+    <>
+      <Card>
+        <CardContent className="p-6">
+          {/* Section Navigation */}
+          {examStarted && (
+            <div className="space-y-4 mb-4">
               {/* Current Section Display */}
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Current Section</h3>
@@ -132,66 +68,39 @@ export function ExamSectionControls({
                 </Badge>
               </div>
 
-              {/* Section Controls */}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSectionChange(-1)}
-                  disabled={!canGoToPrevious}
-                >
-                  <ChevronLeft className="size-4" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSectionChange(1)}
-                  disabled={!canGoToNext}
-                >
-                  Next
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {Array.from(
+                  { length: controlsConfig.totalSections },
+                  (_, i) => {
+                    const sectionNum = i + 1;
+                    const isCompleted = completedSections.includes(sectionNum);
+                    const isCurrent = currentSection === sectionNum;
+                    const sectionInfo = controlsConfig.sections[i];
 
-              {/* Section List */}
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Sections</h4>
-                <div className="grid grid-cols-1 gap-2">
-                  {Array.from(
-                    { length: controlsConfig.totalSections },
-                    (_, i) => {
-                      const sectionNum = i + 1;
-                      const isCompleted =
-                        completedSections.includes(sectionNum);
-                      const isCurrent = currentSection === sectionNum;
-                      const sectionInfo = controlsConfig.sections[i];
-
-                      return (
-                        <Button
-                          key={sectionNum}
-                          variant={isCurrent ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => onSectionChange(sectionNum)}
-                          disabled={false}
-                          className="justify-start h-auto py-3"
-                        >
-                          <div className="flex flex-col items-start gap-1 text-left">
-                            <div className="flex items-center gap-2">
-                              {isCompleted && (
-                                <CheckCircle className="size-4 text-green-500" />
-                              )}
-                              <span className="font-medium">
-                                Section {sectionNum}:{' '}
-                                {sectionInfo?.title || `Section ${sectionNum}`}
-                              </span>
-                            </div>
-                          </div>
-                        </Button>
-                      );
-                    },
-                  )}
-                </div>
+                    return (
+                      <Button
+                        key={sectionNum}
+                        variant={isCurrent ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => onSectionChange(sectionNum)}
+                        disabled={false}
+                        className="justify-start h-auto py-3"
+                      >
+                        <div className="flex items-center gap-1">
+                          {isCompleted && (
+                            <CheckCircle className="size-4 text-green-500" />
+                          )}
+                          <span className="font-medium">
+                            Section {sectionNum}:
+                          </span>
+                          <span className="font-medium">
+                            {sectionInfo?.title || `Section ${sectionNum}`}
+                          </span>
+                        </div>
+                      </Button>
+                    );
+                  },
+                )}
               </div>
 
               {/* Subsection Controls */}
@@ -237,24 +146,65 @@ export function ExamSectionControls({
                 </div>
               )}
             </div>
-          </>
-        )}
-
-        {/* Status */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Exam status:</span>
-            <Badge variant="outline">
-              {examStarted ? 'In progress' : 'Not started'}
-            </Badge>
-          </div>
-          {completedSections.length === controlsConfig.totalSections && (
-            <div className="text-sm text-green-600">
-              ✅ All sections completed. You can end the exam.
-            </div>
           )}
-        </div>
-      </CardContent>
-    </Card>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">Exam status:</span>
+              <Badge variant="outline">
+                {examStarted ? 'In progress' : 'Not started'}
+              </Badge>
+            </div>
+            {completedSections.length === controlsConfig.totalSections && (
+              <div className="text-sm text-green-600">
+                ✅ All sections completed. You can end the exam.
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>
+              Exam {controlsConfig.name} {examStarted ? ' - In progress' : ''}
+            </span>
+            {isAdmin && (
+              <Badge variant="destructive" className="text-xs ml-2">
+                Admin Mode
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Start/End Exam Controls */}
+          <div className="flex flex-col gap-3">
+            {!examStarted ? (
+              <Button
+                onClick={onStartExam}
+                className="w-full"
+                variant="default"
+                size="lg"
+              >
+                <Play className="size-4 mr-2" />
+                Start Exam
+              </Button>
+            ) : (
+              <Button
+                onClick={onEndExam}
+                className="w-full fill-current"
+                variant="destructive"
+                size="lg"
+              >
+                <Square className="size-4 mr-2" />
+                End Exam
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </>
   );
 }

@@ -31,6 +31,9 @@ export const postRequestBodySchema = z.object({
   ),
   selectedVisibilityType: z.enum(['public', 'private']),
   modelType: z.enum(MODEL_TYPE_VALUES),
+  // Add optional exam context fields
+  currentSection: z.string().optional(),
+  currentSubsection: z.string().optional(),
 });
 
 export type PostRequestBody = z.infer<typeof postRequestBodySchema>;

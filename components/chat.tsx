@@ -56,7 +56,13 @@ function ChatWithSearchParams({
   onDataStreamUpdate?: (data: any[]) => void;
 }) {
   const { mutate } = useSWRConfig();
-  const { examType, examStarted } = useExamContext();
+  const {
+    examType,
+    examStarted,
+    currentSection,
+    currentSubsection,
+    setOnSectionChange,
+  } = useExamContext();
   const { visibilityType } = useChatVisibility({
     chatId: id,
     initialVisibilityType,
@@ -90,6 +96,11 @@ function ChatWithSearchParams({
       selectedChatModel,
       selectedVisibilityType: visibilityType,
       modelType: getModelType(selectedChatModel),
+      // Include current section and subsection for exam models
+      ...(examType && {
+        currentSection,
+        currentSubsection,
+      }),
     }),
     onFinish: () => {
       mutate(unstable_serialize(getChatHistoryPaginationKey));
@@ -137,6 +148,35 @@ function ChatWithSearchParams({
       });
     }
   }, [examStarted, hasStartedExam, examType, append]);
+
+  // Set up callback for admin section changes
+  useEffect(() => {
+    if (examType && examStarted) {
+      setOnSectionChange((section: string, subsection?: string) => {
+        if (subsection) {
+          console.log(
+            `[CHAT] Admin jumped to subsection ${subsection}, requesting content`,
+          );
+          append({
+            role: 'user',
+            content: `[Admin] I've jumped to Subsection ${subsection}. Please provide the specific instructions and content for this subsection.`,
+          });
+        } else {
+          console.log(
+            `[CHAT] Admin jumped to section ${section}, requesting section content`,
+          );
+          append({
+            role: 'user',
+            content: `[Admin] I've jumped to Section ${section}. Please provide the introduction and content for this section.`,
+          });
+        }
+      });
+
+      return () => {
+        setOnSectionChange(null);
+      };
+    }
+  }, [examType, examStarted, setOnSectionChange, append]);
 
   // Notify parent of append function
   useEffect(() => {
@@ -229,23 +269,15 @@ function ChatWithSearchParams({
   );
 }
 
-// Componente de loading para el Suspense
+// Componente de carga con skeleton para Suspense
 function ChatSkeleton() {
   return (
     <div className="flex flex-col min-w-0 h-dvh bg-background">
-      <div className="flex items-center justify-between w-full px-4 py-3 border-b">
-        <div className="h-6 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-        <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-      </div>
-      <div className="flex-1 overflow-hidden">
-        <div className="space-y-4 p-4">
-          <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-          <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-        </div>
-      </div>
-      <div className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
-        <div className="flex-1 h-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+      <div className="h-16 bg-muted animate-pulse" />
+      <div className="flex-1 p-4 space-y-4">
+        <div className="h-8 bg-muted animate-pulse rounded" />
+        <div className="h-16 bg-muted animate-pulse rounded" />
+        <div className="h-12 bg-muted animate-pulse rounded" />
       </div>
     </div>
   );

@@ -8,6 +8,8 @@ import {
   useState,
 } from 'react';
 
+import { useSession } from 'next-auth/react';
+
 import type {
   AudioFile,
   CompleteExamConfig,
@@ -40,6 +42,9 @@ interface ExamContextType {
   completedSubsections: string[];
   examProgress: number; // percentage 0-100
 
+  // Admin state
+  isAdmin: boolean;
+
   // Exam actions
   readyToStartExam: (modelId: string) => void;
   startExam: (
@@ -57,6 +62,17 @@ interface ExamContextType {
   completeSection: (section: string) => void;
   completeSubsection: (subsection: string) => void;
   updateProgress: (progress: number) => void;
+
+  // Admin-specific actions
+  jumpToSection: (section: string) => void;
+  jumpToSubsection: (subsection: string) => void;
+  completeAllSections: () => void;
+  resetProgress: () => void;
+
+  // Chat integration
+  setOnSectionChange: (
+    callback: ((section: string, subsection?: string) => void) | null,
+  ) => void;
 
   // Audio actions
   setAudioFiles: (files: AudioFile[]) => void;
@@ -92,6 +108,10 @@ export const ExamContext = createContext<ExamContextType | undefined>(
 );
 
 export function ExamProvider({ children }: { children: ReactNode }) {
+  const { data: session } = useSession();
+  const userType = session?.user?.type || 'guest';
+  const isAdmin = userType === 'admin';
+
   const [examStarted, setExamStarted] = useState(false);
   const [examType, setExamType] = useState<string | null>(null);
   const [examStartTime, setExamStartTime] = useState<Date | null>(null);
@@ -120,6 +140,11 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   );
   const [examProgress, setExamProgress] = useState(0);
   const { setOpen } = useSidebar();
+
+  // Chat integration callback
+  const onSectionChangeCallback = useRef<
+    ((section: string, subsection?: string) => void) | null
+  >(null);
 
   // Add debouncing for exam control to prevent rapid duplicate calls
   const lastExamControlCall = useRef<{ action: string; timestamp: number }>({
@@ -257,6 +282,79 @@ export function ExamProvider({ children }: { children: ReactNode }) {
 
   const updateProgress = (progress: number) => {
     setExamProgress(Math.min(Math.max(progress, 0), 100));
+  };
+
+  // Admin-specific actions
+  const jumpToSection = (section: string) => {
+    if (!isAdmin) {
+      console.warn('Only admins can jump to sections');
+      return;
+    }
+
+    console.log(`[ADMIN] Jumping to section ${section}`);
+    setCurrentSection(section);
+    setCurrentSubsection(null);
+
+    // Notify chat system of section change so AI can provide section-specific content
+    if (onSectionChangeCallback.current) {
+      onSectionChangeCallback.current(section);
+    }
+  };
+
+  const jumpToSubsection = (subsection: string) => {
+    if (!isAdmin) {
+      console.warn('Only admins can jump to subsections');
+      return;
+    }
+
+    console.log(`[ADMIN] Jumping to subsection ${subsection}`);
+    setCurrentSubsection(subsection);
+
+    // Auto-switch section if needed
+    const subsectionSection = subsection.charAt(0);
+    if (currentSection !== subsectionSection) {
+      setCurrentSection(subsectionSection);
+    }
+
+    // Always notify chat system of subsection change (for both section and subsection changes)
+    if (onSectionChangeCallback.current) {
+      onSectionChangeCallback.current(subsectionSection, subsection);
+    }
+  };
+
+  const completeAllSections = () => {
+    if (!isAdmin) {
+      console.warn('Only admins can complete all sections');
+      return;
+    }
+
+    console.log('[ADMIN] Completing all sections');
+    const allSections = Array.from({ length: totalSections }, (_, i) =>
+      (i + 1).toString(),
+    );
+    setCompletedSections(allSections);
+    setExamProgress(100);
+  };
+
+  const resetProgress = () => {
+    if (!isAdmin) {
+      console.warn('Only admins can reset progress');
+      return;
+    }
+
+    console.log('[ADMIN] Resetting exam progress');
+    setCompletedSections([]);
+    setCompletedSubsections([]);
+    setExamProgress(0);
+    setCurrentSection('1');
+    setCurrentSubsection(null);
+  };
+
+  // Chat integration
+  const setOnSectionChange = (
+    callback: ((section: string, subsection?: string) => void) | null,
+  ) => {
+    onSectionChangeCallback.current = callback;
   };
 
   const getExamDuration = (): number | null => {
@@ -629,6 +727,7 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     completedSections,
     completedSubsections,
     examProgress,
+    isAdmin, // Add admin status to context value
     readyToStartExam,
     startExam,
     endExam,
@@ -641,6 +740,11 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     completeSection,
     completeSubsection,
     updateProgress,
+    jumpToSection, // Add admin-specific actions
+    jumpToSubsection,
+    completeAllSections,
+    resetProgress,
+    setOnSectionChange, // Add chat integration
     setAudioFiles,
     setCurrentAudioIndex,
     setIsAudioPlaying,

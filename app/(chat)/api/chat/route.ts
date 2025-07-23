@@ -121,6 +121,8 @@ export async function POST(request: Request) {
       selectedChatModel,
       selectedVisibilityType,
       modelType,
+      currentSection: requestCurrentSection,
+      currentSubsection: requestCurrentSubsection,
     } = requestBody;
 
     const session = await auth();
@@ -215,9 +217,20 @@ export async function POST(request: Request) {
           );
         }
 
-        // TODO: Extract current section from messages or context if needed
-        // For now, we'll let the AI determine the appropriate section
-        // currentSection could be extracted from conversation context in the future
+        // Use current section from request body if provided
+        currentSection = requestCurrentSection;
+        if (currentSection) {
+          console.log(
+            '🎯 [PROMPT SYSTEM] Using current section from request:',
+            currentSection,
+          );
+          if (requestCurrentSubsection) {
+            console.log(
+              '🎯 [PROMPT SYSTEM] Current subsection:',
+              requestCurrentSubsection,
+            );
+          }
+        }
       } catch (error) {
         console.error(
           '❌ [PROMPT SYSTEM] Failed to load exam configuration:',
