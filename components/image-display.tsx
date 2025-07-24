@@ -6,7 +6,6 @@ import Image from 'next/image';
 
 import { CheckCircle, Eye, Image as ImageIcon, ZoomIn } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface ImageDisplayProps {
@@ -181,7 +180,7 @@ export function ImageDisplay({
                         'scale-105': selectedImage === index,
                       },
                     )}
-                    onLoadingComplete={() => handleImageLoad(index)}
+                    onLoad={() => handleImageLoad(index)}
                     onError={() => handleImageError(index)}
                     sizes="(max-width: 768px) 100vw, 50vw"
                   />
@@ -190,28 +189,21 @@ export function ImageDisplay({
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       {selectedImage === index ? (
-                        <Button variant="secondary" size="sm">
+                        <div className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
                           <Eye className="size-4 mr-1" />
                           Viewing
-                        </Button>
+                        </div>
                       ) : (
-                        <Button variant="secondary" size="sm">
+                        <div className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
                           <ZoomIn className="size-4 mr-1" />
                           Click to view
-                        </Button>
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
               )}
             </button>
-
-            {/* Image caption */}
-            {image.caption && (
-              <p className="text-xs text-muted-foreground text-center">
-                {image.caption}
-              </p>
-            )}
           </div>
         ))}
       </div>
