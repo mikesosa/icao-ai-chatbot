@@ -15,10 +15,7 @@ export const entitlementsByUserType: Record<UserType, Entitlements> = {
    */
   guest: {
     maxMessagesPerDay: 20,
-    availableChatModelIds: [
-      MODEL_IDS.CHAT_MODEL,
-      MODEL_IDS.CHAT_MODEL_REASONING,
-    ],
+    availableChatModelIds: [MODEL_IDS.TEA_EVALUATOR, MODEL_IDS.ELPAC_EVALUATOR],
     canSkipExamSections: false,
   },
 
@@ -27,12 +24,7 @@ export const entitlementsByUserType: Record<UserType, Entitlements> = {
    */
   regular: {
     maxMessagesPerDay: 100,
-    availableChatModelIds: [
-      MODEL_IDS.CHAT_MODEL,
-      MODEL_IDS.CHAT_MODEL_REASONING,
-      MODEL_IDS.TEA_EVALUATOR,
-      MODEL_IDS.ELPAC_EVALUATOR,
-    ],
+    availableChatModelIds: [MODEL_IDS.TEA_EVALUATOR, MODEL_IDS.ELPAC_EVALUATOR],
     canSkipExamSections: false,
   },
 
@@ -41,12 +33,7 @@ export const entitlementsByUserType: Record<UserType, Entitlements> = {
    */
   admin: {
     maxMessagesPerDay: -1, // unlimited
-    availableChatModelIds: [
-      MODEL_IDS.CHAT_MODEL,
-      MODEL_IDS.CHAT_MODEL_REASONING,
-      MODEL_IDS.TEA_EVALUATOR,
-      MODEL_IDS.ELPAC_EVALUATOR,
-    ],
+    availableChatModelIds: [MODEL_IDS.TEA_EVALUATOR, MODEL_IDS.ELPAC_EVALUATOR],
     canSkipExamSections: true,
   },
 };

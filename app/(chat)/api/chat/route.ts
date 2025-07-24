@@ -138,7 +138,15 @@ export async function POST(request: Request) {
       differenceInHours: 24,
     });
 
-    if (messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
+    const maxMessages = entitlementsByUserType[userType].maxMessagesPerDay;
+    console.log(
+      `🚦 [RATE LIMIT] User ${session.user.id} (${userType}): ${messageCount}/${maxMessages === -1 ? '∞' : maxMessages} messages in last 24h`,
+    );
+
+    if (maxMessages !== -1 && messageCount > maxMessages) {
+      console.log(
+        `❌ [RATE LIMIT] User ${session.user.id} exceeded limit: ${messageCount} > ${maxMessages}`,
+      );
       return new ChatSDKError('rate_limit:chat').toResponse();
     }
 
@@ -218,7 +226,7 @@ export async function POST(request: Request) {
         }
 
         // Use current section from request body if provided
-        currentSection = requestCurrentSection;
+        currentSection = requestCurrentSection ?? undefined;
         if (currentSection) {
           console.log(
             '🎯 [PROMPT SYSTEM] Using current section from request:',

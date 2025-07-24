@@ -1,6 +1,6 @@
 import { MODEL_IDS } from '@/lib/types';
 
-export const DEFAULT_CHAT_MODEL: string = MODEL_IDS.CHAT_MODEL;
+export const DEFAULT_CHAT_MODEL: string = MODEL_IDS.TEA_EVALUATOR;
 
 export interface ChatModel {
   id: string;
