@@ -275,12 +275,12 @@
                   "layout": "side-by-side",
                   "images": [
                     {
-                      "url": "https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?w=600&h=400&fit=crop&auto=format",
+                      "url": "https://images.unsplash.com/photo-1527007622069-3a0241e1cd8c?w=600&h=400&fit=crop&auto=format",
                       "alt": "Busy airport terminal with passengers",
                       "caption": "Image 1: Busy Airport Terminal"
                     },
                     {
-                      "url": "https://images.unsplash.com/photo-1581889470536-467bdbe30cd0?w=600&h=400&fit=crop&auto=format",
+                      "url": "https://images.unsplash.com/photo-1689820583426-bcc5b22617a0?w=600&h=400&fit=crop&auto=format",
                       "alt": "Aircraft preparing for takeoff",
                       "caption": "Image 2: Aircraft preparing for takeoff"
                     }
