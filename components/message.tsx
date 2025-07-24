@@ -16,6 +16,7 @@ import { DocumentToolCall, DocumentToolResult } from './document';
 import { DocumentPreview } from './document-preview';
 // ExamAudioPlayer removed - using unified AudioPlayer instead
 import { PencilEditIcon, SparklesIcon } from './icons';
+import { ImageDisplay } from './image-display';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
 import { MessageEditor } from './message-editor';
@@ -194,6 +195,10 @@ const PurePreviewMessage = ({
                         <div className="bg-muted rounded-lg p-4 text-center text-sm text-muted-foreground">
                           Loading audio player...
                         </div>
+                      ) : toolName === 'displayImage' ? (
+                        <div className="bg-muted rounded-lg p-4 text-center text-sm text-muted-foreground">
+                          Loading image display...
+                        </div>
                       ) : null}
                     </div>
                   );
@@ -253,6 +258,17 @@ const PurePreviewMessage = ({
                             />
                           );
                         })()
+                      ) : toolName === 'displayImage' ? (
+                        <ImageDisplay
+                          title={result.details?.title || 'Image Display'}
+                          description={result.details?.description}
+                          images={result.details?.images || []}
+                          imageSetId={result.details?.imageSetId}
+                          isExamImage={result.details?.isExamImage || false}
+                          subsection={result.details?.subsection}
+                          layout={result.details?.layout || 'single'}
+                          instructions={result.details?.instructions || []}
+                        />
                       ) : toolName ===
                         'examSectionControl' ? null : toolName ===
                         'getAudioTranscript' ? null : ( // Hide examSectionControl and getAudioTranscript results completely

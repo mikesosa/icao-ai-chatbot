@@ -24,6 +24,7 @@ import {
 } from '@/lib/ai/prompts';
 import { myProvider } from '@/lib/ai/providers';
 import { createDocument } from '@/lib/ai/tools/create-document';
+import { displayImageTool } from '@/lib/ai/tools/display-image';
 import { examSectionControl } from '@/lib/ai/tools/exam-section-control';
 import { getAudioTranscript } from '@/lib/ai/tools/get-audio-transcript';
 import { getWeather } from '@/lib/ai/tools/get-weather';
@@ -277,6 +278,7 @@ export async function POST(request: Request) {
                     'examSectionControl',
                     'playAudio',
                     'getAudioTranscript',
+                    'displayImage',
                   ]
                 : [
                     'getWeather',
@@ -297,6 +299,7 @@ export async function POST(request: Request) {
             examSectionControl: examSectionControl({ dataStream }),
             playAudio: playAudioTool({ session, dataStream }),
             getAudioTranscript: getAudioTranscript({ examConfig }),
+            displayImage: displayImageTool({ session, dataStream }),
           },
           onFinish: async ({ response }) => {
             if (session.user?.id) {
