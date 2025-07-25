@@ -275,12 +275,12 @@
                   "layout": "side-by-side",
                   "images": [
                     {
-                      "url": "https://images.unsplash.com/photo-1527007622069-3a0241e1cd8c?w=600&h=400&fit=crop&auto=format",
+                      "url": "https://images.unsplash.com/photo-1527007622069-3a0241e1cd8c?w=600&h=400&fit=crop&auto=format&v=2",
                       "alt": "Busy airport terminal with passengers",
                       "caption": "Image 1: Busy Airport Terminal"
                     },
                     {
-                      "url": "https://images.unsplash.com/photo-1689820583426-bcc5b22617a0?w=600&h=400&fit=crop&auto=format",
+                      "url": "https://images.unsplash.com/photo-1689820583426-bcc5b22617a0?w=600&h=400&fit=crop&auto=format&v=2",
                       "alt": "Aircraft preparing for takeoff",
                       "caption": "Image 2: Aircraft preparing for takeoff"
                     }
@@ -298,12 +298,12 @@
                   "layout": "side-by-side",
                   "images": [
                     {
-                      "url": "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?w=600&h=400&fit=crop&auto=format",
+                      "url": "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?w=600&h=400&fit=crop&auto=format&v=2",
                       "alt": "Aircraft being serviced in hangar",
                       "caption": "Image 1: Hangar Maintenance"
                     },
                     {
-                      "url": "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?w=600&h=400&fit=crop&auto=format",
+                      "url": "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?w=600&h=400&fit=crop&auto=format&v=2",
                       "alt": "Aircraft being serviced on the ramp",
                       "caption": "Image 2: Line Maintenance"
                     }
@@ -321,12 +321,12 @@
                   "layout": "side-by-side",
                   "images": [
                     {
-                      "url": "https://images.unsplash.com/photo-1474302770737-173ee21bab63?w=600&h=400&fit=crop&auto=format",
+                      "url": "https://images.unsplash.com/photo-1474302770737-173ee21bab63?w=600&h=400&fit=crop&auto=format&v=2",
                       "alt": "Clear weather conditions at airport runway",
                       "caption": "Image 1: Clear Weather Operations"
                     },
                     {
-                      "url": "https://images.unsplash.com/photo-1605902711834-8b11c3e3ef1a?w=600&h=400&fit=crop&auto=format",
+                      "url": "https://images.unsplash.com/photo-1605902711834-8b11c3e3ef1a?w=600&h=400&fit=crop&auto=format&v=2",
                       "alt": "Foggy conditions limiting visibility at runway",
                       "caption": "Image 2: Low Visibility Operations"
                     }

@@ -43,11 +43,9 @@ export const regularPrompt =
   'You are a specialized assistant for international civil aviation and ICAO regulations. Always respond professionally, accurately, and based on aviation industry best practices. When possible, cite relevant ICAO documents and provide detailed but accessible technical information.';
 
 // Aviation-specific prompts by model
+// Note: Exam evaluators (TEA_EVALUATOR, ELPAC_EVALUATOR) are not included here
+// because they use dynamic exam configuration via buildExamEvaluatorPrompt()
 export const modelSpecificPrompts = {
-  [MODEL_IDS.CHAT_MODEL]:
-    'You are a civil aviation expert who helps with general queries about ICAO, aeronautical regulations, flight procedures, and operational safety. Provide clear answers and cite relevant ICAO annexes when applicable.',
-  [MODEL_IDS.CHAT_MODEL_REASONING]:
-    'You are a technical analyst specialized in ICAO regulations. Use detailed reasoning to explain complex regulations, analyze specific cases, and provide precise technical interpretations with references to official documents.',
   [MODEL_IDS.TITLE_MODEL]:
     'Create concise titles for conversations about civil aviation and ICAO regulations.',
   [MODEL_IDS.ARTIFACT_MODEL]:
@@ -81,6 +79,104 @@ export const buildExamEvaluatorPrompt = (
   section?: string,
 ): string => {
   let prompt = `${examConfig.aiConfig.mainPrompt}\n\n${examConfig.aiConfig.evaluationCriteria}\n\n`;
+
+  // Include the actual exam configuration data for the AI to access
+  if (examConfig.examConfig) {
+    prompt += `EXAM CONFIGURATION DATA:
+You have access to the following exam configuration data. When instructions refer to using "exact URLs from exam configuration" or "exact data from exam configuration", use these exact values:
+
+`;
+
+    // Dynamically include all sections and their subsections
+    if (examConfig.examConfig.sections) {
+      Object.keys(examConfig.examConfig.sections).forEach((sectionKey) => {
+        const sectionConfig = (examConfig.examConfig.sections as any)?.[
+          sectionKey
+        ];
+        if (sectionConfig?.subsections) {
+          prompt += `SECTION ${sectionKey} SUBSECTIONS:
+`;
+          Object.keys(sectionConfig.subsections).forEach((subsectionKey) => {
+            const subsection = sectionConfig.subsections?.[
+              subsectionKey
+            ] as any;
+            if (subsection) {
+              prompt += `
+Subsection ${subsectionKey} - ${subsection.name}:
+- Description: ${subsection.description}
+`;
+
+              // Include instructions if they exist
+              if (subsection.instructions) {
+                prompt += `- Instructions: ${subsection.instructions.join(', ')}
+`;
+              }
+
+              // Include image sets if they exist (for visual exam sections)
+              if (subsection.imageSets) {
+                prompt += `- Image Sets Available:
+`;
+                subsection.imageSets.forEach((imageSet: any, index: number) => {
+                  prompt += `  ${index + 1}. ${imageSet.title} (ID: ${imageSet.setId})
+     Description: ${imageSet.description}
+     Layout: ${imageSet.layout}
+     Images:
+`;
+                  imageSet.images.forEach((image: any, imgIndex: number) => {
+                    prompt += `       ${imgIndex + 1}. URL: ${image.url}
+          Alt: ${image.alt}
+          Caption: ${image.caption}
+`;
+                  });
+                  if (imageSet.tasks) {
+                    prompt += `     Tasks: ${imageSet.tasks.join(', ')}
+`;
+                  }
+                });
+              }
+
+              // Include discussion topics if they exist (for discussion sections)
+              if (subsection.discussionTopics) {
+                prompt += `- Discussion Topics Available:
+`;
+                subsection.discussionTopics.forEach(
+                  (topic: any, index: number) => {
+                    prompt += `  ${index + 1}. ${topic.topic}
+     Questions: ${topic.questions.join(', ')}
+`;
+                  },
+                );
+              }
+
+              // Include audio files if they exist (for listening sections)
+              if (subsection.audioFiles) {
+                prompt += `- Audio Files Available: ${subsection.audioFiles.length} recordings
+`;
+                subsection.audioFiles.forEach(
+                  (audioFile: any, index: number) => {
+                    prompt += `  ${index + 1}. ${audioFile.title} (Recording ${audioFile.recording})
+     Description: ${audioFile.description}
+`;
+                  },
+                );
+              }
+            }
+          });
+          prompt += `
+`;
+        }
+      });
+    }
+
+    prompt += `IMPORTANT INSTRUCTIONS FOR USING CONFIGURATION DATA:
+- When displaying images, use the EXACT image URLs, alt text, and captions from the configuration data above
+- When playing audio, reference the exact recording numbers and subsections from the configuration data above
+- When conducting discussions, use the exact discussion topics and questions from the configuration data above
+- Do NOT generate or use any URLs, topics, or content not explicitly provided in this configuration
+- Follow the exact structure and format specified in the exam configuration
+
+`;
+  }
 
   if (section && examConfig.aiConfig.sections[section]) {
     const sectionPrompt = examConfig.aiConfig.sections[section].prompt;
@@ -191,30 +287,6 @@ export const systemPrompt = ({
 };
 
 // ==========================================
-// LEGACY FUNCTIONS (DEPRECATED)
-// ==========================================
-
-/**
- * @deprecated Use buildExamEvaluatorPrompt with exam config instead
- */
-export const createTeaEvaluatorPrompt = (_section?: 1 | 2 | 3) => {
-  console.warn(
-    'createTeaEvaluatorPrompt is deprecated. Use dynamic exam config instead.',
-  );
-  return 'Please configure the exam properly using dynamic configuration.';
-};
-
-/**
- * @deprecated Use getExamSectionPrompt with exam config instead
- */
-export const getTeaSectionPrompt = (_section: 1 | 2 | 3): string => {
-  console.warn(
-    'getTeaSectionPrompt is deprecated. Use dynamic exam config instead.',
-  );
-  return '';
-};
-
-// ==========================================
 // ARTIFACT AND DOCUMENT PROMPTS
 // ==========================================
 
@@ -268,47 +340,3 @@ Improve the following spreadsheet based on the given prompt.
 ${currentContent}
 `
         : '';
-
-// Función para contexto dinámico (opcional)
-export const createDynamicContext = (userInfo?: {
-  role?: 'pilot' | 'controller' | 'technician' | 'student' | 'inspector';
-  experience?: 'beginner' | 'intermediate' | 'expert';
-  specialty?: string;
-}) => {
-  if (!userInfo) return '';
-
-  const roleContext = {
-    pilot:
-      'Como piloto, enfócate en procedimientos operacionales, limitaciones de aeronave y aspectos prácticos del vuelo.',
-    controller:
-      'Como controlador de tráfico aéreo, prioriza información sobre separación, procedimientos ATC y coordinación.',
-    technician:
-      'Como técnico aeronáutico, enfócate en aspectos de mantenimiento, certificación y estándares técnicos.',
-    student:
-      'Explica conceptos de manera didáctica, usa ejemplos prácticos y proporciona contexto educativo.',
-    inspector:
-      'Como inspector de aviación civil, enfócate en cumplimiento normativo, auditorías y certificaciones.',
-  };
-
-  const experienceContext = {
-    beginner:
-      'Usa lenguaje accesible y proporciona explicaciones básicas de términos técnicos.',
-    intermediate:
-      'Asume conocimiento básico pero explica conceptos avanzados cuando sea necesario.',
-    expert:
-      'Puedes usar terminología técnica avanzada y referencias específicas a normativas.',
-  };
-
-  let context = '';
-  if (userInfo.role) {
-    context += `\n\nContexto del usuario: ${roleContext[userInfo.role]}`;
-  }
-  if (userInfo.experience) {
-    context += `\n\nNivel de experiencia: ${experienceContext[userInfo.experience]}`;
-  }
-  if (userInfo.specialty) {
-    context += `\n\nEspecialidad: Ten en cuenta que el usuario se especializa en ${userInfo.specialty}.`;
-  }
-
-  return context;
-};
