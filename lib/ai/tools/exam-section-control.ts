@@ -90,42 +90,49 @@ This tool helps maintain proper exam flow and section tracking for any exam type
       }
 
       // Enhanced server-side debouncing - prevent multiple rapid calls
+      // EXCEPTION: complete_exam should never be debounced since it's a final action
       const sessionKey = `${action}-${targetSection || 'none'}`;
       const now = Date.now();
-      const lastCall = lastCallTracker.get(sessionKey);
+      if (action !== 'complete_exam') {
+        const lastCall = lastCallTracker.get(sessionKey);
 
-      // Check if we recently had a successful call for the same action
-      if (lastCall) {
-        const timeSinceLastCall = now - lastCall.timestamp;
+        // Check if we recently had a successful call for the same action
+        if (lastCall) {
+          const timeSinceLastCall = now - lastCall.timestamp;
 
-        // If the last call was successful and within 10 seconds, completely block it
-        if (lastCall.successful && timeSinceLastCall < 10000) {
-          console.log('🚫 [EXAM TOOL] Blocking duplicate successful call:', {
-            action,
-            targetSection,
-            timeSinceLastCall,
-            lastCallWasSuccessful: lastCall.successful,
-          });
-          // Return minimal response - no user-visible message
-          return {
-            success: false,
-            duplicate: true,
-          };
+          // If the last call was successful and within 10 seconds, completely block it
+          if (lastCall.successful && timeSinceLastCall < 10000) {
+            console.log('🚫 [EXAM TOOL] Blocking duplicate successful call:', {
+              action,
+              targetSection,
+              timeSinceLastCall,
+              lastCallWasSuccessful: lastCall.successful,
+            });
+            // Return minimal response - no user-visible message
+            return {
+              success: false,
+              duplicate: true,
+            };
+          }
+
+          // For any call within 5 seconds, block it
+          if (timeSinceLastCall < 5000) {
+            console.log('🚫 [EXAM TOOL] Debouncing rapid call:', {
+              action,
+              targetSection,
+              timeSinceLastCall,
+            });
+            // Return minimal response - no user-visible message
+            return {
+              success: false,
+              debounced: true,
+            };
+          }
         }
-
-        // For any call within 5 seconds, block it
-        if (timeSinceLastCall < 5000) {
-          console.log('🚫 [EXAM TOOL] Debouncing rapid call:', {
-            action,
-            targetSection,
-            timeSinceLastCall,
-          });
-          // Return minimal response - no user-visible message
-          return {
-            success: false,
-            debounced: true,
-          };
-        }
+      } else {
+        console.log(
+          '✅ [EXAM TOOL] complete_exam action - skipping debouncing',
+        );
       }
 
       // Create the exam control event (ensure all values are serializable)

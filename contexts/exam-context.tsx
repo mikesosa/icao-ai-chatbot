@@ -690,16 +690,12 @@ export function ExamProvider({ children }: { children: ReactNode }) {
           completeSection(currentSection);
         }
 
-        // Only end exam if all sections are complete or explicitly requested
-        const allSectionsComplete = completedSections.length >= totalSections;
-        if (allSectionsComplete) {
-          console.log('✅ [EXAM CONTEXT] All sections complete, ending exam');
-          endExam();
-        } else {
-          console.log(
-            '⚠️ [EXAM CONTEXT] Exam not complete, ignoring endExam call',
-          );
-        }
+        // For complete_exam action, always end the exam immediately
+        // This is because the AI has determined all objectives are met
+        console.log(
+          '✅ [EXAM CONTEXT] Complete exam action called, ending exam immediately',
+        );
+        endExam();
         break;
       }
     }
