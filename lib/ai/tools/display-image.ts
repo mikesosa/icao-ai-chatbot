@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 export const displayImageTool = ({
   session: _session,
+  dataStream,
 }: {
   session: Session;
   dataStream: DataStreamWriter;
@@ -99,6 +100,28 @@ export const displayImageTool = ({
           '🖼️ [DISPLAY IMAGE TOOL] Final image set ID:',
           finalImageSetId,
         );
+
+        // Prepare image display data (similar to audio player data)
+        const imageDisplayData = {
+          type: 'image-display',
+          content: {
+            title,
+            description: description || '',
+            images,
+            layout,
+            subsection: subsection || '',
+            imageSetId: finalImageSetId,
+            isExamImage,
+            instructions: instructions || [],
+          },
+        };
+        console.log(
+          '🖼️ [DISPLAY IMAGE TOOL] Image display data to send:',
+          imageDisplayData,
+        );
+
+        // Send image display data to the data stream
+        dataStream.writeData(imageDisplayData);
 
         // Return success message with details for the AI - following audio player pattern
         const imageCount = images.length;

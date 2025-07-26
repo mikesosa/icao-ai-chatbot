@@ -21,7 +21,8 @@ export type DataStreamDelta = {
     | 'finish'
     | 'kind'
     | 'exam-section-control'
-    | 'audio-player';
+    | 'audio-player'
+    | 'image-display';
   content: string | Suggestion | ExamSectionControlResult | any;
 };
 
@@ -94,6 +95,16 @@ export function DataStreamHandler({
         );
         // Audio player data is handled by the message component
         return; // Early return for audio player events
+      }
+
+      // Handle image display events
+      if (delta.type === 'image-display') {
+        console.log(
+          '🖼️ [DATA STREAM] Processing image display data:',
+          delta.content,
+        );
+        // Image display data is handled by the message component
+        return; // Early return for image display events
       }
 
       const artifactDefinition = artifactDefinitions.find(
