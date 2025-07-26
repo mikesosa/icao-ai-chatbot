@@ -189,12 +189,13 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
       return;
     }
 
-    // If navigating to a subsection of a different section, switch sections first
+    // Set subsection first to prevent auto-selection race condition
+    setCurrentSubsection(subsectionId);
+
+    // If navigating to a subsection of a different section, switch sections after
     if (subsectionSection !== currentSectionNum) {
       setCurrentSection(subsectionSection.toString());
     }
-
-    setCurrentSubsection(subsectionId);
 
     // Track subsection change
     if (lastAppendedSubsection.current !== subsectionId) {

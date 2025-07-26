@@ -157,9 +157,16 @@ export function ExamProvider({ children }: { children: ReactNode }) {
 
   // Add a flag to prevent AI from calling advance_to_next after auto-selection
   const justAutoSelectedSubsection = useRef(false);
+  // Add a flag to prevent auto-selection after manual subsection selection
+  const manualSubsectionChange = useRef(false);
 
   // Auto-select first subsection when section changes
   useEffect(() => {
+    // Don't auto-select if there was a recent manual subsection change
+    if (manualSubsectionChange.current) {
+      return;
+    }
+
     if (examStarted && currentSection && !currentSubsection && examConfig) {
       const sectionConfig =
         examConfig.examConfig.sections[Number(currentSection)];
@@ -183,6 +190,14 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     examConfig,
     setCurrentSubsection,
   ]);
+
+  // Custom setCurrentSubsection that prevents auto-selection conflicts
+  const setCurrentSubsectionSafe = (subsection: string | null) => {
+    if (subsection) {
+      manualSubsectionChange.current = true;
+    }
+    setCurrentSubsection(subsection);
+  };
 
   const readyToStartExam = (modelId: string) => {
     if (isExamModel(modelId)) {
@@ -425,39 +440,22 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     return subsectionKeys[currentIndex + 1];
   };
 
-  const handleAIExamControl = (
-    action:
-      | 'advance_to_next'
-      | 'complete_and_advance'
-      | 'complete_current'
-      | 'advance_to_section'
-      | 'complete_exam',
+  const handleAIExamControl = async (
+    action: string,
     targetSection?: string,
-  ) => {
+  ): Promise<void> => {
     // Prevent multiple simultaneous calls
     if (isProcessingExamControl.current) {
-      console.log(
-        '🚫 [EXAM CONTEXT] Ignoring action - already processing:',
-        action,
-      );
       return;
     }
 
     // Ignore all exam control actions if exam is not started (except complete_exam which can be called anytime)
     if (!examStarted && action !== 'complete_exam') {
-      console.log(
-        '🚫 [EXAM CONTEXT] Ignoring action - exam not started:',
-        action,
-      );
       return;
     }
 
     // Prevent exam termination unless explicitly requested
     if (action === 'complete_exam' && !examStarted) {
-      console.log(
-        '🚫 [EXAM CONTEXT] Ignoring complete_exam - exam not started:',
-        action,
-      );
       return;
     }
 
@@ -468,11 +466,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     const debounceTime = isSameAction ? 2000 : 10000; // 2s for same action, 10s for different
 
     if (timeSinceLastCall < debounceTime) {
-      console.log(
-        '🚫 [EXAM CONTEXT] Ignoring duplicate call:',
-        action,
-        `(${timeSinceLastCall}ms ago)`,
-      );
       return;
     }
 
@@ -481,18 +474,11 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       lastExamControlCall.current.action === 'complete_exam' &&
       action !== 'complete_exam'
     ) {
-      console.log(
-        '🚫 [EXAM CONTEXT] Ignoring action - exam already completed:',
-        action,
-      );
       return;
     }
 
     // Prevent advance_to_next calls immediately after auto-selection
     if (action === 'advance_to_next' && justAutoSelectedSubsection.current) {
-      console.log(
-        '🚫 [EXAM CONTEXT] Ignoring advance_to_next - subsection just auto-selected',
-      );
       return;
     }
 
@@ -511,16 +497,12 @@ export function ExamProvider({ children }: { children: ReactNode }) {
         }
         break;
 
-      case 'advance_to_next':
+      case 'advance_to_next': {
         // Smart progression: advance to next subsection first, then to next section
         if (currentSubsection) {
           // Prevent advancing if we just auto-selected this subsection
           if (justAutoSelectedSubsection.current) {
-            console.log(
-              '🚫 [EXAM CONTEXT] Ignoring advance_to_next - subsection just auto-selected:',
-              currentSubsection,
-            );
-            break;
+            return;
           }
 
           // Currently in a subsection, try to advance to next subsection
@@ -530,10 +512,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
           );
 
           if (nextSubsection) {
-            console.log(
-              '✅ [EXAM CONTEXT] Advancing to next subsection:',
-              nextSubsection,
-            );
             setCurrentSubsection(nextSubsection);
 
             // Add cooldown to prevent rapid progression
@@ -545,12 +523,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
             // No more subsections in current section, advance to next section
             const nextSection = currentSectionNum + 1;
             if (nextSection <= totalSections) {
-              console.log(
-                '✅ [EXAM CONTEXT] Advancing from section',
-                currentSection,
-                'to section',
-                nextSection,
-              );
               setCurrentSection(nextSection.toString());
               setCurrentSubsection(null); // Will be auto-selected by useEffect
 
@@ -569,22 +541,13 @@ export function ExamProvider({ children }: { children: ReactNode }) {
           // Currently in a section without subsections, advance to next section
           // But prevent this if we just auto-selected a subsection
           if (justAutoSelectedSubsection.current) {
-            console.log(
-              '🚫 [EXAM CONTEXT] Ignoring advance_to_next - waiting for auto-selection to complete',
-            );
-            break;
+            return;
           }
 
           const nextSection = currentSectionNum + 1;
           if (nextSection <= totalSections) {
-            console.log(
-              '✅ [EXAM CONTEXT] Advancing from section',
-              currentSection,
-              'to section',
-              nextSection,
-            );
             setCurrentSection(nextSection.toString());
-            setCurrentSubsection(null); // Will be auto-selected by useEffect
+            setCurrentSubsection(null); // Reset subsection when changing sections
 
             // Add cooldown to prevent rapid progression
             setTimeout(() => {
@@ -598,6 +561,7 @@ export function ExamProvider({ children }: { children: ReactNode }) {
           }
         }
         break;
+      }
 
       case 'complete_and_advance':
         if (currentSection) {
@@ -607,12 +571,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
           const nextSection = currentSectionNum + 1;
 
           if (nextSection <= totalSections) {
-            console.log(
-              '✅ [EXAM CONTEXT] Advancing from section',
-              currentSection,
-              'to section',
-              nextSection,
-            );
             setCurrentSection(nextSection.toString());
             setCurrentSubsection(null); // Reset subsection when changing sections
           } else {
@@ -688,7 +646,7 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     startExam,
     endExam,
     setCurrentSection,
-    setCurrentSubsection,
+    setCurrentSubsection: setCurrentSubsectionSafe,
     setCurrentQuestion: setCurrentQuestionIndex,
     setTotalQuestions,
     setTotalSections,
