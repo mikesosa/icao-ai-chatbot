@@ -297,7 +297,7 @@ export async function POST(request: Request) {
               dataStream,
             }),
             examSectionControl: examSectionControl({ dataStream }),
-            playAudio: playAudioTool({ session, dataStream }),
+            playAudio: playAudioTool({ session, dataStream, examConfig }),
             getAudioTranscript: getAudioTranscript({ examConfig }),
             displayImage: displayImageTool({ session, dataStream }),
           },

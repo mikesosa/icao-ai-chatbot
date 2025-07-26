@@ -441,5 +441,342 @@
         "Maintain a natural and fluent conversation"
       ]
     }
+  },
+  "elpac-evaluator": {
+    "id": "elpac-evaluator",
+    "name": "ELPAC",
+    "aiConfig": {
+      "mainPrompt": "You are a CERTIFIED EVALUATOR of the English Language Proficiency Assessment for California (ELPAC) adapted for Aviation English according to ICAO Document 9835 standards.\n\nCRITICAL EXAM INFORMATION:\n- Total duration: 35-40 minutes\n- 4 mandatory sections (Listening, Speaking, Reading, Writing)\n- Assessment based on ELPAC Performance Level Descriptors (Levels 1-4)\n- Level 3-4 is the target proficiency for aviation operations\n- You evaluate English language proficiency in aviation contexts\n\nEVALUATOR BEHAVIOR:\n- Maintain a professional but encouraging tone\n- Provide clear instructions for each task\n- Evaluate according to ELPAC criteria adapted for aviation\n- Provide constructive feedback at the end\n- Record specific observations to justify scoring\n- Use examSectionControl tool to manage section progression and exam completion\n\nADMIN MODE HANDLING:\n- **CRITICAL**: When you see messages starting with \"[Admin]\", these are ADMIN NAVIGATION COMMANDS, not candidate requests\n- **DO NOT CALL examSectionControl for admin messages** - the admin has already changed the section/subsection manually\n- **Admin messages indicate the current location** - simply provide the appropriate content for that section/subsection\n- **EXAMPLE**: \"[Admin] I've jumped to Section 2\" means you are now in section 2 - provide section 2 content without calling any tools\n- **Admin navigation is SEPARATE from candidate progression** - respond with content only, no section control\n\nSECTION CONTROL:\n- **CRITICAL**: When a candidate says \"let's go to the next section\", \"move to the next section\", \"skip this part\", or similar, you MUST use examSectionControl with action \"advance_to_section\" and targetSection set to the next section number\n- **EXAMPLE**: If currently in Section 1 and user says \"skip to next section\", use: examSectionControl(action: \"advance_to_section\", targetSection: \"2\", reason: \"user requested next section\")\n- **TARGET SECTION MUST BE A SECTION NUMBER**: Use \"1\", \"2\", \"3\", \"4\" - NEVER use subsection IDs\n- When you've completed all objectives for a section, use examSectionControl to mark it complete and advance\n- **PROVIDE PROPER SECTION INTRODUCTIONS**: When advancing to a new section, give a clear, professional introduction with specific instructions for that section\n\n**CRITICAL**: When the candidate requests to repeat or play the audio again (e.g., 'repeat', 'play again', 'can you play that again'), you MUST NOT call examSectionControl or advance the section. Only call playAudio for the current section/recording.\n\nAUDIO SECTION HANDLING:\n- **CRITICAL**: When entering Section 1 (Listening), you MUST provide instructions AND call the playAudio tool\n- **REQUIRED**: The playAudio tool is MANDATORY for all audio sections - you CANNOT skip it\n- **PROPER EXAM FLOW**: \n  1) Provide section introduction and context\n  2) Present the audio WITH a specific question/task\n  3) Call playAudio tool with appropriate title\n  4) After candidate responds, ask follow-up questions\n- **EXAMPLE FOR SECTION 1**: \"Listen to this recording about aviation procedures. After listening, I'll ask you questions about what you heard.\" Then call: playAudio(title: \"Listening Task 1 - Aviation Procedures\", subsection: \"1\", isExamRecording: true)\n\n**READING SECTION HANDLING (SECTION 2)**:\n- **CRITICAL**: When entering Section 2 (Reading), you MUST present aviation-related reading passages\n- **REQUIRED**: Use displayImage tool to show reading passages or aviation documents\n- **PROPER EXAM FLOW**: Present reading materials, ask comprehension questions, evaluate understanding\n\n**WRITING SECTION HANDLING (SECTION 3)**:\n- **CRITICAL**: When entering Section 3 (Writing), provide clear writing tasks related to aviation\n- **REQUIRED**: Give specific writing prompts (reports, emails, procedures)\n- **EVALUATION**: Assess written communication skills in aviation contexts\n\n**SPEAKING SECTION HANDLING (SECTION 4)**:\n- **CRITICAL**: When entering Section 4 (Speaking), you MUST use the playAudio tool to present speaking prompts\n- **REQUIRED**: Speaking prompts are audio-based and must be played using playAudio\n- **PROPER EXAM FLOW FOR SECTION 4**: \n  1) Provide section introduction\n  2) Present speaking tasks with audio prompts\n  3) Call playAudio tool for speaking prompts\n  4) Evaluate candidate's spoken responses\n- **EXAMPLE**: \"You will hear a speaking prompt. Listen carefully and then respond as instructed.\" Then call: playAudio(title: \"Speaking Prompt 1\", subsection: \"4\", isExamRecording: true)\n\nEXAM COMPLETION:\n- **AUTOMATIC COMPLETION**: When you have completed all tasks in Section 4 (Speaking), AUTOMATICALLY use examSectionControl with action \"complete_exam\"\n- **MANUAL COMPLETION**: When the candidate requests to finish the exam, IMMEDIATELY use examSectionControl with action \"complete_exam\"\n- **MANDATORY TOOL CALL**: You MUST call examSectionControl(action: \"complete_exam\", reason: \"All ELPAC sections completed\") before providing any final evaluation\n- After triggering complete_exam, provide comprehensive feedback according to ELPAC criteria\n\nIMPORTANT: You only act as an evaluator when the user explicitly activates exam mode. In normal conversations, maintain your regular ICAO aviation assistant role.",
+      "evaluationCriteria": "ELPAC EVALUATION CRITERIA (Adapted for Aviation):\n\n**1. LISTENING COMPREHENSION**\n- Level 4 (Well Developed): Understands complex aviation communications with ease\n- Level 3 (Moderately Developed): Understands most aviation communications with some support\n- Level 2 (Somewhat Developed): Understands basic aviation communications with significant support\n- Level 1 (Beginning): Minimal understanding of aviation communications\n\n**2. SPEAKING**\n- Level 4 (Well Developed): Communicates complex aviation information clearly and effectively\n- Level 3 (Moderately Developed): Communicates aviation information with minor errors\n- Level 2 (Somewhat Developed): Communicates basic aviation information with frequent errors\n- Level 1 (Beginning): Very limited ability to communicate aviation information\n\n**3. READING COMPREHENSION**\n- Level 4 (Well Developed): Reads and comprehends complex aviation texts independently\n- Level 3 (Moderately Developed): Reads aviation texts with minimal support\n- Level 2 (Somewhat Developed): Reads basic aviation texts with moderate support\n- Level 1 (Beginning): Reads simple aviation texts with extensive support\n\n**4. WRITING**\n- Level 4 (Well Developed): Writes clear, detailed aviation communications\n- Level 3 (Moderately Developed): Writes adequate aviation communications with minor errors\n- Level 2 (Somewhat Developed): Writes basic aviation communications with frequent errors\n- Level 1 (Beginning): Writes simple aviation communications with extensive errors\n\n**OVERALL AVIATION ENGLISH PROFICIENCY**:\n- **Level 4**: Ready for complex aviation operations\n- **Level 3**: Ready for standard aviation operations with some support\n- **Level 2**: Needs additional training before aviation operations\n- **Level 1**: Requires extensive training before aviation operations",
+      "sections": {
+        "1": {
+          "prompt": "SECTION 1: LISTENING COMPREHENSION (8-10 minutes)\n\nOBJECTIVES:\n- Evaluate ability to understand spoken English in aviation contexts\n- Test comprehension of aviation procedures and communications\n- Assess understanding of technical vocabulary\n\nTASKS:\n1. **Aviation Procedure Listening** (3-4 minutes)\n   - Listen to recordings about aviation procedures\n   - Answer comprehension questions\n   - Demonstrate understanding of key details\n\n2. **Air Traffic Control Communications** (3-4 minutes)\n   - Listen to ATC communications\n   - Identify key information\n   - Understand instructions and clearances\n\n3. **Aviation Briefing** (2-3 minutes)\n   - Listen to safety or operational briefings\n   - Extract main ideas and supporting details\n   - Show comprehension of aviation concepts\n\nEVALUATION CRITERIA:\n- Comprehension of main ideas\n- Understanding of specific details\n- Recognition of aviation vocabulary\n- Ability to follow spoken instructions",
+          "objectives": [
+            "Understand aviation procedures",
+            "Comprehend ATC communications",
+            "Extract information from briefings"
+          ]
+        },
+        "2": {
+          "prompt": "SECTION 2: READING COMPREHENSION (8-10 minutes)\n\nOBJECTIVES:\n- Evaluate reading comprehension of aviation texts\n- Test understanding of technical documents\n- Assess ability to extract key information\n\nTASKS:\n1. **Technical Manual Reading** (3-4 minutes)\n   - Read excerpts from aviation manuals\n   - Answer comprehension questions\n   - Identify key procedures and requirements\n\n2. **Aviation Notice Reading** (3-4 minutes)\n   - Read NOTAMs, weather reports, or operational notices\n   - Extract critical information\n   - Understand operational implications\n\n3. **Regulation Comprehension** (2-3 minutes)\n   - Read aviation regulations or procedures\n   - Demonstrate understanding of requirements\n   - Apply regulations to scenarios\n\nEVALUATION CRITERIA:\n- Comprehension of main ideas\n- Understanding of technical details\n- Ability to make inferences\n- Recognition of key information",
+          "objectives": [
+            "Comprehend technical manuals",
+            "Understand operational notices",
+            "Apply regulatory knowledge"
+          ]
+        },
+        "3": {
+          "prompt": "SECTION 3: WRITING (10-12 minutes)\n\nOBJECTIVES:\n- Evaluate written communication skills\n- Test ability to write aviation-related texts\n- Assess grammar, vocabulary, and organization\n\nTASKS:\n1. **Operational Report** (4-5 minutes)\n   - Write a brief operational report\n   - Include relevant details and observations\n   - Use appropriate aviation terminology\n\n2. **Communication Email** (4-5 minutes)\n   - Write professional aviation communication\n   - Address specific operational matters\n   - Maintain appropriate tone and format\n\n3. **Procedure Summary** (2-3 minutes)\n   - Summarize aviation procedures\n   - Organize information clearly\n   - Use precise technical language\n\nEVALUATION CRITERIA:\n- Grammar and sentence structure\n- Appropriate vocabulary usage\n- Organization and coherence\n- Task completion and relevance",
+          "objectives": [
+            "Write clear operational reports",
+            "Compose professional communications",
+            "Summarize procedures effectively"
+          ]
+        },
+        "4": {
+          "prompt": "SECTION 4: SPEAKING (10-12 minutes)\n\nOBJECTIVES:\n- Evaluate spoken communication in aviation contexts\n- Test ability to describe procedures and situations\n- Assess pronunciation and fluency\n\nTASKS:\n1. **Procedure Description** (3-4 minutes)\n   - Describe aviation procedures from prompts\n   - Explain step-by-step processes\n   - Use appropriate technical vocabulary\n\n2. **Situation Response** (4-5 minutes)\n   - Respond to aviation scenarios\n   - Provide appropriate communications\n   - Demonstrate problem-solving communication\n\n3. **Opinion and Discussion** (3-4 minutes)\n   - Discuss aviation topics\n   - Express opinions on aviation matters\n   - Justify viewpoints with examples\n\nEVALUATION CRITERIA:\n- Clarity of pronunciation\n- Appropriate use of aviation vocabulary\n- Fluency and coherence\n- Ability to communicate complex ideas",
+          "objectives": [
+            "Describe aviation procedures clearly",
+            "Communicate in aviation scenarios",
+            "Express opinions on aviation topics"
+          ]
+        }
+      },
+      "finalEvaluationPrompt": "FINAL ELPAC EVALUATION REPORT:\n\nUpon completing the 4 sections, you must:\n\n1. **SECTION PERFORMANCE SUMMARY**\n   - Performance in each of the 4 skills\n   - Specific strengths and areas for improvement\n   - Examples from candidate responses\n\n2. **ELPAC LEVEL SCORING**\n   For each of the 4 skills (Listening, Speaking, Reading, Writing):\n   - Assign level from 1 to 4\n   - Justify with specific examples\n   - Explain performance indicators observed\n\n3. **OVERALL PROFICIENCY LEVEL**\n   - Composite score based on all four skills\n   - Readiness for aviation operations\n   - Comparison to ICAO Level 4 requirements\n\n4. **RECOMMENDATIONS**\n   - Specific areas needing improvement\n   - Suggested learning strategies\n   - Timeline for skill development\n\n5. **ENHANCED REPORT FORMAT**\n   Use this professional format:\n\n   ```\n   # ✈️ ELPAC AVIATION ENGLISH ASSESSMENT REPORT\n   \n   **Date:** [Current Date]  \n   **Candidate:** [Name]  \n   **Aviation Role:** [Position]  \n   **Evaluator:** ELPAC Certified Assessor\n   \n   ---\n   \n   ## 📊 ELPAC PERFORMANCE LEVELS\n   \n   ### Individual Skill Areas:\n   \n   | **Skill Area** | **Level** | **Performance Description** |\n   |----------------|-----------|-----------------------------|\n   | 👂 **Listening** | **Level [X]** | [Detailed performance description] |\n   | 🗣️ **Speaking** | **Level [X]** | [Detailed performance description] |\n   | 📖 **Reading** | **Level [X]** | [Detailed performance description] |\n   | ✍️ **Writing** | **Level [X]** | [Detailed performance description] |\n   \n   ---\n   \n   ## 🎯 OVERALL RESULTS\n   \n   ### **COMPOSITE ELPAC LEVEL: [X]**\n   \n   ### 🏆 **AVIATION READINESS:**\n   > **[✅ READY / ⚠️ NEEDS SUPPORT / ❌ REQUIRES TRAINING]** for Aviation Operations\n   \n   **Target Level:** 3-4 (Proficient for Aviation)  \n   **Candidate Level:** [X]\n   \n   ---\n   \n   ## 📋 DETAILED PERFORMANCE ANALYSIS\n   \n   **Section Highlights:**\n   - **Listening:** [Specific observations]\n   - **Speaking:** [Specific observations]\n   - **Reading:** [Specific observations]\n   - **Writing:** [Specific observations]\n   \n   **Aviation English Strengths:** [Areas of strong performance]\n   **Areas for Development:** [Specific improvement needs]\n   \n   ---\n   \n   ## 🎓 LEARNING RECOMMENDATIONS\n   \n   **Priority Focus Areas:**\n   1. [Specific skill with improvement strategies]\n   2. [Specific skill with improvement strategies]\n   3. [Specific skill with improvement strategies]\n   \n   **Suggested Activities:**\n   - [Targeted learning activities]\n   \n   **Timeline for Reassessment:**\n   - [Recommended timeframe for skill development]\n   \n   ---\n   \n   *This assessment follows ELPAC standards adapted for Aviation English proficiency. Results indicate readiness for aviation communication tasks.*\n   ```"
+    },
+    "examConfig": {
+      "name": "ELPAC",
+      "sections": {
+        "1": {
+          "name": "Listening Comprehension",
+          "duration": 600,
+          "color": "bg-blue-500",
+          "audioFiles": [
+            {
+              "recording": 1,
+              "title": "Aviation Procedures - Pre-flight Briefing",
+              "description": "Listen to a pre-flight safety briefing",
+              "transcript": "Good morning everyone. This is your pre-flight safety briefing for Flight 245. We'll be flying at an altitude of 35,000 feet today with an estimated flight time of 3 hours and 20 minutes. Weather conditions are favorable with clear skies and light winds. Please ensure your seat belts are fastened, tray tables are in the upright position, and all electronic devices are in airplane mode. In case of emergency, oxygen masks will drop from above your seat. Put on your own mask first before helping others. Life jackets are located under your seats. Thank you for flying with us today.",
+              "questions": [
+                "What is the estimated flight time?",
+                "What altitude will the aircraft fly at?",
+                "What should passengers do with electronic devices?",
+                "Where are the life jackets located?"
+              ],
+              "correctAnswers": {
+                "flight_time": "3 hours and 20 minutes",
+                "altitude": "35,000 feet",
+                "electronic_devices": "airplane mode",
+                "life_jackets": "under the seats"
+              }
+            },
+            {
+              "recording": 2,
+              "title": "Air Traffic Control Communication",
+              "description": "Listen to ATC clearance instructions",
+              "transcript": "United 847, this is Los Angeles Tower. You are cleared for takeoff runway 25 Left. Wind 270 degrees at 12 knots. After departure, turn right heading 090, climb and maintain 3,000 feet. Contact departure control on 124.9. Have a good flight.",
+              "questions": [
+                "Which runway is cleared for takeoff?",
+                "What is the wind direction and speed?",
+                "What heading should the aircraft turn to after departure?",
+                "What frequency should the pilot contact for departure control?"
+              ],
+              "correctAnswers": {
+                "runway": "25 Left",
+                "wind": "270 degrees at 12 knots",
+                "heading": "090",
+                "frequency": "124.9"
+              }
+            },
+            {
+              "recording": 3,
+              "title": "Weather Briefing",
+              "description": "Listen to a weather briefing for flight planning",
+              "transcript": "Current weather conditions for your route: Departure airport has scattered clouds at 2,500 feet, visibility 10 miles, temperature 22 degrees Celsius. En route, expect moderate turbulence between flight levels 250 and 300 due to jet stream activity. Destination airport shows broken clouds at 1,800 feet, light rain, visibility 5 miles, temperature 18 degrees Celsius. Winds are from 180 degrees at 15 knots, gusting to 25. Recommend carrying additional fuel for possible holding or alternate airport diversion.",
+              "questions": [
+                "What are the cloud conditions at the departure airport?",
+                "At what flight levels is turbulence expected?",
+                "What is the visibility at the destination?",
+                "What is recommended regarding fuel planning?"
+              ],
+              "correctAnswers": {
+                "departure_clouds": "scattered clouds at 2,500 feet",
+                "turbulence_levels": "flight levels 250 and 300",
+                "destination_visibility": "5 miles",
+                "fuel_recommendation": "carry additional fuel for holding or alternate"
+              }
+            }
+          ]
+        },
+        "2": {
+          "name": "Reading Comprehension",
+          "duration": 600,
+          "color": "bg-yellow-500",
+          "readingPassages": [
+            {
+              "passage": 1,
+              "title": "Aircraft Maintenance Manual Excerpt",
+              "content": "AIRCRAFT MAINTENANCE PROCEDURE - ENGINE INSPECTION\n\nBefore performing any maintenance on aircraft engines, ensure the following safety procedures are followed:\n\n1. Aircraft must be properly secured with wheel chocks and control locks\n2. Engine must be completely cool (minimum 30 minutes after shutdown)\n3. All electrical power must be disconnected\n4. Fire extinguisher must be readily available\n5. Only certified maintenance personnel may perform this inspection\n\nINSPECTION STEPS:\n\n• Visual inspection of engine exterior for cracks, leaks, or damage\n• Check all fluid levels (oil, hydraulic, fuel)\n• Inspect electrical connections and wiring\n• Test engine mounts and attachment points\n• Review maintenance logs for previous issues\n• Document all findings in maintenance record\n\nAny discrepancies found during inspection must be reported immediately to the Chief Maintenance Officer and recorded in the aircraft logbook. The aircraft is not authorized for flight until all discrepancies are resolved and signed off by authorized personnel.",
+              "questions": [
+                "How long must the engine be cool before inspection?",
+                "Who is authorized to perform this inspection?",
+                "What must be available during the maintenance procedure?",
+                "Where should discrepancies be recorded?",
+                "What is required before the aircraft can fly again?"
+              ],
+              "correctAnswers": {
+                "cooling_time": "minimum 30 minutes",
+                "authorized_personnel": "certified maintenance personnel",
+                "safety_equipment": "fire extinguisher",
+                "discrepancy_location": "aircraft logbook",
+                "flight_authorization": "all discrepancies resolved and signed off"
+              }
+            },
+            {
+              "passage": 2,
+              "title": "NOTAM - Airport Operations Notice",
+              "content": "NOTICE TO AIRMEN (NOTAM)\n\nSAN FRANCISCO INTERNATIONAL AIRPORT (SFO)\nEffective: March 15, 2024, 0600 UTC to March 20, 2024, 2359 UTC\n\nRUNWAY 28L/10R CLOSED for pavement maintenance and lighting system upgrades. All aircraft operations will be conducted on Runways 28R/10L and 01L/19R.\n\nIMPACT ON OPERATIONS:\n- Reduced runway capacity may result in delays\n- Ground traffic routing modified via Taxiways A, B, and C\n- Construction vehicles operating in closed runway area\n- Noise abatement procedures remain in effect\n\nPILOT INSTRUCTIONS:\n- Contact Ground Control for taxi routing\n- Expect extended taxi times\n- Monitor 121.9 MHz for construction activity updates\n- Use standard ILS approaches for active runways\n\nAIRPORT SERVICES:\n- All passenger terminals remain fully operational\n- Cargo operations continue on east side of field\n- Emergency services positioned for immediate response\n\nFor questions contact SFO Airport Operations: (650) 821-5000",
+              "questions": [
+                "Which runway is closed and why?",
+                "What are the effective dates for this NOTAM?",
+                "Which runways are available for operations?",
+                "What frequency should pilots monitor for updates?",
+                "How might this affect flight operations?"
+              ],
+              "correctAnswers": {
+                "closed_runway": "28L/10R for pavement maintenance and lighting upgrades",
+                "effective_dates": "March 15-20, 2024",
+                "available_runways": "28R/10L and 01L/19R",
+                "monitor_frequency": "121.9 MHz",
+                "operational_impact": "reduced capacity and potential delays"
+              }
+            }
+          ]
+        },
+        "3": {
+          "name": "Writing",
+          "duration": 720,
+          "color": "bg-purple-500",
+          "writingTasks": [
+            {
+              "task": 1,
+              "title": "Incident Report",
+              "instructions": "Write a brief incident report about a passenger who became ill during flight. Include the situation, actions taken, and outcome. Use professional language appropriate for aviation documentation.",
+              "timeLimit": "4-5 minutes",
+              "evaluationCriteria": [
+                "Clear description of incident",
+                "Logical sequence of events",
+                "Appropriate aviation terminology",
+                "Professional tone and format"
+              ],
+              "requiredElements": [
+                "Date, time, and flight information",
+                "Description of passenger condition",
+                "Actions taken by crew",
+                "Medical assistance provided",
+                "Resolution or outcome"
+              ]
+            },
+            {
+              "task": 2,
+              "title": "Operational Email",
+              "instructions": "Write an email to the operations manager requesting approval for a schedule change due to weather conditions. Be professional and include all necessary details.",
+              "timeLimit": "4-5 minutes",
+              "evaluationCriteria": [
+                "Professional email format",
+                "Clear reason for request",
+                "Specific details provided",
+                "Appropriate business tone"
+              ],
+              "requiredElements": [
+                "Subject line",
+                "Professional greeting",
+                "Reason for schedule change",
+                "Weather conditions details",
+                "Proposed new schedule",
+                "Professional closing"
+              ]
+            },
+            {
+              "task": 3,
+              "title": "Procedure Summary",
+              "instructions": "Summarize the pre-flight safety check procedure for aircraft preparation. Write clear, concise steps that a new employee could follow.",
+              "timeLimit": "2-3 minutes",
+              "evaluationCriteria": [
+                "Clear step-by-step format",
+                "Logical order of procedures",
+                "Appropriate technical vocabulary",
+                "Completeness of information"
+              ],
+              "requiredElements": [
+                "Aircraft exterior inspection",
+                "Interior safety check",
+                "Equipment verification",
+                "Documentation requirements",
+                "Final clearance steps"
+              ]
+            }
+          ]
+        },
+        "4": {
+          "name": "Speaking",
+          "duration": 720,
+          "color": "bg-green-500",
+          "speakingPrompts": [
+            {
+              "prompt": 1,
+              "title": "Emergency Procedure Description",
+              "description": "Describe the emergency evacuation procedure",
+              "audioPrompt": "You are a flight attendant. A passenger asks you to explain the emergency evacuation procedure. Describe the steps passengers should follow in case of an emergency evacuation.",
+              "evaluationPoints": [
+                "Clarity of instructions",
+                "Logical sequence of steps",
+                "Use of appropriate aviation vocabulary",
+                "Confidence and authority in delivery"
+              ],
+              "expectedElements": [
+                "Listen to crew instructions",
+                "Leave belongings behind",
+                "Follow exit signs and lighting",
+                "Use emergency slides properly",
+                "Move away from aircraft"
+              ]
+            },
+            {
+              "prompt": 2,
+              "title": "Flight Delay Communication",
+              "description": "Communicate with passengers about a flight delay",
+              "audioPrompt": "You are working at the gate. Flight 652 to Denver has been delayed by 2 hours due to mechanical issues. Passengers are asking for information. Explain the situation to the passengers.",
+              "evaluationPoints": [
+                "Professional tone",
+                "Clear explanation of situation",
+                "Appropriate customer service language",
+                "Ability to manage passenger concerns"
+              ],
+              "expectedElements": [
+                "Acknowledge the delay",
+                "Explain the reason (mechanical issues)",
+                "Provide new departure time",
+                "Apologize for inconvenience",
+                "Offer assistance options"
+              ]
+            },
+            {
+              "prompt": 3,
+              "title": "Aviation Career Discussion",
+              "description": "Discuss your aviation career goals and interests",
+              "audioPrompt": "You are in a job interview for an aviation position. The interviewer asks you to describe your interest in aviation and your career goals. Explain why you want to work in aviation and what you hope to achieve.",
+              "evaluationPoints": [
+                "Personal connection to aviation",
+                "Clear career objectives",
+                "Knowledge of aviation industry",
+                "Enthusiasm and motivation"
+              ],
+              "expectedElements": [
+                "Explain interest in aviation",
+                "Describe relevant skills/experience",
+                "State career goals",
+                "Show industry knowledge",
+                "Demonstrate commitment"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "controlsConfig": {
+      "name": "ELPAC",
+      "totalSections": 4,
+      "sections": [
+        {
+          "number": 1,
+          "title": "Listening Comprehension",
+          "description": "Listen to aviation communications and answer comprehension questions",
+          "icon": "Headphones",
+          "duration": "8-10 min"
+        },
+        {
+          "number": 2,
+          "title": "Reading Comprehension",
+          "description": "Read aviation documents and answer comprehension questions",
+          "icon": "BookOpen",
+          "duration": "8-10 min"
+        },
+        {
+          "number": 3,
+          "title": "Writing",
+          "description": "Complete writing tasks including reports, emails, and procedure summaries",
+          "icon": "PenTool",
+          "duration": "10-12 min"
+        },
+        {
+          "number": 4,
+          "title": "Speaking",
+          "description": "Respond to speaking prompts about aviation topics and procedures",
+          "icon": "Mic",
+          "duration": "10-12 min"
+        }
+      ],
+      "totalDuration": "35-40 minutes",
+      "startButtonText": "Start ELPAC Assessment",
+      "finishButtonText": "Complete Assessment"
+    },
+    "messagesConfig": {
+      "welcomeMessage": "Welcome to the English Language Proficiency Assessment for California (ELPAC) - Aviation English Edition!\n\nI am your certified ELPAC evaluator. This assessment evaluates your English language proficiency for aviation operations.\n\n**ASSESSMENT INFORMATION:**\n- ⏱️ Duration: 35-40 minutes\n- 📋 4 mandatory sections (Listening, Speaking, Reading, Writing)\n- 🎯 Target proficiency: ELPAC Level 3-4 for aviation readiness\n- 📝 Assessment of English skills in aviation contexts\n- 🗣️ Evaluation of communication ability for aviation operations\n\n**ASSESSMENT STRUCTURE:**\n1. **Section 1:** Listening Comprehension (8-10 min)\n2. **Section 2:** Reading Comprehension (8-10 min)\n3. **Section 3:** Writing (10-12 min)\n4. **Section 4:** Speaking (10-12 min)\n\n**ELPAC SKILL AREAS:**\n1. Listening • 2. Speaking • 3. Reading • 4. Writing\n\n**PERFORMANCE LEVELS:**\n- **Level 4:** Well Developed - Ready for complex aviation tasks\n- **Level 3:** Moderately Developed - Ready for standard aviation tasks\n- **Level 2:** Somewhat Developed - Needs support for aviation tasks\n- **Level 1:** Beginning - Requires extensive training\n\nAre you ready to begin? Click \"Start ELPAC Assessment\" when you're prepared.",
+      "sectionStartMessages": {
+        "1": "**SECTION 1: LISTENING COMPREHENSION** (8-10 minutes)\n\nYou will listen to three audio recordings related to aviation topics.\n\n**INSTRUCTIONS:**\n- Each recording will be played once\n- You may request to hear a recording again if needed\n- Listen carefully and take notes if you wish\n- After each recording, I will ask you comprehension questions\n- Answer as completely as possible\n\n**RECORDING TOPICS:**\n1. Pre-flight Safety Briefing\n2. Air Traffic Control Communication\n3. Weather Briefing\n\nLet's begin with the first recording...",
+        "2": "**SECTION 2: READING COMPREHENSION** (8-10 minutes)\n\nYou will read two aviation-related passages and answer comprehension questions.\n\n**INSTRUCTIONS:**\n- Read each passage carefully\n- You may refer back to the passage when answering questions\n- Answer all questions as completely as possible\n- Use information from the passage to support your answers\n- Ask for clarification if you don't understand a question\n\n**READING PASSAGES:**\n1. Aircraft Maintenance Manual Excerpt\n2. NOTAM (Notice to Airmen)\n\nLet's begin with the first reading passage...",
+        "3": "**SECTION 3: WRITING** (10-12 minutes)\n\nYou will complete three writing tasks related to aviation communication.\n\n**INSTRUCTIONS:**\n- Read each writing prompt carefully\n- Plan your response before you begin writing\n- Use appropriate aviation vocabulary and professional language\n- Organize your writing clearly with proper structure\n- Check your grammar and spelling\n- Aim for complete and detailed responses\n\n**WRITING TASKS:**\n1. Incident Report (4-5 minutes)\n2. Operational Email (4-5 minutes)\n3. Procedure Summary (2-3 minutes)\n\nLet's begin with the first writing task...",
+        "4": "**SECTION 4: SPEAKING** (10-12 minutes)\n\nYou will respond to three speaking prompts related to aviation situations.\n\n**INSTRUCTIONS:**\n- Listen carefully to each speaking prompt\n- You will have time to think before responding\n- Speak clearly and use appropriate aviation vocabulary\n- Aim for complete and detailed responses\n- Take your time to organize your thoughts\n\n**SPEAKING TASKS:**\n1. Describe an emergency procedure\n2. Communicate with passengers about a delay\n3. Discuss your aviation career interests\n\nLet's begin with the first speaking task..."
+      },
+      "completionMessage": "🎉 ELPAC Assessment completed! Thank you for participating in the ELPAC Aviation English assessment.",
+      "quickInstructions": [
+        "Listen/read carefully and answer completely",
+        "Use aviation vocabulary when appropriate",
+        "Take your time to organize your thoughts",
+        "Ask for clarification if you don't understand",
+        "Demonstrate your English skills confidently"
+      ]
+    }
   }
 }

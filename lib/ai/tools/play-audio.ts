@@ -43,9 +43,11 @@ async function getAvailableAudioFiles(): Promise<string[]> {
 export const playAudioTool = ({
   session: _session,
   dataStream,
+  examConfig,
 }: {
   session: Session;
   dataStream: DataStreamWriter;
+  examConfig?: any;
 }) =>
   tool({
     description: `Play audio files for exam listening comprehension exercises. 
@@ -113,6 +115,19 @@ export const playAudioTool = ({
           };
         }
 
+        // Extract exam type from examConfig
+        let examType = 'tea'; // Default fallback
+        if (examConfig?.id) {
+          // Extract exam type from ID (e.g., 'tea-evaluator' -> 'tea', 'elpac-evaluator' -> 'elpac')
+          examType = examConfig.id.replace('-evaluator', '');
+          console.log('🎵 [PLAY AUDIO TOOL] Detected exam type:', examType);
+        } else {
+          console.warn(
+            '🎵 [PLAY AUDIO TOOL] No exam config found, using default exam type:',
+            examType,
+          );
+        }
+
         // Select audio file based on recordingNumber or randomly
         let audioFile: string;
         if (recordingNumber && isExamRecording && subsection) {
@@ -135,11 +150,17 @@ export const playAudioTool = ({
         // Create the audio URL that points to our audio serving endpoint
         let audioUrl: string;
         if (isExamRecording && subsection) {
-          // For exam recordings, use the exam-specific format
+          // For exam recordings, use the exam-specific format with dynamic exam type
           // Convert subsection like "2A" to section format like "2a"
           const examSection = subsection.toLowerCase();
           const recording = recordingNumber || 1; // Use specific recording or default to 1
-          audioUrl = `/api/audio?exam=tea&section=${examSection}&recording=${recording}`;
+
+          // Handle ELPAC speaking prompts (Section 4)
+          if (examType === 'elpac' && examSection === '4') {
+            audioUrl = `/api/audio?exam=${examType}&section=${examSection}&prompt=${recording}`;
+          } else {
+            audioUrl = `/api/audio?exam=${examType}&section=${examSection}&recording=${recording}`;
+          }
           console.log(
             '🎵 [PLAY AUDIO TOOL] Generated exam audio URL:',
             audioUrl,
@@ -201,6 +222,7 @@ export const playAudioTool = ({
             url: audioUrl,
             availableFiles: audioFiles.length,
             selectionMethod,
+            examType, // Include exam type in details
           },
         };
         return result;
