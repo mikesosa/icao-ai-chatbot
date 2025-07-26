@@ -25,11 +25,6 @@ export const getAudioTranscript = ({
         ),
     }),
     execute: async ({ subsection, recordingNumber }) => {
-      console.log('🎵 [GET AUDIO TRANSCRIPT] Starting execution with params:', {
-        subsection,
-        recordingNumber,
-      });
-
       try {
         // Access exam configuration
         let config = examConfig;
@@ -100,10 +95,6 @@ export const getAudioTranscript = ({
             error: `Transcript not available for ${subsection} recording ${recordingNumber}`,
           };
         }
-
-        console.log(
-          '🎵 [GET AUDIO TRANSCRIPT] Successfully retrieved transcript and answers',
-        );
 
         return {
           success: true,

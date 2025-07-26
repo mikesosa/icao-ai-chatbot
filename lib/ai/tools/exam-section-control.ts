@@ -68,20 +68,11 @@ This tool helps maintain proper exam flow and section tracking for any exam type
         ),
     }),
     execute: async ({ action, targetSection, reason }) => {
-      console.log('🎯 [EXAM TOOL] examSectionControl called:', {
-        action,
-        targetSection,
-        reason,
-      });
-
       // Prevent advance_to_next calls that mention automatic advancement
       if (
         action === 'advance_to_next' &&
         reason?.includes('automatically advancing')
       ) {
-        console.log(
-          '🚫 [EXAM TOOL] Preventing advance_to_next with automatic advancement reason',
-        );
         return {
           success: false,
           message:
@@ -102,12 +93,6 @@ This tool helps maintain proper exam flow and section tracking for any exam type
 
           // If the last call was successful and within 10 seconds, completely block it
           if (lastCall.successful && timeSinceLastCall < 10000) {
-            console.log('🚫 [EXAM TOOL] Blocking duplicate successful call:', {
-              action,
-              targetSection,
-              timeSinceLastCall,
-              lastCallWasSuccessful: lastCall.successful,
-            });
             // Return minimal response - no user-visible message
             return {
               success: false,
@@ -117,11 +102,6 @@ This tool helps maintain proper exam flow and section tracking for any exam type
 
           // For any call within 5 seconds, block it
           if (timeSinceLastCall < 5000) {
-            console.log('🚫 [EXAM TOOL] Debouncing rapid call:', {
-              action,
-              targetSection,
-              timeSinceLastCall,
-            });
             // Return minimal response - no user-visible message
             return {
               success: false,
@@ -129,10 +109,6 @@ This tool helps maintain proper exam flow and section tracking for any exam type
             };
           }
         }
-      } else {
-        console.log(
-          '✅ [EXAM TOOL] complete_exam action - skipping debouncing',
-        );
       }
 
       // Create the exam control event (ensure all values are serializable)
@@ -144,18 +120,11 @@ This tool helps maintain proper exam flow and section tracking for any exam type
         timestamp: new Date().toISOString(),
       };
 
-      console.log(
-        '📤 [EXAM TOOL] Sending data stream event:',
-        examControlEvent,
-      );
-
       // Write the event to the data stream so client can process it
       dataStream.writeData({
         type: 'exam-section-control',
         content: examControlEvent,
       });
-
-      console.log('✅ [EXAM TOOL] Data stream event sent successfully');
 
       // Update the call tracker with successful call
       lastCallTracker.set(sessionKey, {

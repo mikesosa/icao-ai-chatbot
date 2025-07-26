@@ -61,16 +61,9 @@ export function DataStreamHandler({
     lastProcessedIndex.current = dataStream.length - 1;
 
     (newDeltas as DataStreamDelta[]).forEach((delta: DataStreamDelta) => {
-      console.log('📡 [DATA STREAM] Processing delta:', delta);
-
       // Handle exam section control events
       if (delta.type === 'exam-section-control') {
         const examControl = delta.content as ExamSectionControlResult;
-        console.log(
-          '📡 [DATA STREAM] Processing exam section control:',
-          examControl,
-        );
-
         handleAIExamControl(
           examControl.action,
           examControl.targetSection || undefined,

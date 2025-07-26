@@ -80,17 +80,6 @@ export const displayImageTool = ({
       layout = 'single',
       instructions,
     }) => {
-      console.log('🖼️ [DISPLAY IMAGE TOOL] Starting execution with params:', {
-        title,
-        description,
-        images: images.length,
-        subsection,
-        imageSetId,
-        isExamImage,
-        layout,
-        instructions,
-      });
-
       try {
         // Validate images array
         if (!images || images.length === 0) {

@@ -158,16 +158,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   // Add a flag to prevent AI from calling advance_to_next after auto-selection
   const justAutoSelectedSubsection = useRef(false);
 
-  // Debug logging for exam state changes
-  useEffect(() => {
-    console.log('🔍 [EXAM CONTEXT] State changed:', {
-      examStarted,
-      currentSection,
-      currentSubsection,
-      examType,
-    });
-  }, [examStarted, currentSection, currentSubsection, examType]);
-
   // Auto-select first subsection when section changes
   useEffect(() => {
     if (examStarted && currentSection && !currentSubsection && examConfig) {
@@ -176,10 +166,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       if (sectionConfig?.subsections) {
         const subsectionKeys = Object.keys(sectionConfig.subsections).sort();
         if (subsectionKeys.length > 0) {
-          console.log(
-            '🎯 [EXAM CONTEXT] Auto-selecting first subsection:',
-            subsectionKeys[0],
-          );
           setCurrentSubsection(subsectionKeys[0]);
 
           // Set flag to prevent AI from calling advance_to_next immediately after auto-selection
@@ -233,17 +219,8 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   };
 
   const endExam = () => {
-    console.log('🔚 [EXAM CONTEXT] endExam() called - terminating exam');
-    console.log('🔚 [EXAM CONTEXT] Current state before termination:', {
-      examStarted,
-      examType,
-      currentSection,
-      currentSubsection,
-    });
-
     // Only end exam if explicitly requested or all sections are complete
     if (!examStarted) {
-      console.log('🚫 [EXAM CONTEXT] Exam not started, ignoring endExam call');
       return;
     }
 
@@ -291,7 +268,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log(`[ADMIN] Jumping to section ${section}`);
     setCurrentSection(section);
     setCurrentSubsection(null);
 
@@ -307,7 +283,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log(`[ADMIN] Jumping to subsection ${subsection}`);
     setCurrentSubsection(subsection);
 
     // Auto-switch section if needed
@@ -328,7 +303,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log('[ADMIN] Completing all sections');
     const allSections = Array.from({ length: totalSections }, (_, i) =>
       (i + 1).toString(),
     );
@@ -342,7 +316,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log('[ADMIN] Resetting exam progress');
     setCompletedSections([]);
     setCompletedSubsections([]);
     setExamProgress(0);
@@ -493,16 +466,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     const timeSinceLastCall = now - lastExamControlCall.current.timestamp;
     const isSameAction = lastExamControlCall.current.action === action;
     const debounceTime = isSameAction ? 2000 : 10000; // 2s for same action, 10s for different
-
-    // Log only when we will ignore (to reduce noise)
-    if (timeSinceLastCall < debounceTime) {
-      console.log('🔍 [EXAM CONTEXT] Debounce check:', {
-        action,
-        timeSinceLastCall,
-        willIgnore: true,
-        debounceTime,
-      });
-    }
 
     if (timeSinceLastCall < debounceTime) {
       console.log(
@@ -692,9 +655,6 @@ export function ExamProvider({ children }: { children: ReactNode }) {
 
         // For complete_exam action, always end the exam immediately
         // This is because the AI has determined all objectives are met
-        console.log(
-          '✅ [EXAM CONTEXT] Complete exam action called, ending exam immediately',
-        );
         endExam();
         break;
       }

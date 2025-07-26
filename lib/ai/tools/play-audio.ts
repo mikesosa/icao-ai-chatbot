@@ -100,20 +100,9 @@ export const playAudioTool = ({
       isExamRecording = false,
       recordingId,
     }) => {
-      console.log('🎵 [PLAY AUDIO TOOL] Starting execution with params:', {
-        title,
-        description,
-        subsection,
-        recordingNumber,
-        isExamRecording,
-        recordingId,
-      });
-
       try {
         // Dynamically get available audio files
-        console.log('🎵 [PLAY AUDIO TOOL] Getting available audio files...');
         const audioFiles = await getAvailableAudioFiles();
-        console.log('🎵 [PLAY AUDIO TOOL] Available audio files:', audioFiles);
 
         if (audioFiles.length === 0) {
           console.warn('🎵 [PLAY AUDIO TOOL] No audio files available');
@@ -192,9 +181,7 @@ export const playAudioTool = ({
         );
 
         // Send audio player data to the data stream
-        console.log('🎵 [PLAY AUDIO TOOL] Writing to data stream...');
         dataStream.writeData(audioPlayerData);
-        console.log('🎵 [PLAY AUDIO TOOL] Data stream write completed');
 
         // Return success message with details for the AI
         const selectionMethod = recordingNumber
@@ -216,7 +203,6 @@ export const playAudioTool = ({
             selectionMethod,
           },
         };
-        console.log('🎵 [PLAY AUDIO TOOL] Returning result:', result);
         return result;
       } catch (error) {
         console.error(
