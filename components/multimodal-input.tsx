@@ -24,7 +24,7 @@ import { useExamContext } from '@/hooks/use-exam-context';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 
 import AudioControls from './audio-controls';
-import { ArrowUpIcon, MicrophoneIcon, PaperclipIcon, StopIcon } from './icons';
+import { ArrowUpIcon, StopIcon } from './icons';
 import { PreviewAttachment } from './preview-attachment';
 import { SuggestedActions } from './suggested-actions';
 import { Button } from './ui/button';
@@ -46,7 +46,7 @@ function PureMultimodalInput({
   className,
   selectedVisibilityType,
   hideControls,
-  audioOnly = false,
+  _audioOnly = false,
 }: {
   chatId: string;
   input: UseChatHelpers['input'];
@@ -62,9 +62,10 @@ function PureMultimodalInput({
   className?: string;
   selectedVisibilityType: VisibilityType;
   hideControls?: boolean;
-  audioOnly?: boolean;
+  _audioOnly?: boolean;
 }) {
-  const { examStarted } = useExamContext();
+  const { examStarted, examType, currentSection, examConfig } =
+    useExamContext();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
 
@@ -231,137 +232,174 @@ function PureMultimodalInput({
     resetHeight();
   }, [setInput]);
 
+  // Determine if current section requires text input (writing)
+  const isWritingSection = (() => {
+    if (!examStarted || !examType || !currentSection || !examConfig) {
+      return false;
+    }
+
+    // Get the current section configuration
+    const sections = examConfig.examConfig.sections;
+    if (!sections || typeof currentSection !== 'string') {
+      return false;
+    }
+
+    // Convert string section to number for lookup (sections are keyed by numbers in types but strings in JSON)
+    const sectionKey = Number.parseInt(currentSection, 10);
+    const sectionConfig = sections[sectionKey];
+    if (!sectionConfig) {
+      return false;
+    }
+
+    // Check if section name contains "Writing" or if it's ELPAC Section 3
+    const sectionName = sectionConfig.name?.toLowerCase() || '';
+    const isELPACWriting =
+      examType === 'elpac-evaluator' && currentSection === '3';
+    const hasWritingInName = sectionName.includes('writing');
+
+    return isELPACWriting || hasWritingInName;
+  })();
+
   if (!examStarted) {
     return null;
   }
 
-  if (audioOnly) {
+  // For writing sections ONLY, show text input interface
+  if (isWritingSection) {
     return (
-      <AudioControls
-        onTranscriptComplete={handleTranscriptComplete}
-        onTranscriptUpdate={handleTranscriptUpdate}
-        onRecordingStart={handleRecordingStart}
-      />
+      <div className="relative w-full flex flex-col gap-4">
+        <AnimatePresence>
+          {!isAtBottom && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="absolute left-1/2 bottom-28 -translate-x-1/2 z-50"
+            >
+              <Button
+                data-testid="scroll-to-bottom-button"
+                className="rounded-full"
+                size="icon"
+                variant="outline"
+                onClick={(event) => {
+                  event.preventDefault();
+                  scrollToBottom();
+                }}
+              >
+                <ArrowDown />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {messages.length === 0 &&
+          attachments.length === 0 &&
+          uploadQueue.length === 0 && (
+            <SuggestedActions
+              append={append}
+              chatId={chatId}
+              selectedVisibilityType={selectedVisibilityType}
+            />
+          )}
+
+        <input
+          type="file"
+          className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
+          ref={fileInputRef}
+          multiple
+          onChange={handleFileChange}
+          tabIndex={-1}
+        />
+
+        {(attachments.length > 0 || uploadQueue.length > 0) && (
+          <div
+            data-testid="attachments-preview"
+            className="flex flex-row gap-2 overflow-x-scroll items-end"
+          >
+            {attachments.map((attachment) => (
+              <PreviewAttachment key={attachment.url} attachment={attachment} />
+            ))}
+
+            {uploadQueue.map((filename) => (
+              <PreviewAttachment
+                key={filename}
+                attachment={{
+                  url: '',
+                  name: filename,
+                  contentType: '',
+                }}
+                isUploading={true}
+              />
+            ))}
+          </div>
+        )}
+
+        <Textarea
+          data-testid="multimodal-input"
+          ref={textareaRef}
+          placeholder={
+            isWritingSection
+              ? 'Type your response here...'
+              : 'Send a message...'
+          }
+          value={input}
+          onChange={handleInput}
+          className={cx(
+            'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700',
+            className,
+          )}
+          rows={2} // More rows for writing sections
+          autoFocus
+          onKeyDown={(event) => {
+            if (
+              event.key === 'Enter' &&
+              !event.shiftKey &&
+              !event.nativeEvent.isComposing
+            ) {
+              event.preventDefault();
+
+              if (status !== 'ready') {
+                toast.error(
+                  'Please wait for the model to finish its response!',
+                );
+              } else {
+                submitForm();
+              }
+            }
+          }}
+        />
+        {/*
+        {!hideControls && (
+          <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
+            <AttachmentsButton fileInputRef={fileInputRef} status={status} />
+          </div>
+        )} */}
+
+        {!hideControls && (
+          <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
+            {status === 'submitted' ? (
+              <StopButton stop={stop} setMessages={setMessages} />
+            ) : (
+              <SendButton
+                input={input}
+                submitForm={submitForm}
+                uploadQueue={uploadQueue}
+              />
+            )}
+          </div>
+        )}
+      </div>
     );
   }
 
+  // For all other exam sections, show audio controls only
   return (
-    <div className="relative w-full flex flex-col gap-4">
-      <AnimatePresence>
-        {!isAtBottom && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="absolute left-1/2 bottom-28 -translate-x-1/2 z-50"
-          >
-            <Button
-              data-testid="scroll-to-bottom-button"
-              className="rounded-full"
-              size="icon"
-              variant="outline"
-              onClick={(event) => {
-                event.preventDefault();
-                scrollToBottom();
-              }}
-            >
-              <ArrowDown />
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {messages.length === 0 &&
-        attachments.length === 0 &&
-        uploadQueue.length === 0 && (
-          <SuggestedActions
-            append={append}
-            chatId={chatId}
-            selectedVisibilityType={selectedVisibilityType}
-          />
-        )}
-
-      <input
-        type="file"
-        className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
-        ref={fileInputRef}
-        multiple
-        onChange={handleFileChange}
-        tabIndex={-1}
-      />
-
-      {(attachments.length > 0 || uploadQueue.length > 0) && (
-        <div
-          data-testid="attachments-preview"
-          className="flex flex-row gap-2 overflow-x-scroll items-end"
-        >
-          {attachments.map((attachment) => (
-            <PreviewAttachment key={attachment.url} attachment={attachment} />
-          ))}
-
-          {uploadQueue.map((filename) => (
-            <PreviewAttachment
-              key={filename}
-              attachment={{
-                url: '',
-                name: filename,
-                contentType: '',
-              }}
-              isUploading={true}
-            />
-          ))}
-        </div>
-      )}
-
-      <Textarea
-        data-testid="multimodal-input"
-        ref={textareaRef}
-        placeholder="Send a message..."
-        value={input}
-        onChange={handleInput}
-        className={cx(
-          'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700',
-          className,
-        )}
-        rows={2}
-        autoFocus
-        onKeyDown={(event) => {
-          if (
-            event.key === 'Enter' &&
-            !event.shiftKey &&
-            !event.nativeEvent.isComposing
-          ) {
-            event.preventDefault();
-
-            if (status !== 'ready') {
-              toast.error('Please wait for the model to finish its response!');
-            } else {
-              submitForm();
-            }
-          }
-        }}
-      />
-
-      {!hideControls && (
-        <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
-          <AttachmentsButton fileInputRef={fileInputRef} status={status} />
-        </div>
-      )}
-
-      <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
-        {status === 'submitted' ? (
-          <StopButton stop={stop} setMessages={setMessages} />
-        ) : (
-          <SendButton
-            input={input}
-            submitForm={submitForm}
-            uploadQueue={uploadQueue}
-          />
-        )}
-        <VoiceButton status={status} />
-      </div>
-    </div>
+    <AudioControls
+      onTranscriptComplete={handleTranscriptComplete}
+      onTranscriptUpdate={handleTranscriptUpdate}
+      onRecordingStart={handleRecordingStart}
+    />
   );
 }
 
@@ -378,30 +416,30 @@ export const MultimodalInput = memo(
   },
 );
 
-function PureAttachmentsButton({
-  fileInputRef,
-  status,
-}: {
-  fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
-  status: UseChatHelpers['status'];
-}) {
-  return (
-    <Button
-      data-testid="attachments-button"
-      className="rounded-md rounded-bl-lg p-[7px] h-fit dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200"
-      onClick={(event) => {
-        event.preventDefault();
-        fileInputRef.current?.click();
-      }}
-      disabled={status !== 'ready'}
-      variant="ghost"
-    >
-      <PaperclipIcon size={14} />
-    </Button>
-  );
-}
+// function PureAttachmentsButton({
+//   fileInputRef,
+//   status,
+// }: {
+//   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
+//   status: UseChatHelpers['status'];
+// }) {
+//   return (
+//     <Button
+//       data-testid="attachments-button"
+//       className="rounded-md rounded-bl-lg p-[7px] h-fit dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200"
+//       onClick={(event) => {
+//         event.preventDefault();
+//         fileInputRef.current?.click();
+//       }}
+//       disabled={status !== 'ready'}
+//       variant="ghost"
+//     >
+//       <PaperclipIcon size={14} />
+//     </Button>
+//   );
+// }
 
-const AttachmentsButton = memo(PureAttachmentsButton);
+// const AttachmentsButton = memo(PureAttachmentsButton);
 
 function PureStopButton({
   stop,
@@ -457,35 +495,3 @@ const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
   if (prevProps.input !== nextProps.input) return false;
   return true;
 });
-
-function PureVoiceButton({ status }: { status: UseChatHelpers['status'] }) {
-  const [isRecording, setIsRecording] = useState(false);
-
-  const handleVoiceClick = () => {
-    // TODO: Implement voice recording functionality
-    setIsRecording(!isRecording);
-    console.log('Voice button clicked, recording:', !isRecording);
-  };
-
-  return (
-    <Button
-      data-testid="voice-button"
-      className={cx(
-        'rounded-md rounded-br-lg p-[7px] h-fit dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200 ml-1',
-        isRecording
-          ? 'bg-red-100 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400'
-          : '',
-      )}
-      onClick={(event) => {
-        event.preventDefault();
-        handleVoiceClick();
-      }}
-      disabled={status !== 'ready'}
-      variant="ghost"
-    >
-      <MicrophoneIcon size={14} />
-    </Button>
-  );
-}
-
-const VoiceButton = memo(PureVoiceButton);

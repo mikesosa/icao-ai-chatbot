@@ -242,7 +242,7 @@ function ChatWithSearchParams({
               append={append}
               selectedVisibilityType={visibilityType}
               hideControls={hideControls}
-              audioOnly={true}
+              _audioOnly={false} // Let MultimodalInput decide based on section type (writing vs speaking)
             />
           )}
         </form>
