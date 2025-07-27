@@ -3,7 +3,10 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 import type { Document } from '@/lib/db/schema';
-import { MODEL_ID_TO_TYPE_MAP, MODEL_TYPES, type ModelType } from '@/lib/types';
+import {
+  type ModelType,
+  getModelType as getModelTypeFromTypes,
+} from '@/lib/types';
 
 import { ChatSDKError, type ErrorCode } from './errors';
 
@@ -97,9 +100,5 @@ export function sanitizeText(text: string) {
 }
 
 export function getModelType(selectedChatModel: string): ModelType {
-  return (
-    MODEL_ID_TO_TYPE_MAP[
-      selectedChatModel as keyof typeof MODEL_ID_TO_TYPE_MAP
-    ] || MODEL_TYPES.GENERAL
-  );
+  return getModelTypeFromTypes(selectedChatModel);
 }

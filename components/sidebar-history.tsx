@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/sidebar';
 import { chatModels } from '@/lib/ai/models';
 import type { Chat } from '@/lib/db/schema';
-import { MODEL_ID_TO_TYPE_MAP, MODEL_TYPES } from '@/lib/types';
+import { MODEL_TYPES, getModelType } from '@/lib/types';
 import { fetcher } from '@/lib/utils';
 
 import { LoaderIcon } from './icons';
@@ -88,10 +88,7 @@ const groupChatsByModelAndDate = (chats: Chat[]): ModelGroupedChats => {
   // Get all available model types from the chatModels array
   const availableModelTypes = new Set([
     MODEL_TYPES.GENERAL, // Always include general
-    ...chatModels.map(
-      (model) =>
-        MODEL_ID_TO_TYPE_MAP[model.id as keyof typeof MODEL_ID_TO_TYPE_MAP],
-    ),
+    ...chatModels.map((model) => getModelType(model.id)),
   ]);
 
   // Initialize groups for all available model types
@@ -382,10 +379,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
 
                   // Find the model in chatModels array
                   const model = chatModels.find(
-                    (m) =>
-                      MODEL_ID_TO_TYPE_MAP[
-                        m.id as keyof typeof MODEL_ID_TO_TYPE_MAP
-                      ] === modelType,
+                    (m) => getModelType(m.id) === modelType,
                   );
                   return model ? model.name : modelType;
                 };

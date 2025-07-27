@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 
+import { useExamConfigs } from '@/hooks/use-exam-configs';
 import { useExamContext } from '@/hooks/use-exam-context';
-import { MODEL_IDS } from '@/lib/types';
+import { examConfigService } from '@/lib/services/exam-config-service';
 
 import { Button } from './ui/button';
 
@@ -9,42 +10,42 @@ interface GreetingProps {
   selectedModel?: string;
 }
 
-export const Greeting = ({
-  selectedModel = MODEL_IDS.CHAT_MODEL,
-}: GreetingProps) => {
-  const { readyToStartExam, examType } = useExamContext();
+export const Greeting = ({ selectedModel }: GreetingProps) => {
+  const { readyToStartExam, examStarted } = useExamContext();
+  const { configs } = useExamConfigs();
 
-  // Hide greeting if exam type is set
-  if (examType) {
+  // Hide greeting if exam has started
+  if (examStarted) {
     return null;
   }
 
   const getGreetingContent = () => {
-    switch (selectedModel) {
-      case MODEL_IDS.TEA_EVALUATOR:
+    // Check if selectedModel is a valid exam ID
+    if (selectedModel) {
+      const examConfig =
+        configs[selectedModel] ||
+        examConfigService.getExamConfigurationSync(selectedModel);
+
+      if (examConfig) {
         return {
-          title: 'Welcome to TEA Exam Simulator',
+          title: `Welcome to ${examConfig.name} Exam Simulator`,
           subtitle:
-            'Test of English for Aviation (TEA) exam is about to begin.',
-          description: 'Start now',
+            examConfig.messagesConfig.welcomeMessage?.split('\n')[0] ||
+            `${examConfig.name} examination and evaluation system`,
+          buttonText: examConfig.controlsConfig.startButtonText || 'Start now',
         };
-      case MODEL_IDS.ELPAC_EVALUATOR:
-        return {
-          title: 'Welcome to ELPAC Exam Simulator',
-          subtitle:
-            'English Language Proficiency Assessment for Aviation (ELPAC)',
-          description: 'Start now',
-        };
-      default:
-        return {
-          title: 'Hello there!',
-          subtitle: 'How can I help you today?',
-          description: null,
-        };
+      }
     }
+
+    // Default for non-exam models or no model selected
+    return {
+      title: 'Hello there!',
+      subtitle: 'How can I help you today?',
+      buttonText: null,
+    };
   };
 
-  const { title, subtitle, description } = getGreetingContent();
+  const { title, subtitle, buttonText } = getGreetingContent();
 
   return (
     <div
@@ -69,7 +70,7 @@ export const Greeting = ({
       >
         {subtitle}
       </motion.div>
-      {description && (
+      {buttonText && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -79,9 +80,13 @@ export const Greeting = ({
         >
           <Button
             className="flex items-center gap-1 rounded-full"
-            onClick={() => readyToStartExam(selectedModel)}
+            onClick={() => {
+              if (selectedModel) {
+                readyToStartExam(selectedModel);
+              }
+            }}
           >
-            {description}
+            {buttonText}
           </Button>
         </motion.div>
       )}

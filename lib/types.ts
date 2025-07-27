@@ -1,20 +1,48 @@
+import { examConfigService } from '@/lib/services/exam-config-service';
+
 export type DataPart = { type: 'append-message'; message: string };
 
-// Centralized Model ID constants
-export const MODEL_IDS = {
-  CHAT_MODEL: 'chat-model',
-  CHAT_MODEL_REASONING: 'chat-model-reasoning',
-  TITLE_MODEL: 'title-model',
-  ARTIFACT_MODEL: 'artifact-model',
-  TEA_EVALUATOR: 'tea-evaluator',
-  ELPAC_EVALUATOR: 'elpac-evaluator',
-} as const;
+// Generate dynamic model IDs from configurations
+export function generateModelIds(
+  configs: Record<string, any>,
+): Record<string, string> {
+  return examConfigService.generateModelIds(configs);
+}
 
-// Centralized Model Type definitions
+// Dynamic Model ID constants generated from fallback exam configs (for SSR)
+export const MODEL_IDS = examConfigService.generateModelIds(
+  examConfigService.getConfigurationsSync(),
+);
+
+// Get all available exam IDs from fallback configurations (sync for SSR)
+export const getAvailableExamIds = (): string[] => {
+  return examConfigService.getAvailableExamIdsSync();
+};
+
+// Check if a model ID exists in the fallback configurations (sync for SSR)
+export const isValidExamModel = (modelId: string): boolean => {
+  return examConfigService.isValidExamIdSync(modelId);
+};
+
+// Generate model IDs from provided configurations (for client-side use with SWR)
+export function getAvailableExamIdsFromConfigs(
+  configs: Record<string, any>,
+): string[] {
+  return Object.keys(configs);
+}
+
+// Check if a model ID exists in provided configurations (for client-side use with SWR)
+export function isValidExamModelInConfigs(
+  modelId: string,
+  configs: Record<string, any>,
+): boolean {
+  return Object.keys(configs).includes(modelId);
+}
+
+// Model types - now dynamically determined
 export const MODEL_TYPES = {
   GENERAL: 'general',
-  TEA_EVALUATOR: 'tea-evaluator',
-  ELPAC_EVALUATOR: 'elpac-evaluator',
+  EXAM_EVALUATOR: 'exam-evaluator',
 } as const;
 
 export type ModelType = (typeof MODEL_TYPES)[keyof typeof MODEL_TYPES];
@@ -24,12 +52,21 @@ export const MODEL_TYPE_VALUES = Object.values(MODEL_TYPES) as [
   ...ModelType[],
 ];
 
-// Model ID to Type mapping
-export const MODEL_ID_TO_TYPE_MAP = {
-  [MODEL_IDS.CHAT_MODEL]: MODEL_TYPES.GENERAL,
-  [MODEL_IDS.CHAT_MODEL_REASONING]: MODEL_TYPES.GENERAL,
-  [MODEL_IDS.TITLE_MODEL]: MODEL_TYPES.GENERAL,
-  [MODEL_IDS.ARTIFACT_MODEL]: MODEL_TYPES.GENERAL,
-  [MODEL_IDS.TEA_EVALUATOR]: MODEL_TYPES.TEA_EVALUATOR,
-  [MODEL_IDS.ELPAC_EVALUATOR]: MODEL_TYPES.ELPAC_EVALUATOR,
-} as const;
+// Dynamic Model ID to Type mapping (sync for SSR)
+export const getModelType = (modelId: string): ModelType => {
+  if (isValidExamModel(modelId)) {
+    return MODEL_TYPES.EXAM_EVALUATOR;
+  }
+  return MODEL_TYPES.GENERAL;
+};
+
+// Dynamic Model ID to Type mapping (for client-side use with SWR data)
+export function getModelTypeFromConfigs(
+  modelId: string,
+  configs: Record<string, any>,
+): ModelType {
+  if (isValidExamModelInConfigs(modelId, configs)) {
+    return MODEL_TYPES.EXAM_EVALUATOR;
+  }
+  return MODEL_TYPES.GENERAL;
+}

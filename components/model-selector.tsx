@@ -12,9 +12,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useExamConfigs } from '@/hooks/use-exam-configs';
 import { useExamContext } from '@/hooks/use-exam-context';
-import { entitlementsByUserType } from '@/lib/ai/entitlements';
-import { chatModels } from '@/lib/ai/models';
+import {
+  entitlementsByUserType,
+  getUpdatedEntitlements,
+} from '@/lib/ai/entitlements';
+import { chatModels, generateChatModelsFromConfigs } from '@/lib/ai/models';
 import { cn } from '@/lib/utils';
 
 import { CheckCircleFillIcon, ChevronDownIcon } from './icons';
@@ -33,10 +37,32 @@ export function ModelSelector({
     useOptimistic(selectedModelId);
 
   const userType = session.user.type;
-  const { availableChatModelIds } = entitlementsByUserType[userType];
+
+  // Use SWR to get latest exam configurations
+  const { configs, isLoading } = useExamConfigs();
+
+  // Generate models and entitlements based on available data
+  const { availableModels, availableChatModelIds } = useMemo(() => {
+    if (Object.keys(configs).length > 0) {
+      // Use latest data from SWR
+      const models = generateChatModelsFromConfigs(configs);
+      const entitlements = getUpdatedEntitlements(configs);
+      return {
+        availableModels: models,
+        availableChatModelIds: entitlements[userType].availableChatModelIds,
+      };
+    } else {
+      // Use fallback data for SSR/loading states
+      return {
+        availableModels: chatModels,
+        availableChatModelIds:
+          entitlementsByUserType[userType].availableChatModelIds,
+      };
+    }
+  }, [configs, userType]);
 
   const availableChatModels = useMemo(() => {
-    const models = chatModels.filter((chatModel) =>
+    const models = availableModels.filter((chatModel) =>
       availableChatModelIds.includes(chatModel.id),
     );
 
@@ -49,7 +75,7 @@ export function ModelSelector({
     }
 
     return models;
-  }, [availableChatModelIds, examType]);
+  }, [availableChatModelIds, examType, availableModels]);
 
   const selectedChatModel = useMemo(() => {
     // If examType is provided and valid, use it as the selected model
@@ -72,7 +98,7 @@ export function ModelSelector({
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         asChild
-        disabled={availableChatModels.length <= 1 || !!examType}
+        disabled={availableChatModels.length <= 1 || !!examType || isLoading}
         className={cn(
           'w-fit data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
           className,
@@ -83,7 +109,7 @@ export function ModelSelector({
           variant="outline"
           className="md:px-2 md:h-[34px]"
         >
-          {selectedChatModel?.name}
+          {isLoading ? 'Loading...' : selectedChatModel?.name}
           <ChevronDownIcon />
         </Button>
       </DropdownMenuTrigger>

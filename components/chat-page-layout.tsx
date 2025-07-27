@@ -4,13 +4,12 @@ import { useEffect, useState } from 'react';
 
 import type { UIMessage } from 'ai';
 import type { Session } from 'next-auth';
-import useSWR from 'swr';
 
 import { Chat } from '@/components/chat';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { ExamSidebar } from '@/components/exam-interface/exam-sidebar';
+import { useExamConfig } from '@/hooks/use-exam-configs';
 import { useExamContext } from '@/hooks/use-exam-context';
-import { fetcher } from '@/lib/utils';
 
 interface ChatPageLayoutProps {
   session: Session;
@@ -32,10 +31,7 @@ export function ChatPageLayout({
   autoResume,
 }: ChatPageLayoutProps) {
   const { examType, setExamConfig } = useExamContext();
-  const { data: examConfig } = useSWR(
-    examType ? `/api/exam-configs?id=${examType}` : null,
-    fetcher,
-  );
+  const { config: examConfig } = useExamConfig(examType);
 
   // Set exam configuration in context when it's loaded
   useEffect(() => {

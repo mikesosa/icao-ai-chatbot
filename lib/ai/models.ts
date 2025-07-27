@@ -1,6 +1,4 @@
-import { MODEL_IDS } from '@/lib/types';
-
-export const DEFAULT_CHAT_MODEL: string = MODEL_IDS.TEA_EVALUATOR;
+import { examConfigService } from '@/lib/services/exam-config-service';
 
 export interface ChatModel {
   id: string;
@@ -8,25 +6,33 @@ export interface ChatModel {
   description: string;
 }
 
-export const chatModels: Array<ChatModel> = [
-  // {
-  //   id: MODEL_IDS.CHAT_MODEL,
-  //   name: 'Chat model',
-  //   description: 'Primary model for all-purpose chat',
-  // },
-  // {
-  //   id: MODEL_IDS.CHAT_MODEL_REASONING,
-  //   name: 'Reasoning model',
-  //   description: 'Uses advanced reasoning',
-  // },
-  {
-    id: MODEL_IDS.TEA_EVALUATOR,
-    name: 'TEA Evaluator',
-    description: 'Test of English for Aviation (TEA) exams',
-  },
-  {
-    id: MODEL_IDS.ELPAC_EVALUATOR,
-    name: 'ELPAC Evaluator',
-    description: 'English Language Proficiency Assessment for Aviation (ELPAC)',
-  },
-];
+// Generate models synchronously from fallback data (for SSR)
+function generateModelsFromFallbackConfigs(): Array<ChatModel> {
+  try {
+    const examConfigs = examConfigService.getConfigurationsSync();
+    return examConfigService.generateChatModels(examConfigs);
+  } catch (error) {
+    console.error('Error generating models from fallback configs:', error);
+    // Return hardcoded fallback models
+    return examConfigService.getFallbackChatModels();
+  }
+}
+
+// Export synchronous models (from fallback data for SSR)
+export const chatModels: Array<ChatModel> = generateModelsFromFallbackConfigs();
+
+// Generate models from provided configurations (for client-side SWR data)
+export function generateChatModelsFromConfigs(
+  configs: Record<string, any>,
+): Array<ChatModel> {
+  try {
+    return examConfigService.generateChatModels(configs);
+  } catch (error) {
+    console.error('Error generating models from provided configs:', error);
+    return examConfigService.getFallbackChatModels();
+  }
+}
+
+// Default to the first available exam model
+export const DEFAULT_CHAT_MODEL: string =
+  chatModels.length > 0 ? chatModels[0].id : 'tea-evaluator';

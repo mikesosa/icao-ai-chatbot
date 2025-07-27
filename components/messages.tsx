@@ -97,7 +97,6 @@ export const Messages = memo(PureMessages, (prevProps, nextProps) => {
   if (prevProps.status !== nextProps.status) return false;
   if (prevProps.isReadonly !== nextProps.isReadonly) return false;
   if (prevProps.isArtifactVisible !== nextProps.isArtifactVisible) return false;
-  if (prevProps.selectedModel !== nextProps.selectedModel) return false;
   if (!equal(prevProps.messages, nextProps.messages)) return false;
   if (!equal(prevProps.votes, nextProps.votes)) return false;
 

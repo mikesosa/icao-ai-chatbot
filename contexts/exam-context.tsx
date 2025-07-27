@@ -15,6 +15,7 @@ import type {
   CompleteExamConfig,
 } from '@/components/exam-interface/exam';
 import { useSidebar } from '@/components/ui/sidebar';
+import { examConfigService } from '@/lib/services/exam-config-service';
 
 // Define the exam context interface
 interface ExamContextType {
@@ -207,8 +208,8 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   };
 
   const isExamModel = (modelId: string): boolean => {
-    // Check if the model ends with '-evaluator' to identify exam models dynamically
-    return modelId.endsWith('-evaluator');
+    // Check if the model exists in the exam configurations
+    return examConfigService.isValidExamIdSync(modelId);
   };
 
   const startExam = (
