@@ -19,7 +19,7 @@ const SUPPORTED_EXAMS = {
   elpac: {
     sections: ['1', '4'] as const,
     maxRecordings: {
-      '1': 6, // Listening section
+      '1': 3, // Listening section
       '4': 3, // Speaking prompts
     },
   },
