@@ -10,11 +10,13 @@ import type { Session } from 'next-auth';
 import useSWR, { useSWRConfig } from 'swr';
 import { unstable_serialize } from 'swr/infinite';
 
+import { SubscriptionBanner } from '@/components/billing/subscription-banner';
 import { ChatHeader } from '@/components/chat-header';
 import { useArtifactSelector } from '@/hooks/use-artifact';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useExamContext } from '@/hooks/use-exam-context';
+import { useSubscription } from '@/hooks/use-subscription';
 import type { Vote } from '@/lib/db/schema';
 import { ChatSDKError } from '@/lib/errors';
 import {
@@ -64,6 +66,7 @@ function ChatWithSearchParams({
     readyToStartExam,
     setOnSectionChange,
   } = useExamContext();
+  const { subscription } = useSubscription();
   const { visibilityType } = useChatVisibility({
     chatId: id,
     initialVisibilityType,
@@ -147,9 +150,13 @@ function ChatWithSearchParams({
       return;
     }
 
+    if (!subscription || !subscription.isActive) {
+      return;
+    }
+
     readyToStartExam(examParam);
     setHasInitializedExamFromQuery(true);
-  }, [examParam, hasInitializedExamFromQuery, readyToStartExam]);
+  }, [examParam, hasInitializedExamFromQuery, readyToStartExam, subscription]);
 
   // Auto-start exam when examStarted becomes true
   useEffect(() => {
@@ -225,6 +232,7 @@ function ChatWithSearchParams({
           session={session}
           hideControls={hideControls}
         />
+        <SubscriptionBanner />
 
         <Messages
           chatId={id}

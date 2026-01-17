@@ -26,11 +26,13 @@ import {
   stream,
   type Chat,
   type DBMessage,
+  type Subscription,
   type Suggestion,
   type User,
   chat,
   document,
   message,
+  subscription,
   suggestion,
   user,
   vote,
@@ -52,6 +54,95 @@ export async function getUser(email: string): Promise<Array<User>> {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get user by email',
+    );
+  }
+}
+
+export async function getSubscriptionByUserId(
+  userId: string,
+): Promise<Subscription | null> {
+  try {
+    const [record] = await db
+      .select()
+      .from(subscription)
+      .where(eq(subscription.userId, userId))
+      .limit(1);
+    return record ?? null;
+  } catch (error: any) {
+    if (typeof error?.message === 'string') {
+      const message = error.message.toLowerCase();
+      if (
+        message.includes('relation "subscription" does not exist') ||
+        message.includes('relation "subscription"')
+      ) {
+        console.warn(
+          '⚠️ [DB] Subscription table missing. Run migrations to enable billing.',
+        );
+        return null;
+      }
+    }
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get subscription by user id',
+    );
+  }
+}
+
+export async function upsertSubscriptionForUser({
+  userId,
+  status,
+  planId,
+  rebillCustomerId,
+  rebillSubscriptionId,
+  currentPeriodEnd,
+}: {
+  userId: string;
+  status: string;
+  planId?: string | null;
+  rebillCustomerId?: string | null;
+  rebillSubscriptionId?: string | null;
+  currentPeriodEnd?: Date | null;
+}) {
+  const now = new Date();
+  try {
+    const existing = await getSubscriptionByUserId(userId);
+
+    if (existing) {
+      const [updated] = await db
+        .update(subscription)
+        .set({
+          status,
+          planId: planId ?? existing.planId,
+          rebillCustomerId: rebillCustomerId ?? existing.rebillCustomerId,
+          rebillSubscriptionId:
+            rebillSubscriptionId ?? existing.rebillSubscriptionId,
+          currentPeriodEnd:
+            currentPeriodEnd ?? existing.currentPeriodEnd ?? null,
+          updatedAt: now,
+        })
+        .where(eq(subscription.userId, userId))
+        .returning();
+      return updated;
+    }
+
+    const [inserted] = await db
+      .insert(subscription)
+      .values({
+        userId,
+        status,
+        planId: planId ?? null,
+        rebillCustomerId: rebillCustomerId ?? null,
+        rebillSubscriptionId: rebillSubscriptionId ?? null,
+        currentPeriodEnd: currentPeriodEnd ?? null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+    return inserted;
+  } catch (_error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to upsert subscription',
     );
   }
 }

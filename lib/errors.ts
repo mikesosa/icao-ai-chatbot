@@ -4,7 +4,8 @@ export type ErrorType =
   | 'forbidden'
   | 'not_found'
   | 'rate_limit'
-  | 'offline';
+  | 'offline'
+  | 'payment_required';
 
 export type Surface =
   | 'chat'
@@ -15,7 +16,8 @@ export type Surface =
   | 'history'
   | 'vote'
   | 'document'
-  | 'suggestions';
+  | 'suggestions'
+  | 'billing';
 
 export type ErrorCode = `${ErrorType}:${Surface}`;
 
@@ -31,6 +33,7 @@ export const visibilityBySurface: Record<Surface, ErrorVisibility> = {
   vote: 'response',
   document: 'response',
   suggestions: 'response',
+  billing: 'response',
 };
 
 export class ChatSDKError extends Error {
@@ -99,6 +102,9 @@ export function getMessageByErrorCode(errorCode: ErrorCode): string {
     case 'offline:chat':
       return "We're having trouble sending your message. Please check your internet connection and try again.";
 
+    case 'payment_required:billing':
+      return 'An active subscription is required to access this exam.';
+
     case 'not_found:document':
       return 'The requested document was not found. Please check the document ID and try again.';
     case 'forbidden:document':
@@ -123,6 +129,8 @@ function getStatusCodeByType(type: ErrorType) {
       return 403;
     case 'not_found':
       return 404;
+    case 'payment_required':
+      return 402;
     case 'rate_limit':
       return 429;
     case 'offline':

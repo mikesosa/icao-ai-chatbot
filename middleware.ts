@@ -42,6 +42,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow access to Rebill webhooks
+  if (pathname.startsWith('/api/rebill/webhook')) {
+    return NextResponse.next();
+  }
+
   // Allow access to audio files for exam functionality
   if (pathname.startsWith('/api/audio')) {
     return NextResponse.next();

@@ -31,6 +31,7 @@ import { getWeather } from '@/lib/ai/tools/get-weather';
 import { playAudioTool } from '@/lib/ai/tools/play-audio';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { updateDocument } from '@/lib/ai/tools/update-document';
+import { isActiveSubscriptionStatus } from '@/lib/billing/subscription';
 import { isProductionEnvironment } from '@/lib/constants';
 import {
   createStreamId,
@@ -39,6 +40,7 @@ import {
   getMessageCountByUserId,
   getMessagesByChatId,
   getStreamIdsByChatId,
+  getSubscriptionByUserId,
   saveChat,
   saveMessages,
 } from '@/lib/db/queries';
@@ -149,6 +151,15 @@ export async function POST(request: Request) {
         `❌ [RATE LIMIT] User ${session.user.id} exceeded limit: ${messageCount} > ${maxMessages}`,
       );
       return new ChatSDKError('rate_limit:chat').toResponse();
+    }
+
+    if (isExamEvaluator(selectedChatModel)) {
+      const subscription = await getSubscriptionByUserId(session.user.id);
+      const isActive = isActiveSubscriptionStatus(subscription?.status);
+
+      if (!isActive) {
+        return new ChatSDKError('payment_required:billing').toResponse();
+      }
     }
 
     const chat = await getChatById({ id });
