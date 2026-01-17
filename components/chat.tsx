@@ -61,6 +61,7 @@ function ChatWithSearchParams({
     examStarted,
     currentSection,
     currentSubsection,
+    readyToStartExam,
     setOnSectionChange,
   } = useExamContext();
   const { visibilityType } = useChatVisibility({
@@ -124,9 +125,12 @@ function ChatWithSearchParams({
 
   const searchParams = useSearchParams();
   const query = searchParams.get('query');
+  const examParam = searchParams.get('exam');
 
   const [hasAppendedQuery, setHasAppendedQuery] = useState(false);
   const [hasStartedExam, setHasStartedExam] = useState(false);
+  const [hasInitializedExamFromQuery, setHasInitializedExamFromQuery] =
+    useState(false);
 
   useEffect(() => {
     if (query && !hasAppendedQuery) {
@@ -137,6 +141,15 @@ function ChatWithSearchParams({
       setHasAppendedQuery(true);
     }
   }, [query, append, hasAppendedQuery, id]);
+
+  useEffect(() => {
+    if (!examParam || hasInitializedExamFromQuery) {
+      return;
+    }
+
+    readyToStartExam(examParam);
+    setHasInitializedExamFromQuery(true);
+  }, [examParam, hasInitializedExamFromQuery, readyToStartExam]);
 
   // Auto-start exam when examStarted becomes true
   useEffect(() => {

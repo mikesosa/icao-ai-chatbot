@@ -4,6 +4,7 @@ import Script from 'next/script';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { ExamProvider } from '@/contexts/exam-context';
+import { getPartner } from '@/lib/partners/get-partner';
 
 import { auth } from '../(auth)/auth';
 
@@ -16,6 +17,8 @@ export default async function Layout({
 }) {
   const [session, cookieStore] = await Promise.all([auth(), cookies()]);
   const isCollapsed = cookieStore.get('sidebar:state')?.value !== 'true';
+  const partnerSlug = cookieStore.get('partner')?.value;
+  const partner = getPartner(partnerSlug);
 
   return (
     <>
@@ -25,7 +28,7 @@ export default async function Layout({
       />
       <SidebarProvider defaultOpen={isCollapsed}>
         <ExamProvider>
-          <AppSidebar user={session?.user} />
+          <AppSidebar user={session?.user} brand={partner} />
           <SidebarInset>{children}</SidebarInset>
         </ExamProvider>
       </SidebarProvider>

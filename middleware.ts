@@ -3,9 +3,31 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 import { guestRegex, isDevelopmentEnvironment } from './lib/constants';
+import { PARTNER_SLUGS } from './lib/partners/config';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const firstSegment = pathSegments[0];
+  const vanityPartnerSlug = PARTNER_SLUGS.includes(firstSegment)
+    ? firstSegment
+    : null;
+  const isPartnerLanding = pathSegments[0] === 'p' && pathSegments.length === 2;
+
+  if (vanityPartnerSlug && pathSegments.length === 1) {
+    return NextResponse.rewrite(
+      new URL(`/p/${vanityPartnerSlug}`, request.url),
+    );
+  }
+
+  let vanityRewriteUrl: URL | null = null;
+  if (vanityPartnerSlug && pathSegments.length > 1) {
+    const restPath = pathname.slice(vanityPartnerSlug.length + 1);
+    vanityRewriteUrl = new URL(
+      `/p/${vanityPartnerSlug}${restPath}`,
+      request.url,
+    );
+  }
 
   /*
    * Playwright starts the dev server and requires a 200 status to
@@ -22,6 +44,11 @@ export async function middleware(request: NextRequest) {
 
   // Allow access to audio files for exam functionality
   if (pathname.startsWith('/api/audio')) {
+    return NextResponse.next();
+  }
+
+  // Allow public access to partner landing pages
+  if (isPartnerLanding) {
     return NextResponse.next();
   }
 
@@ -60,6 +87,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(
       new URL(`/login?callbackUrl=${redirectUrl}`, request.url),
     );
+  }
+
+  if (vanityRewriteUrl) {
+    return NextResponse.rewrite(vanityRewriteUrl);
   }
 
   return NextResponse.next();

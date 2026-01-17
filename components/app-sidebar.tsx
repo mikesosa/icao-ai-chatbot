@@ -17,12 +17,20 @@ import {
   SidebarMenu,
   useSidebar,
 } from '@/components/ui/sidebar';
+import type { PartnerBrand } from '@/lib/partners/types';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
-export function AppSidebar({ user }: { user: User | undefined }) {
+export function AppSidebar({
+  user,
+  brand,
+}: {
+  user: User | undefined;
+  brand: PartnerBrand;
+}) {
   const router = useRouter();
   const { setOpenMobile, setOpen } = useSidebar();
+  const brandName = brand?.displayName ?? 'AeroChat';
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
@@ -36,9 +44,16 @@ export function AppSidebar({ user }: { user: User | undefined }) {
               }}
               className="flex flex-row gap-3 items-center"
             >
-              <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer">
-                AeroChat
-              </span>
+              <div className="flex items-center gap-2 px-2 hover:bg-muted rounded-md cursor-pointer">
+                {brand?.logoPath && (
+                  <img
+                    src={brand.logoPath}
+                    alt={`${brandName} logo`}
+                    className="h-6 w-auto"
+                  />
+                )}
+                <span className="text-lg font-semibold">{brandName}</span>
+              </div>
             </Link>
             <Tooltip>
               <TooltipTrigger asChild>
