@@ -190,3 +190,34 @@ export const subscription = pgTable('Subscription', {
 });
 
 export type Subscription = InferSelectModel<typeof subscription>;
+
+export const partnerDiscount = pgTable('PartnerDiscount', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  partnerSlug: varchar('partnerSlug', { length: 64 }).notNull(),
+  code: varchar('code', { length: 64 }).notNull(),
+  discountType: varchar('discountType', { length: 16 }).notNull(),
+  discountValue: varchar('discountValue', { length: 32 }).notNull(),
+  active: boolean('active').notNull().default(true),
+  startsAt: timestamp('startsAt'),
+  expiresAt: timestamp('expiresAt'),
+  maxRedemptions: varchar('maxRedemptions', { length: 16 }),
+  maxRedemptionsPerUser: varchar('maxRedemptionsPerUser', { length: 16 }),
+  eligiblePlans: json('eligiblePlans'),
+  createdAt: timestamp('createdAt').notNull(),
+  updatedAt: timestamp('updatedAt').notNull(),
+});
+
+export type PartnerDiscount = InferSelectModel<typeof partnerDiscount>;
+
+export const discountRedemption = pgTable('DiscountRedemption', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  discountId: uuid('discountId')
+    .notNull()
+    .references(() => partnerDiscount.id),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id),
+  redeemedAt: timestamp('redeemedAt').notNull(),
+});
+
+export type DiscountRedemption = InferSelectModel<typeof discountRedemption>;

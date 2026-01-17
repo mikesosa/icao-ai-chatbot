@@ -26,12 +26,15 @@ import {
   stream,
   type Chat,
   type DBMessage,
+  type PartnerDiscount,
   type Subscription,
   type Suggestion,
   type User,
   chat,
+  discountRedemption,
   document,
   message,
+  partnerDiscount,
   subscription,
   suggestion,
   user,
@@ -143,6 +146,97 @@ export async function upsertSubscriptionForUser({
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to upsert subscription',
+    );
+  }
+}
+
+export async function getActivePartnerDiscountByCode(
+  code: string,
+): Promise<PartnerDiscount | null> {
+  try {
+    const [record] = await db
+      .select()
+      .from(partnerDiscount)
+      .where(eq(partnerDiscount.code, code))
+      .limit(1);
+
+    if (!record) return null;
+    if (!record.active) return null;
+
+    const now = new Date();
+    if (record.startsAt && record.startsAt > now) return null;
+    if (record.expiresAt && record.expiresAt < now) return null;
+
+    return record;
+  } catch (_error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get partner discount by code',
+    );
+  }
+}
+
+export async function getDiscountRedemptionsCount(
+  discountId: string,
+): Promise<number> {
+  try {
+    const [record] = await db
+      .select({ count: count() })
+      .from(discountRedemption)
+      .where(eq(discountRedemption.discountId, discountId));
+    return record?.count ?? 0;
+  } catch (_error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to count discount redemptions',
+    );
+  }
+}
+
+export async function getDiscountRedemptionsByUser(
+  discountId: string,
+  userId: string,
+): Promise<number> {
+  try {
+    const [record] = await db
+      .select({ count: count() })
+      .from(discountRedemption)
+      .where(
+        and(
+          eq(discountRedemption.discountId, discountId),
+          eq(discountRedemption.userId, userId),
+        ),
+      );
+    return record?.count ?? 0;
+  } catch (_error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to count user discount redemptions',
+    );
+  }
+}
+
+export async function createDiscountRedemption({
+  discountId,
+  userId,
+}: {
+  discountId: string;
+  userId: string;
+}) {
+  try {
+    const [record] = await db
+      .insert(discountRedemption)
+      .values({
+        discountId,
+        userId,
+        redeemedAt: new Date(),
+      })
+      .returning();
+    return record;
+  } catch (_error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create discount redemption',
     );
   }
 }

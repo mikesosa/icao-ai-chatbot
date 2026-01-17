@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 
+import { normalizeCode } from '@/lib/billing/discounts';
 import { normalizeSubscriptionStatus } from '@/lib/billing/subscription';
-import { getUser, upsertSubscriptionForUser } from '@/lib/db/queries';
+import {
+  createDiscountRedemption,
+  getActivePartnerDiscountByCode,
+  getDiscountRedemptionsByUser,
+  getUser,
+  upsertSubscriptionForUser,
+} from '@/lib/db/queries';
 
 const getAuthCredentials = () => {
   const username = process.env.REBILL_WEBHOOK_USERNAME;
@@ -50,6 +57,15 @@ const extractSubscriptionPayload = (payload: any) => {
     subscription?.customer ??
     null;
 
+  const couponCode =
+    payload?.couponCode ??
+    payload?.coupon?.code ??
+    payload?.discount?.code ??
+    payload?.promotion?.code ??
+    subscription?.coupon?.code ??
+    subscription?.discount?.code ??
+    null;
+
   return {
     eventType,
     subscriptionId:
@@ -77,6 +93,7 @@ const extractSubscriptionPayload = (payload: any) => {
       subscription?.renewalTime ??
       payload?.currentPeriodEnd ??
       null,
+    couponCode,
   };
 };
 
@@ -117,6 +134,23 @@ export async function POST(request: Request) {
     rebillSubscriptionId: extracted.subscriptionId,
     currentPeriodEnd: parseDate(extracted.currentPeriodEnd),
   });
+
+  if (extracted.couponCode) {
+    const normalized = normalizeCode(extracted.couponCode);
+    const discount = await getActivePartnerDiscountByCode(normalized);
+    if (discount) {
+      const userRedemptions = await getDiscountRedemptionsByUser(
+        discount.id,
+        user.id,
+      );
+      if (userRedemptions === 0) {
+        await createDiscountRedemption({
+          discountId: discount.id,
+          userId: user.id,
+        });
+      }
+    }
+  }
 
   return NextResponse.json({ received: true, eventType: extracted.eventType });
 }
