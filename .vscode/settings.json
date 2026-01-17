@@ -13,5 +13,11 @@
   "eslint.workingDirectories": [
     { "pattern": "app/*" },
     { "pattern": "packages/*" }
-  ]
+  ],
+  "prettier.configPath": ".prettierrc",
+  "editor.defaultFormatter": "prettier.prettier-vscode",
+  "notebook.defaultFormatter": "prettier.prettier-vscode",
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  }
 }
