@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS "Message_v2" RENAME TO "Message";
+ALTER TABLE IF EXISTS "Vote_v2" RENAME TO "Vote";
