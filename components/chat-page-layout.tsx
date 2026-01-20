@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
+import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import type { Session } from 'next-auth';
 
@@ -33,15 +34,37 @@ export function ChatPageLayout({
   const { examType, setExamConfig } = useExamContext();
   const { config: examConfig } = useExamConfig(examType);
 
-  // Set exam configuration in context when it's loaded
+  // Track the last examConfig id to prevent duplicate setExamConfig calls
+  const lastExamConfigId = useRef<string | null>(null);
+
+  // Set exam configuration in context when it's loaded (only if id changed)
   useEffect(() => {
-    if (examConfig) {
+    if (examConfig && examConfig.id !== lastExamConfigId.current) {
+      lastExamConfigId.current = examConfig.id;
       setExamConfig(examConfig);
     }
   }, [examConfig, setExamConfig]);
 
   // Create refs to store the data stream
   const [dataStream, setDataStream] = useState<any[]>([]);
+
+  // Use a ref for append to avoid re-render loops
+  const appendRef = useRef<UseChatHelpers['append'] | null>(null);
+  // Force re-render once when append becomes available
+  const [appendReady, setAppendReady] = useState(false);
+
+  // Stable callback for receiving append from Chat
+  const handleAppendRef = useCallback((a: UseChatHelpers['append']) => {
+    if (appendRef.current !== a) {
+      appendRef.current = a;
+      setAppendReady(true);
+    }
+  }, []);
+
+  // Stable callback for data stream updates
+  const handleDataStreamUpdate = useCallback((data: any[]) => {
+    setDataStream(data || []);
+  }, []);
 
   return (
     <div className="flex">
@@ -73,17 +96,16 @@ export function ChatPageLayout({
           isReadonly={isReadonly}
           session={session}
           autoResume={autoResume}
-          onDataStreamUpdate={(data) => {
-            setDataStream(data || []);
-          }}
+          onAppendRef={handleAppendRef}
+          onDataStreamUpdate={handleDataStreamUpdate}
         />
         <DataStreamHandler id={id} dataStream={dataStream} />
       </div>
       {examConfig && (
         <div className="flex flex-col min-w-0 h-dvh bg-sidebar">
           <ExamSidebar
-            initialMessages={initialMessages}
             examConfig={examConfig}
+            append={appendReady ? appendRef.current || undefined : undefined}
           />
         </div>
       )}

@@ -5,6 +5,17 @@ import { useMemo } from 'react';
 import { CheckCircle, Circle, Play, Square } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,7 +34,7 @@ interface ExamSectionControlsProps {
   onSectionChange: (section: ExamSection) => void;
   onSubsectionChange: (subsection: string) => void;
   onStartExam?: () => void;
-  onEndExam?: () => void;
+  onEndExamRequest?: (opts: { generateReport: boolean }) => void;
   examStarted: boolean;
   controlsConfig: ExamControlsConfig;
   examConfig: CompleteExamConfig;
@@ -37,7 +48,7 @@ export function ExamSectionControls({
   onSectionChange,
   onSubsectionChange,
   onStartExam,
-  onEndExam,
+  onEndExamRequest,
   examStarted,
   controlsConfig,
   examConfig,
@@ -83,7 +94,6 @@ export function ExamSectionControls({
                         variant={isCurrent ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => onSectionChange(sectionNum)}
-                        disabled={false}
                         className="justify-start h-auto py-3"
                       >
                         <div className="flex items-center gap-1">
@@ -120,7 +130,6 @@ export function ExamSectionControls({
                             variant={isCurrent ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => onSubsectionChange(subsectionId)}
-                            disabled={false}
                             className={`justify-start ${
                               isCurrent
                                 ? 'bg-primary text-primary-foreground border-primary'
@@ -192,15 +201,45 @@ export function ExamSectionControls({
                 Start Exam
               </Button>
             ) : (
-              <Button
-                onClick={onEndExam}
-                className="w-full fill-current"
-                variant="destructive"
-                size="lg"
-              >
-                <Square className="size-4 mr-2" />
-                End Exam
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    className="w-full fill-current"
+                    variant="destructive"
+                    size="lg"
+                  >
+                    <Square className="size-4 mr-2" />
+                    End Exam
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>End exam?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will stop the exam immediately. If you end early, you
+                      can optionally request a partial evaluation based on what
+                      was completed so far.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="gap-2 sm:gap-0">
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() =>
+                        onEndExamRequest?.({ generateReport: false })
+                      }
+                    >
+                      End (no report)
+                    </AlertDialogAction>
+                    <AlertDialogAction
+                      onClick={() =>
+                        onEndExamRequest?.({ generateReport: true })
+                      }
+                    >
+                      End & generate report
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </CardContent>

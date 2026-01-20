@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 
 import { useSearchParams } from 'next/navigation';
 
@@ -198,9 +198,13 @@ function ChatWithSearchParams({
     }
   }, [examType, examStarted, setOnSectionChange, append]);
 
-  // Notify parent of append function
+  // Track if we've already notified parent of append function
+  const hasNotifiedAppendRef = useRef(false);
+
+  // Notify parent of append function (only once)
   useEffect(() => {
-    if (onAppendRef) {
+    if (onAppendRef && !hasNotifiedAppendRef.current) {
+      hasNotifiedAppendRef.current = true;
       onAppendRef(append);
     }
   }, [append, onAppendRef]);

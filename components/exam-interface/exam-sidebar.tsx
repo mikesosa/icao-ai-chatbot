@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
-import type { UIMessage } from 'ai';
+import type { UseChatHelpers } from '@ai-sdk/react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 
@@ -15,11 +15,11 @@ import { ExamSectionControls } from './exam-section-controls';
 import { ExamTimer } from './exam-timer';
 
 interface ExamSidebarProps {
-  initialMessages: UIMessage[];
   examConfig: CompleteExamConfig;
+  append?: UseChatHelpers['append'];
 }
 
-export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
+export function ExamSidebar({ examConfig, append }: ExamSidebarProps) {
   // Use exam context state instead of local state
   const { setOpen } = useSidebar();
   const { data: session } = useSession();
@@ -37,20 +37,10 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
     completeSubsection,
     startExam,
     endExam,
-    setExamConfig,
     jumpToSection,
     jumpToSubsection,
   } = useExamContext();
-
-  // Set exam configuration in context when it's available
-  useEffect(() => {
-    if (examConfig) {
-      setExamConfig(examConfig);
-    }
-  }, [examConfig, setExamConfig]);
-
-  // Local state for UI
-  const [_showInstructions, _setShowInstructions] = useState(true);
+  // Note: setExamConfig is called by ChatPageLayout (parent), not here
 
   // Track last appended subsection to prevent duplicates
   const lastAppendedSubsection = useRef<string | null>(null);
@@ -65,28 +55,6 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
     }
   }, [currentSubsection]);
 
-  // Chat messages with initial instructions
-  const [_messages, _setMessages] = useState<UIMessage[]>(() => {
-    if (initialMessages.length === 0) {
-      return [
-        {
-          id: 'exam-welcome',
-          role: 'assistant',
-          content: '',
-          parts: [
-            {
-              type: 'text',
-              text: examConfig.messagesConfig.welcomeMessage,
-            },
-          ],
-          createdAt: new Date(),
-          experimental_attachments: [],
-        },
-      ];
-    }
-    return initialMessages;
-  });
-
   // Exam handlers
   const handleStartExam = () => {
     startExam(
@@ -94,7 +62,6 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
       undefined,
       examConfig.controlsConfig.totalSections,
     );
-    _setShowInstructions(false);
     setCurrentSection('1');
     setCurrentSubsection(null);
     lastAppendedSubsection.current = null; // Reset tracking
@@ -205,9 +172,38 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
     toast.info(`Changed to Subsection ${subsectionId}`);
   };
 
-  const handleEndExam = () => {
+  const handleEndExamRequest = (opts: { generateReport: boolean }) => {
+    const total = examConfig.controlsConfig.totalSections;
+    const done = completedSections.length;
+    const endedEarly = done < total;
+
+    // Request a partial evaluation before ending exam UI state
+    if (opts.generateReport) {
+      const examName = examConfig.name || 'exam';
+      const evaluatorInstruction = endedEarly
+        ? `I want to stop the ${examName} test now. I am ending the test early (not all parts are complete). Please provide a PARTIAL evaluation based ONLY on what you've observed so far. Clearly label it as INCOMPLETE / ENDED EARLY, and do not assume completion of missing parts.`
+        : `I want to finish the ${examName} test now. Please provide the final evaluation based on my performance.`;
+
+      // Use the chat append function if available (passed down from ChatPageLayout)
+      if (append) {
+        append({ role: 'user', content: evaluatorInstruction });
+      } else {
+        toast.warning(
+          'Could not request evaluation report (chat not ready). Ending exam anyway.',
+        );
+      }
+    }
+
     endExam();
-    toast.success('Exam completed successfully!');
+    toast.success(
+      opts.generateReport
+        ? endedEarly
+          ? 'Exam ended early — generating partial report...'
+          : 'Exam completed — generating report...'
+        : endedEarly
+          ? 'Exam ended (no report generated)'
+          : 'Exam completed successfully!',
+    );
   };
 
   const handleSectionComplete = (section: ExamSection) => {
@@ -242,28 +238,11 @@ export function ExamSidebar({ initialMessages, examConfig }: ExamSidebarProps) {
         onSectionChange={handleSectionChange}
         onSubsectionChange={handleSubsectionChange}
         onStartExam={handleStartExam}
-        onEndExam={handleEndExam}
+        onEndExamRequest={handleEndExamRequest}
         examStarted={examStarted}
         controlsConfig={examConfig.controlsConfig}
         examConfig={examConfig}
       />
-
-      {/* Uncomment if you want to show quick instructions
-      {showInstructions && (
-        <Card className="bg-sidebar">
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <FileText className="size-4" />
-              Instrucciones Rápidas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs space-y-2">
-            {examConfig.messagesConfig.quickInstructions.map((instruction, index) => (
-              <p key={index}>• {instruction}</p>
-            ))}
-          </CardContent>
-        </Card>
-      )} */}
     </div>
   );
 }

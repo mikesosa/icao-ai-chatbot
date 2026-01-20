@@ -485,7 +485,11 @@
                 "Spelling is not assessed"
               ],
               "audioFiles": [
-                { "recording": 1, "title": "Part 1 Item Set", "description": "Recognition items (placeholder)" }
+                {
+                  "recording": 1,
+                  "title": "Part 1 Item Set",
+                  "description": "Recognition items (placeholder)"
+                }
               ]
             },
             "1P2": {
@@ -497,7 +501,11 @@
                 "Maximum number of checkmarks is not specified"
               ],
               "audioFiles": [
-                { "recording": 2, "title": "Part 2 Readback Table", "description": "Readback accuracy (placeholder)" }
+                {
+                  "recording": 2,
+                  "title": "Part 2 Readback Table",
+                  "description": "Readback accuracy (placeholder)"
+                }
               ]
             },
             "1P3": {
@@ -509,7 +517,11 @@
                 "Spelling is not assessed"
               ],
               "audioFiles": [
-                { "recording": 3, "title": "Part 3 Communication", "description": "Non-routine SAQ (placeholder)" }
+                {
+                  "recording": 3,
+                  "title": "Part 3 Communication",
+                  "description": "Non-routine SAQ (placeholder)"
+                }
               ]
             },
             "1P4": {
@@ -521,7 +533,11 @@
                 "Number of answers required is not specified"
               ],
               "audioFiles": [
-                { "recording": 4, "title": "Part 4 Table Completion", "description": "ATC table completion (placeholder)" }
+                {
+                  "recording": 4,
+                  "title": "Part 4 Table Completion",
+                  "description": "ATC table completion (placeholder)"
+                }
               ]
             },
             "1P5": {
@@ -533,7 +549,11 @@
                 "Answers are a few words; spelling not assessed"
               ],
               "audioFiles": [
-                { "recording": 5, "title": "Part 5 Telephone SAQ", "description": "Telephone SAQ (placeholder)" }
+                {
+                  "recording": 5,
+                  "title": "Part 5 Telephone SAQ",
+                  "description": "Telephone SAQ (placeholder)"
+                }
               ]
             },
             "1P6": {
@@ -545,7 +565,11 @@
                 "Answers are a few words; spelling not assessed"
               ],
               "audioFiles": [
-                { "recording": 6, "title": "Part 6 Radio SAQ", "description": "Radio SAQ (placeholder)" }
+                {
+                  "recording": 6,
+                  "title": "Part 6 Radio SAQ",
+                  "description": "Radio SAQ (placeholder)"
+                }
               ]
             }
           },
@@ -644,7 +668,11 @@
                 "Resolve misunderstandings and confirm/clarify"
               ],
               "audioFiles": [
-                { "recording": 1, "title": "Task I Prompt 1", "description": "Non-visual role play (placeholder)" }
+                {
+                  "recording": 1,
+                  "title": "Task I Prompt 1",
+                  "description": "Non-visual role play (placeholder)"
+                }
               ]
             },
             "2II": {
