@@ -133,7 +133,20 @@ export const playAudioTool = ({
         if (recordingNumber && isExamRecording && subsection) {
           // For exam recordings with specific number, construct the filename
           const examSection = subsection.toLowerCase();
-          audioFile = `${examSection}-recording-${recordingNumber.toString().padStart(2, '0')}.mp3`;
+          const padded = recordingNumber.toString().padStart(2, '0');
+
+          // Use real filenames for ELPAC (Paper 1 listening, Paper 2 oral prompts)
+          if (examType === 'elpac') {
+            if (examSection === '1') {
+              audioFile = `elpac-1-listening-${padded}.mp3`;
+            } else if (examSection === '2') {
+              audioFile = `elpac-2-speaking-prompt-${padded}.mp3`;
+            } else {
+              audioFile = `${examSection}-recording-${padded}.mp3`;
+            }
+          } else {
+            audioFile = `${examSection}-recording-${padded}.mp3`;
+          }
           console.log(
             '🎵 [PLAY AUDIO TOOL] Using specific recording:',
             audioFile,
@@ -155,8 +168,8 @@ export const playAudioTool = ({
           const examSection = subsection.toLowerCase();
           const recording = recordingNumber || 1; // Use specific recording or default to 1
 
-          // Handle ELPAC speaking prompts (Section 4)
-          if (examType === 'elpac' && examSection === '4') {
+          // Handle ELPAC oral interaction prompts (Paper 2 / Section 2)
+          if (examType === 'elpac' && examSection === '2') {
             audioUrl = `/api/audio?exam=${examType}&section=${examSection}&prompt=${recording}`;
           } else {
             audioUrl = `/api/audio?exam=${examType}&section=${examSection}&recording=${recording}`;

@@ -251,13 +251,11 @@ function PureMultimodalInput({
       return false;
     }
 
-    // Check if section name contains "Writing" or if it's ELPAC Section 3
+    // Check if section name contains "Writing"
     const sectionName = sectionConfig.name?.toLowerCase() || '';
-    const isELPACWriting =
-      examType === 'elpac-evaluator' && currentSection === '3';
     const hasWritingInName = sectionName.includes('writing');
 
-    return isELPACWriting || hasWritingInName;
+    return hasWritingInName;
   })();
 
   if (!examStarted) {

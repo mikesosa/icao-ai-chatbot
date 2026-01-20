@@ -87,7 +87,8 @@ You have access to the following exam configuration data. When instructions refe
 
 `;
 
-    // Dynamically include all sections and their subsections
+    // Dynamically include all sections and their subsections (TEA-style),
+    // and section-level assets (ELPAC-style: audioFiles/readingPassages/writingTasks/speakingPrompts).
     if (examConfig.examConfig.sections) {
       Object.keys(examConfig.examConfig.sections).forEach((sectionKey) => {
         const sectionConfig = (examConfig.examConfig.sections as any)?.[
@@ -165,6 +166,100 @@ Subsection ${subsectionKey} - ${subsection.name}:
           prompt += `
 `;
         }
+
+        // Always include section-level assets too (common for ELPAC), even if subsections exist.
+        // Listening sections (audio)
+        if (Array.isArray(sectionConfig?.audioFiles)) {
+          prompt += `SECTION ${sectionKey} AUDIO FILES:
+`;
+          sectionConfig.audioFiles.forEach((audioFile: any, index: number) => {
+            prompt += `  ${index + 1}. ${audioFile.title} (Recording ${audioFile.recording})
+     Description: ${audioFile.description}
+`;
+            if (Array.isArray(audioFile.questions)) {
+              prompt += `     Questions: ${audioFile.questions.join(' | ')}
+`;
+            }
+            if (audioFile.correctAnswers) {
+              prompt += `     Correct Answers Keys: ${Object.keys(audioFile.correctAnswers).join(', ')}
+`;
+            }
+            // Provide transcript existence without encouraging revealing it
+            if (audioFile.transcript) {
+              prompt += `     Transcript: Available (DO NOT reveal verbatim to candidate)
+`;
+            }
+          });
+          prompt += `
+`;
+        }
+
+        // Reading sections
+        if (Array.isArray(sectionConfig?.readingPassages)) {
+          prompt += `SECTION ${sectionKey} READING PASSAGES:
+`;
+          sectionConfig.readingPassages.forEach(
+            (passage: any, index: number) => {
+              prompt += `  ${index + 1}. ${passage.title} (Passage ${passage.passage})
+     Content: ${passage.content}
+`;
+              if (Array.isArray(passage.questions)) {
+                prompt += `     Questions: ${passage.questions.join(' | ')}
+`;
+              }
+              if (passage.correctAnswers) {
+                prompt += `     Correct Answers Keys: ${Object.keys(passage.correctAnswers).join(', ')}
+`;
+              }
+            },
+          );
+          prompt += `
+`;
+        }
+
+        // Writing sections
+        if (Array.isArray(sectionConfig?.writingTasks)) {
+          prompt += `SECTION ${sectionKey} WRITING TASKS:
+`;
+          sectionConfig.writingTasks.forEach((task: any, index: number) => {
+            prompt += `  ${index + 1}. ${task.title} (Task ${task.task})
+     Instructions: ${task.instructions}
+     Time Limit: ${task.timeLimit}
+`;
+            if (Array.isArray(task.requiredElements)) {
+              prompt += `     Required Elements: ${task.requiredElements.join(' | ')}
+`;
+            }
+            if (Array.isArray(task.evaluationCriteria)) {
+              prompt += `     Evaluation Criteria: ${task.evaluationCriteria.join(' | ')}
+`;
+            }
+          });
+          prompt += `
+`;
+        }
+
+        // Speaking sections
+        if (Array.isArray(sectionConfig?.speakingPrompts)) {
+          prompt += `SECTION ${sectionKey} SPEAKING PROMPTS:
+`;
+          sectionConfig.speakingPrompts.forEach((sp: any, index: number) => {
+            prompt += `  ${index + 1}. ${sp.title} (Prompt ${sp.prompt})
+     Description: ${sp.description}
+     Audio Prompt: ${sp.audioPrompt}
+`;
+            if (Array.isArray(sp.expectedElements)) {
+              prompt += `     Expected Elements: ${sp.expectedElements.join(' | ')}
+`;
+            }
+            if (Array.isArray(sp.evaluationPoints)) {
+              prompt += `     Evaluation Points: ${sp.evaluationPoints.join(' | ')}
+`;
+            }
+          });
+          prompt += `
+`;
+        }
       });
     }
 
@@ -172,6 +267,7 @@ Subsection ${subsectionKey} - ${subsection.name}:
 - When displaying images, use the EXACT image URLs, alt text, and captions from the configuration data above
 - When playing audio, reference the exact recording numbers and subsections from the configuration data above
 - When conducting discussions, use the exact discussion topics and questions from the configuration data above
+- For audio transcripts and correct answers: use them ONLY for evaluation; do NOT reveal them verbatim to the candidate
 - Do NOT generate or use any URLs, topics, or content not explicitly provided in this configuration
 - Follow the exact structure and format specified in the exam configuration
 

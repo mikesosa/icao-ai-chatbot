@@ -17,10 +17,10 @@ const SUPPORTED_EXAMS = {
     },
   },
   elpac: {
-    sections: ['1', '4'] as const,
+    sections: ['1', '2'] as const,
     maxRecordings: {
-      '1': 3, // Listening section
-      '4': 3, // Speaking prompts
+      '1': 6, // Listening section (ATC Paper 1 has multiple parts; using 6 placeholder recordings for now)
+      '2': 3, // Oral interaction prompts (audio prompts)
     },
   },
 } as const;
@@ -69,10 +69,10 @@ export async function GET(request: NextRequest) {
 
     // Determine recording number
     let recordingNumber: string;
-    if (prompt && exam === 'elpac' && section === '4') {
+    if (prompt && exam === 'elpac' && section === '2') {
       // ELPAC speaking prompts
       const promptNum = Number.parseInt(prompt);
-      const maxPrompts = SUPPORTED_EXAMS.elpac.maxRecordings['4'];
+      const maxPrompts = SUPPORTED_EXAMS.elpac.maxRecordings['2'];
       if (Number.isNaN(promptNum) || promptNum < 1 || promptNum > maxPrompts) {
         return NextResponse.json(
           { error: `Invalid prompt number: ${prompt}` },
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
         const teaSection = section as '2a' | '2b' | '2c';
         maxRecordings = SUPPORTED_EXAMS.tea.maxRecordings[teaSection];
       } else {
-        const elpacSection = section as '1' | '4';
+        const elpacSection = section as '1' | '2';
         maxRecordings = SUPPORTED_EXAMS.elpac.maxRecordings[elpacSection];
       }
 
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
       recordingNumber = recordingNum.toString().padStart(2, '0');
 
       if (exam === 'elpac' && section === '1') {
-        // ELPAC listening recordings
+        // ELPAC listening recordings (Paper 1)
         audioPath = join(
           process.cwd(),
           'app',
@@ -126,6 +126,19 @@ export async function GET(request: NextRequest) {
           exam,
           `section-${section}`,
           `${exam}-${section}-listening-${recordingNumber}.mp3`,
+        );
+      } else if (exam === 'elpac' && section === '2') {
+        // ELPAC oral interaction prompts (Paper 2)
+        // Note: these use the speaking-prompt naming format.
+        audioPath = join(
+          process.cwd(),
+          'app',
+          '(chat)',
+          'api',
+          'audio',
+          exam,
+          `section-${section}`,
+          `${exam}-${section}-speaking-prompt-${recordingNumber}.mp3`,
         );
       } else {
         // TEA recordings
@@ -169,7 +182,7 @@ export async function GET(request: NextRequest) {
           legacy: '/api/audio?file=audio1.mp3',
           tea: '/api/audio?exam=tea&section=2a&recording=1',
           elpac_listening: '/api/audio?exam=elpac&section=1&recording=2',
-          elpac_speaking: '/api/audio?exam=elpac&section=4&prompt=1',
+          elpac_oral_interaction: '/api/audio?exam=elpac&section=2&prompt=1',
         },
       },
       { status: 400 },
