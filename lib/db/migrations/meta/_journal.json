@@ -71,6 +71,48 @@
       "when": 1753234084886,
       "tag": "0009_eminent_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1753234084887,
+      "tag": "0010_rebill_subscriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1753234084888,
+      "tag": "0011_partner_discounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1753234084889,
+      "tag": "0012_remove_legacy_message_vote",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1753234084890,
+      "tag": "0013_rename_message_vote_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1753234084891,
+      "tag": "0014_rename_provider_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1737420000000,
+      "tag": "0015_add_missing_tables",
+      "breakpoints": true
     }
   ]
 }
