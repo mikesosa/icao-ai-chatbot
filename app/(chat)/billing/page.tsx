@@ -6,8 +6,20 @@ import { getSubscriptionByUserId } from '@/lib/db/queries';
 
 import { BillingClientView } from './view';
 
-const MONTHLY_PRICE = 17;
-const ANNUAL_PRICE = 170;
+// Build checkout URLs on server where env vars are available
+function getCheckoutUrls() {
+  const monthlyPlanId = process.env.MERCADOPAGO_MONTHLY_PLAN_ID ?? '';
+  const annualPlanId = process.env.MERCADOPAGO_ANNUAL_PLAN_ID ?? '';
+
+  return {
+    monthly: monthlyPlanId
+      ? `https://www.mercadopago.com.co/subscriptions/checkout?preapproval_plan_id=${monthlyPlanId}`
+      : '',
+    annual: annualPlanId
+      ? `https://www.mercadopago.com.co/subscriptions/checkout?preapproval_plan_id=${annualPlanId}`
+      : '',
+  };
+}
 
 export default async function Page() {
   const session = await auth();
@@ -18,18 +30,13 @@ export default async function Page() {
 
   const subscription = await getSubscriptionByUserId(session.user.id);
   const isActive = isActiveSubscriptionStatus(subscription?.status);
-
-  const monthlyCheckoutUrl = process.env.REBILL_CHECKOUT_MONTHLY_URL ?? '';
-  const annualCheckoutUrl = process.env.REBILL_CHECKOUT_ANNUAL_URL ?? '';
+  const checkoutUrls = getCheckoutUrls();
 
   return (
     <BillingClientView
       isActive={isActive}
       currentPeriodEnd={subscription?.currentPeriodEnd ?? null}
-      monthlyPrice={MONTHLY_PRICE}
-      annualPrice={ANNUAL_PRICE}
-      monthlyCheckoutUrl={monthlyCheckoutUrl}
-      annualCheckoutUrl={annualCheckoutUrl}
+      checkoutUrls={checkoutUrls}
     />
   );
 }

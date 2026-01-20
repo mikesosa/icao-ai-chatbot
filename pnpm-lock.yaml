@@ -128,6 +128,9 @@ importers:
       lucide-react:
         specifier: ^0.446.0
         version: 0.446.0(react@19.0.0-rc-45804af1-20241021)
+      mercadopago:
+        specifier: ^2.12.0
+        version: 2.12.0
       nanoid:
         specifier: ^5.0.8
         version: 5.1.3
@@ -4463,6 +4466,9 @@ packages:
   mdurl@2.0.0:
     resolution: {integrity: sha512-Lf+9+2r+Tdp5wXDXC4PcIBjTDtq4UKjCPMQhKIuzpJNW0b96kVqSwW0bT7FhRSfmAiFYgP+SCRvdrDozfh0U5w==}
 
+  mercadopago@2.12.0:
+    resolution: {integrity: sha512-9S+ZB/Fltd4BV9/U79r7U/+LrYJP844kxxvtAlVbbeVmhOE9rZt0YhPy1GXO3Yf4XyQaHwZ/SCyL2kebAicaLw==}
+
   merge-stream@2.0.0:
     resolution: {integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==}
 
@@ -5796,6 +5802,10 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  uuid@9.0.1:
+    resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
+    hasBin: true
 
   v8-compile-cache-lib@3.0.1:
     resolution: {integrity: sha512-wa7YjyUGfNZngI/vtK0UHAN+lgDCxBPCylVXGp0zu59Fz5aiGtNXaq3DhIov063MorB+VfufLh3JlF2KdTK3xg==}
@@ -10260,6 +10270,13 @@ snapshots:
 
   mdurl@2.0.0: {}
 
+  mercadopago@2.12.0:
+    dependencies:
+      node-fetch: 2.7.0
+      uuid: 9.0.1
+    transitivePeerDependencies:
+      - encoding
+
   merge-stream@2.0.0: {}
 
   merge2@1.4.1: {}
@@ -11871,6 +11888,8 @@ snapshots:
       react: 19.0.0-rc-45804af1-20241021
 
   util-deprecate@1.0.2: {}
+
+  uuid@9.0.1: {}
 
   v8-compile-cache-lib@3.0.1: {}
 

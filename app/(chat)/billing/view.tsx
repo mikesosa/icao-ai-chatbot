@@ -2,17 +2,17 @@
 
 import { useMemo, useState } from 'react';
 
-import Link from 'next/link';
-
 import { Button } from '@/components/ui/button';
+
+type CheckoutUrls = {
+  monthly: string;
+  annual: string;
+};
 
 type BillingClientViewProps = {
   isActive: boolean;
   currentPeriodEnd: Date | null;
-  monthlyPrice: number;
-  annualPrice: number;
-  monthlyCheckoutUrl: string;
-  annualCheckoutUrl: string;
+  checkoutUrls: CheckoutUrls;
 };
 
 type DiscountState =
@@ -27,17 +27,31 @@ type DiscountState =
     }
   | { status: 'error'; message: string };
 
+// Static plan display info (no env vars needed)
+const PLANS = {
+  monthly: {
+    name: 'Monthly',
+    displayPrice: '$70.000',
+    interval: 'month' as const,
+    trialDays: 7,
+  },
+  annual: {
+    name: 'Annual',
+    displayPrice: '$700.000',
+    interval: 'year' as const,
+    trialDays: 7,
+  },
+};
+
 export function BillingClientView({
   isActive,
   currentPeriodEnd,
-  monthlyPrice,
-  annualPrice,
-  monthlyCheckoutUrl,
-  annualCheckoutUrl,
+  checkoutUrls,
 }: BillingClientViewProps) {
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState<DiscountState>({ status: 'idle' });
-  const appliedCode = discount.status === 'applied' ? discount.code : null;
+
+  const isBillingConfigured = checkoutUrls.monthly && checkoutUrls.annual;
 
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) {
@@ -88,30 +102,6 @@ export function BillingClientView({
     } off). ${scope}`;
   }, [discount]);
 
-  const buildCheckoutUrl = (baseUrl: string, code: string | null) => {
-    if (!baseUrl) return '';
-    if (!code) return baseUrl;
-    if (baseUrl.includes('{{coupon}}')) {
-      return baseUrl.replace('{{coupon}}', encodeURIComponent(code));
-    }
-    const separator = baseUrl.includes('?') ? '&' : '?';
-    return `${baseUrl}${separator}coupon=${encodeURIComponent(code)}`;
-  };
-
-  const eligiblePlans =
-    discount.status === 'applied' ? discount.eligiblePlans : null;
-  const canApplyMonthly = !eligiblePlans || eligiblePlans.includes('monthly');
-  const canApplyAnnual = !eligiblePlans || eligiblePlans.includes('annual');
-
-  const monthlyUrl = buildCheckoutUrl(
-    monthlyCheckoutUrl,
-    canApplyMonthly ? appliedCode : null,
-  );
-  const annualUrl = buildCheckoutUrl(
-    annualCheckoutUrl,
-    canApplyAnnual ? appliedCode : null,
-  );
-
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <div className="space-y-3">
@@ -137,72 +127,123 @@ export function BillingClientView({
         </div>
       </div>
 
-      <div className="mt-10 rounded-xl border p-6 space-y-4">
-        <div className="text-sm font-semibold">Promo code</div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <input
-            value={promoCode}
-            onChange={(event) => setPromoCode(event.target.value)}
-            placeholder="Enter promo code"
-            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-          />
-          <Button
-            onClick={handleApplyPromo}
-            disabled={discount.status === 'loading'}
-          >
-            Apply
-          </Button>
-        </div>
-        {discount.status === 'error' && (
-          <div className="text-sm text-destructive">{discount.message}</div>
-        )}
-        {discountMessage && (
-          <div className="text-sm text-emerald-600">{discountMessage}</div>
-        )}
-        {discount.status === 'applied' &&
-          !monthlyCheckoutUrl.includes('{{coupon}}') &&
-          !annualCheckoutUrl.includes('{{coupon}}') && (
-            <div className="text-xs text-muted-foreground">
-              If your Rebill checkout link supports a coupon placeholder, use
-              <span className="font-semibold"> {'{{coupon}}'} </span>
-              in the URL to auto-apply this code.
+      {!isActive && (
+        <>
+          <div className="mt-10 rounded-xl border p-6 space-y-4">
+            <div className="text-sm font-semibold">Promo code</div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <input
+                value={promoCode}
+                onChange={(event) => setPromoCode(event.target.value)}
+                placeholder="Enter promo code"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <Button
+                onClick={handleApplyPromo}
+                disabled={discount.status === 'loading'}
+              >
+                Apply
+              </Button>
             </div>
-          )}
-      </div>
-
-      <div className="mt-10 grid gap-6 md:grid-cols-2">
-        <div className="rounded-xl border p-6 space-y-4">
-          <div>
-            <div className="text-lg font-semibold">Monthly</div>
-            <div className="text-3xl font-semibold">${monthlyPrice}</div>
-            <div className="text-sm text-muted-foreground">per month</div>
+            {discount.status === 'error' && (
+              <div className="text-sm text-destructive">{discount.message}</div>
+            )}
+            {discountMessage && (
+              <div className="text-sm text-emerald-600">{discountMessage}</div>
+            )}
           </div>
-          <Button asChild disabled={!monthlyUrl}>
-            <Link href={monthlyUrl || '#'}>Subscribe monthly</Link>
-          </Button>
-          {!monthlyUrl && (
-            <div className="text-xs text-muted-foreground">
-              Configure `REBILL_CHECKOUT_MONTHLY_URL` to enable checkout.
-            </div>
-          )}
-        </div>
 
-        <div className="rounded-xl border p-6 space-y-4">
-          <div>
-            <div className="text-lg font-semibold">Annual</div>
-            <div className="text-3xl font-semibold">${annualPrice}</div>
-            <div className="text-sm text-muted-foreground">per year</div>
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            <PlanCard
+              name={PLANS.monthly.name}
+              price={PLANS.monthly.displayPrice}
+              interval={PLANS.monthly.interval}
+              checkoutUrl={checkoutUrls.monthly}
+              trialDays={PLANS.monthly.trialDays}
+            />
+            <PlanCard
+              name={PLANS.annual.name}
+              price={PLANS.annual.displayPrice}
+              interval={PLANS.annual.interval}
+              checkoutUrl={checkoutUrls.annual}
+              trialDays={PLANS.annual.trialDays}
+              highlight
+            />
           </div>
-          <Button asChild disabled={!annualUrl}>
-            <Link href={annualUrl || '#'}>Subscribe annually</Link>
-          </Button>
-          {!annualUrl && (
-            <div className="text-xs text-muted-foreground">
-              Configure `REBILL_CHECKOUT_ANNUAL_URL` to enable checkout.
+
+          {isBillingConfigured ? (
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Prices in Colombian Pesos (COP). 7-day free trial included.
+              <br />
+              Secure payment powered by MercadoPago.
+            </p>
+          ) : (
+            <div className="mt-6 rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 text-sm text-amber-700">
+              Payment system not configured. Set{' '}
+              <code className="rounded bg-amber-500/20 px-1">
+                MERCADOPAGO_MONTHLY_PLAN_ID
+              </code>{' '}
+              and{' '}
+              <code className="rounded bg-amber-500/20 px-1">
+                MERCADOPAGO_ANNUAL_PLAN_ID
+              </code>{' '}
+              environment variables.
             </div>
           )}
-        </div>
-      </div>
+        </>
+      )}
     </main>
+  );
+}
+
+type PlanCardProps = {
+  name: string;
+  price: string;
+  interval: 'month' | 'year';
+  checkoutUrl: string;
+  trialDays?: number;
+  highlight?: boolean;
+};
+
+function PlanCard({
+  name,
+  price,
+  interval,
+  checkoutUrl,
+  trialDays,
+  highlight,
+}: PlanCardProps) {
+  return (
+    <div
+      className={`rounded-xl border p-6 space-y-4 ${
+        highlight ? 'border-primary ring-1 ring-primary' : ''
+      }`}
+    >
+      <div>
+        <div className="flex items-center gap-2">
+          <div className="text-lg font-semibold">{name}</div>
+          {highlight && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              Save 17%
+            </span>
+          )}
+        </div>
+        <div className="text-3xl font-semibold">{price}</div>
+        <div className="text-sm text-muted-foreground">
+          per {interval}
+          {trialDays && ` • ${trialDays} days free`}
+        </div>
+      </div>
+
+      {checkoutUrl ? (
+        <Button asChild className="w-full">
+          <a href={checkoutUrl}>Subscribe {name.toLowerCase()}</a>
+        </Button>
+      ) : (
+        <Button disabled className="w-full">
+          Subscribe {name.toLowerCase()}
+        </Button>
+      )}
+    </div>
   );
 }

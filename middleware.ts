@@ -42,8 +42,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow access to Rebill webhooks
-  if (pathname.startsWith('/api/rebill/webhook')) {
+  // Allow access to payment webhooks
+  if (pathname.startsWith('/api/mercadopago/webhook')) {
     return NextResponse.next();
   }
 
