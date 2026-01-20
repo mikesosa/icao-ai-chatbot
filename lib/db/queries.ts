@@ -95,15 +95,15 @@ export async function upsertSubscriptionForUser({
   userId,
   status,
   planId,
-  rebillCustomerId,
-  rebillSubscriptionId,
+  providerCustomerId,
+  providerSubscriptionId,
   currentPeriodEnd,
 }: {
   userId: string;
   status: string;
   planId?: string | null;
-  rebillCustomerId?: string | null;
-  rebillSubscriptionId?: string | null;
+  providerCustomerId?: string | null;
+  providerSubscriptionId?: string | null;
   currentPeriodEnd?: Date | null;
 }) {
   const now = new Date();
@@ -116,9 +116,9 @@ export async function upsertSubscriptionForUser({
         .set({
           status,
           planId: planId ?? existing.planId,
-          rebillCustomerId: rebillCustomerId ?? existing.rebillCustomerId,
-          rebillSubscriptionId:
-            rebillSubscriptionId ?? existing.rebillSubscriptionId,
+          providerCustomerId: providerCustomerId ?? existing.providerCustomerId,
+          providerSubscriptionId:
+            providerSubscriptionId ?? existing.providerSubscriptionId,
           currentPeriodEnd:
             currentPeriodEnd ?? existing.currentPeriodEnd ?? null,
           updatedAt: now,
@@ -134,8 +134,8 @@ export async function upsertSubscriptionForUser({
         userId,
         status,
         planId: planId ?? null,
-        rebillCustomerId: rebillCustomerId ?? null,
-        rebillSubscriptionId: rebillSubscriptionId ?? null,
+        providerCustomerId: providerCustomerId ?? null,
+        providerSubscriptionId: providerSubscriptionId ?? null,
         currentPeriodEnd: currentPeriodEnd ?? null,
         createdAt: now,
         updatedAt: now,

@@ -72,7 +72,12 @@ export async function POST(request: Request) {
     });
 
     const preApprovalClient = new PreApproval(client);
-    const subscription = await preApprovalClient.get({ id: payload.data.id });
+    const response = await preApprovalClient.get({ id: payload.data.id });
+
+    // Cast to access all API fields (SDK types are incomplete)
+    const subscription = response as typeof response & {
+      preapproval_plan_id?: string;
+    };
 
     if (!subscription) {
       return NextResponse.json(
@@ -116,8 +121,8 @@ export async function POST(request: Request) {
       userId: user.id,
       status,
       planId: subscription.preapproval_plan_id ?? null,
-      rebillCustomerId: String(subscription.payer_id),
-      rebillSubscriptionId: subscription.id,
+      providerCustomerId: String(subscription.payer_id),
+      providerSubscriptionId: subscription.id,
       currentPeriodEnd: nextPaymentDate,
     });
 
