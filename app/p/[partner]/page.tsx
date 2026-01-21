@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { AcdectaLanding } from '@/components/partners/acdecta-landing';
 import { Button } from '@/components/ui/button';
 import { getPartnerConfig } from '@/lib/partners/get-partner';
 
@@ -14,6 +15,10 @@ export default async function Page({
 
   if (!partner) {
     notFound();
+  }
+
+  if (partner.slug.toLowerCase() === 'acdecta') {
+    return <AcdectaLanding partner={partner} />;
   }
 
   const headline =
