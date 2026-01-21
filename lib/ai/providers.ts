@@ -40,8 +40,8 @@ export const myProvider = isTestEnvironment
         }),
         [MODEL_IDS.TITLE_MODEL]: xai('grok-4'),
         [MODEL_IDS.ARTIFACT_MODEL]: xai('grok-4'),
-        [MODEL_IDS.TEA_EVALUATOR]: xai('grok-4'),
-        [MODEL_IDS.ELPAC_EVALUATOR]: xai('grok-4'),
+        [MODEL_IDS.TEA_EVALUATOR]: xai('grok-4-fast-non-reasoning'),
+        [MODEL_IDS.ELPAC_EVALUATOR]: xai('grok-4-fast-non-reasoning'),
       },
       imageModels: {
         'small-model': xai.image('grok-2-image'),

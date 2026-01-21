@@ -119,6 +119,21 @@ function ChatWithSearchParams({
     },
   });
 
+  const lastMessagesCount = useRef(0);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const lastMessage = messages[messages.length - 1];
+      console.debug('[chat] messages update', {
+        count: messages.length,
+        prevCount: lastMessagesCount.current,
+        lastMessageId: lastMessage?.id,
+        lastMessageRole: lastMessage?.role,
+      });
+      lastMessagesCount.current = messages.length;
+    }
+  }, [messages]);
+
   useEffect(() => {
     // Notify parent component of data stream updates
     if (onDataStreamUpdate && data) {
@@ -131,9 +146,29 @@ function ChatWithSearchParams({
   const examParam = searchParams.get('exam');
 
   const [hasAppendedQuery, setHasAppendedQuery] = useState(false);
-  const [hasStartedExam, setHasStartedExam] = useState(false);
   const [hasInitializedExamFromQuery, setHasInitializedExamFromQuery] =
     useState(false);
+
+  // Use ref instead of state for hasStartedExam to survive Fast Refresh
+  const hasStartedExamRef = useRef(
+    typeof window !== 'undefined' &&
+      sessionStorage.getItem(`exam-started:${id}`) === '1',
+  );
+
+  // Reset exam-started flag when exam ends
+  useEffect(() => {
+    if (!examStarted && hasStartedExamRef.current) {
+      hasStartedExamRef.current = false;
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(`exam-started:${id}`);
+      }
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[chat] exam ended, reset hasStartedExamRef', {
+          chatId: id,
+        });
+      }
+    }
+  }, [examStarted, id]);
 
   useEffect(() => {
     if (query && !hasAppendedQuery) {
@@ -159,15 +194,76 @@ function ChatWithSearchParams({
   }, [examParam, hasInitializedExamFromQuery, readyToStartExam, subscription]);
 
   // Auto-start exam when examStarted becomes true
+  // Use ref to prevent duplicate appends during Fast Refresh / re-mounts
   useEffect(() => {
-    if (examStarted && !hasStartedExam && examType) {
-      setHasStartedExam(true);
-      append({
-        role: 'user',
-        content: 'Start the evaluation. Begin with the first section.',
+    // Skip if already started (ref or sessionStorage)
+    if (hasStartedExamRef.current) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[chat] auto-start skipped (ref already true)', {
+          chatId: id,
+        });
+      }
+      return;
+    }
+
+    // Skip if not ready
+    if (!examStarted || !examType) {
+      return;
+    }
+
+    // Double-check sessionStorage
+    const alreadyStartedInStorage =
+      typeof window !== 'undefined' &&
+      sessionStorage.getItem(`exam-started:${id}`) === '1';
+    if (alreadyStartedInStorage) {
+      hasStartedExamRef.current = true;
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[chat] auto-start skipped (sessionStorage)', {
+          chatId: id,
+        });
+      }
+      return;
+    }
+
+    // Check if message already exists in current messages
+    const alreadyStartedMessage = messages.some(
+      (message) =>
+        message.role === 'user' &&
+        message.content ===
+          'Start the evaluation. Begin with the first section.',
+    );
+    if (alreadyStartedMessage) {
+      hasStartedExamRef.current = true;
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`exam-started:${id}`, '1');
+      }
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[chat] auto-start skipped (message exists)', {
+          chatId: id,
+          messageCount: messages.length,
+        });
+      }
+      return;
+    }
+
+    // All checks passed - append the start message
+    hasStartedExamRef.current = true;
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(`exam-started:${id}`, '1');
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[chat] auto-start exam APPENDING', {
+        chatId: id,
+        messageCount: messages.length,
       });
     }
-  }, [examStarted, hasStartedExam, examType, append]);
+
+    append({
+      role: 'user',
+      content: 'Start the evaluation. Begin with the first section.',
+    });
+  }, [examStarted, examType, append, messages, id]);
 
   // Set up callback for admin section changes
   useEffect(() => {

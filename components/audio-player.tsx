@@ -299,7 +299,8 @@ export function AudioPlayer({
       {/* Instructions for exam recordings */}
       {isExamRecording && (
         <div className="text-xs text-muted-foreground">
-          💡 You may request repetition once if you didn&apos;t understand
+          Press Play to listen.
+          <br />💡 You may request repetition once if you didn&apos;t understand
           something the first time
         </div>
       )}

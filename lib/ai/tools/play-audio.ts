@@ -44,10 +44,12 @@ export const playAudioTool = ({
   session: _session,
   dataStream,
   examConfig,
+  requestState,
 }: {
   session: Session;
   dataStream: DataStreamWriter;
   examConfig?: any;
+  requestState?: { playAudioCalledThisRequest: boolean };
 }) =>
   tool({
     description: `Play audio files for exam listening comprehension exercises. 
@@ -103,6 +105,23 @@ export const playAudioTool = ({
       recordingId,
     }) => {
       try {
+        // Prevent the model from presenting multiple exam recordings in a single request/turn.
+        // This avoids skipping items (Item 3 -> Item 4) and premature advancement.
+        if (isExamRecording && requestState?.playAudioCalledThisRequest) {
+          console.warn(
+            '🎵 [PLAY AUDIO TOOL] Blocked duplicate playAudio call in the same request',
+          );
+          return {
+            success: false,
+            message:
+              'Audio already presented this turn. Wait for the candidate response before presenting the next item.',
+            error: 'duplicate_play_audio_same_request',
+          };
+        }
+        if (isExamRecording && requestState) {
+          requestState.playAudioCalledThisRequest = true;
+        }
+
         // Dynamically get available audio files
         const audioFiles = await getAvailableAudioFiles();
 
@@ -132,7 +151,15 @@ export const playAudioTool = ({
         let audioFile: string;
         if (recordingNumber && isExamRecording && subsection) {
           // For exam recordings with specific number, construct the filename
-          const examSection = subsection.toLowerCase();
+          const rawSection = subsection.toLowerCase();
+          const examSection =
+            examType === 'elpac'
+              ? rawSection.startsWith('1p')
+                ? '1'
+                : rawSection.startsWith('2')
+                  ? '2'
+                  : rawSection
+              : rawSection;
           const padded = recordingNumber.toString().padStart(2, '0');
 
           // Use real filenames for ELPAC (Paper 1 listening, Paper 2 oral prompts)
@@ -165,7 +192,15 @@ export const playAudioTool = ({
         if (isExamRecording && subsection) {
           // For exam recordings, use the exam-specific format with dynamic exam type
           // Convert subsection like "2A" to section format like "2a"
-          const examSection = subsection.toLowerCase();
+          const rawSection = subsection.toLowerCase();
+          const examSection =
+            examType === 'elpac'
+              ? rawSection.startsWith('1p')
+                ? '1'
+                : rawSection.startsWith('2')
+                  ? '2'
+                  : rawSection
+              : rawSection;
           const recording = recordingNumber || 1; // Use specific recording or default to 1
 
           // Handle ELPAC oral interaction prompts (Paper 2 / Section 2)

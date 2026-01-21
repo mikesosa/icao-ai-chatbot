@@ -43,7 +43,25 @@ export function useAutoResume({
 
     if (dataPart.type === 'append-message') {
       const message = JSON.parse(dataPart.message) as UIMessage;
-      setMessages([...initialMessages, message]);
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[auto-resume] append-message', {
+          messageId: message.id,
+          initialMessages: initialMessages.length,
+        });
+      }
+      setMessages((prev) => {
+        const alreadyExists = prev.some(
+          (existing) => existing.id === message.id,
+        );
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[auto-resume] setMessages', {
+            prevCount: prev.length,
+            alreadyExists,
+          });
+        }
+        if (alreadyExists) return prev;
+        return [...prev, message];
+      });
     }
   }, [data, initialMessages, setMessages]);
 }

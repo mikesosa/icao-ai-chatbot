@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
@@ -66,31 +66,52 @@ export function ChatPageLayout({
     setDataStream(data || []);
   }, []);
 
+  // Generate a stable welcome message ID that doesn't change on re-renders
+  const welcomeMessageIdRef = useRef<string>(`welcome-${id}`);
+
+  const resolvedInitialMessages = useMemo(() => {
+    if (initialMessages.length > 0) {
+      return initialMessages;
+    }
+    if (examConfig?.messagesConfig.welcomeMessage) {
+      return [
+        {
+          id: welcomeMessageIdRef.current,
+          role: 'assistant' as const,
+          content: examConfig.messagesConfig.welcomeMessage,
+          parts: [
+            {
+              type: 'text' as const,
+              text: examConfig.messagesConfig.welcomeMessage,
+            },
+          ],
+        } as UIMessage,
+      ];
+    }
+    return [];
+  }, [initialMessages, examConfig?.messagesConfig.welcomeMessage]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[chat-page-layout] resolvedInitialMessages', {
+        count: resolvedInitialMessages.length,
+        hasWelcome: Boolean(examConfig?.messagesConfig.welcomeMessage),
+        initialProvided: initialMessages.length,
+      });
+    }
+  }, [
+    resolvedInitialMessages,
+    examConfig?.messagesConfig.welcomeMessage,
+    initialMessages.length,
+  ]);
+
   return (
     <div className="flex">
       <div className="flex-1 flex flex-col">
         <Chat
           key={id}
           id={id}
-          initialMessages={
-            initialMessages.length > 0
-              ? initialMessages
-              : examConfig?.messagesConfig.welcomeMessage
-                ? [
-                    {
-                      id: crypto.randomUUID(),
-                      role: 'assistant' as const,
-                      content: examConfig.messagesConfig.welcomeMessage,
-                      parts: [
-                        {
-                          type: 'text',
-                          text: examConfig.messagesConfig.welcomeMessage,
-                        },
-                      ],
-                    },
-                  ]
-                : []
-          }
+          initialMessages={resolvedInitialMessages}
           initialChatModel={modelId}
           initialVisibilityType={initialVisibilityType}
           isReadonly={isReadonly}

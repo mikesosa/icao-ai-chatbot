@@ -56,6 +56,7 @@ export function ExamSectionControls({
   const { data: session } = useSession();
   const userType = session?.user?.type || 'guest';
   const isAdmin = userType === 'admin';
+  const allowJump = process.env.NODE_ENV === 'development';
 
   // Get current section's subsections
   const currentSectionSubsections = useMemo(
@@ -94,6 +95,7 @@ export function ExamSectionControls({
                         variant={isCurrent ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => onSectionChange(sectionNum)}
+                        disabled={!allowJump}
                         className="justify-start h-auto py-3"
                       >
                         <div className="flex items-center gap-1">
@@ -130,6 +132,7 @@ export function ExamSectionControls({
                             variant={isCurrent ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => onSubsectionChange(subsectionId)}
+                            disabled={!allowJump}
                             className={`justify-start ${
                               isCurrent
                                 ? 'bg-primary text-primary-foreground border-primary'

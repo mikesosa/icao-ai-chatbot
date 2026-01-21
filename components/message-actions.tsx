@@ -2,10 +2,13 @@ import { memo } from 'react';
 
 import type { Message } from 'ai';
 import equal from 'fast-deep-equal';
+import { Square, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSWRConfig } from 'swr';
 import { useCopyToClipboard } from 'usehooks-ts';
 
+import { useTextToSpeech } from '@/hooks/use-text-to-speech';
+import { useTtsSelector } from '@/hooks/use-tts';
 import type { Vote } from '@/lib/db/schema';
 
 import { CopyIcon, ThumbDownIcon, ThumbUpIcon } from './icons';
@@ -32,9 +35,20 @@ export function PureMessageActions({
 }) {
   const { mutate } = useSWRConfig();
   const [_, copyToClipboard] = useCopyToClipboard();
+  const activeMessageId = useTtsSelector((s) => s.activeMessageId);
+  const { isSupported, speak, stop } = useTextToSpeech();
 
   if (isLoading) return null;
   if (message.role === 'user') return null;
+
+  const textFromParts = message.parts
+    ?.filter((part) => part.type === 'text')
+    .map((part) => part.text)
+    .join('\n')
+    .trim();
+
+  const canSpeak = Boolean(textFromParts) && isSupported;
+  const isSpeakingThis = activeMessageId === message.id;
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -44,13 +58,50 @@ export function PureMessageActions({
             <Button
               className="py-1 px-2 h-fit text-muted-foreground"
               variant="outline"
-              onClick={async () => {
-                const textFromParts = message.parts
-                  ?.filter((part) => part.type === 'text')
-                  .map((part) => part.text)
-                  .join('\n')
-                  .trim();
+              disabled={!canSpeak && !isSpeakingThis}
+              onClick={() => {
+                if (isSpeakingThis) {
+                  stop();
+                  return;
+                }
 
+                if (!textFromParts) {
+                  toast.error("There's no text to read!");
+                  return;
+                }
+
+                if (!isSupported) {
+                  toast.error(
+                    'Text-to-speech is not supported in this browser.',
+                  );
+                  return;
+                }
+
+                speak(textFromParts, { messageId: message.id });
+              }}
+            >
+              {isSpeakingThis ? (
+                <Square className="size-4" />
+              ) : (
+                <Volume2 className="size-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {!isSupported
+              ? 'Text-to-speech not supported'
+              : isSpeakingThis
+                ? 'Stop'
+                : 'Listen'}
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              className="py-1 px-2 h-fit text-muted-foreground"
+              variant="outline"
+              onClick={async () => {
                 if (!textFromParts) {
                   toast.error("There's no text to copy!");
                   return;

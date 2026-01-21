@@ -272,11 +272,15 @@ export async function POST(request: Request) {
           currentSection,
         });
 
+        // Per-request guard to prevent multiple playAudio tool executions in one assistant turn.
+        const requestState = { playAudioCalledThisRequest: false };
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: systemPromptContent,
           messages,
-          maxSteps: isExamEvaluator(selectedChatModel) ? 2 : 5,
+          // Exam evaluators must not chain multiple tool calls in one turn (causes item skipping).
+          maxSteps: isExamEvaluator(selectedChatModel) ? 1 : 5,
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []
@@ -308,7 +312,12 @@ export async function POST(request: Request) {
               dataStream,
             }),
             examSectionControl: examSectionControl({ dataStream }),
-            playAudio: playAudioTool({ session, dataStream, examConfig }),
+            playAudio: playAudioTool({
+              session,
+              dataStream,
+              examConfig,
+              requestState,
+            }),
             getAudioTranscript: getAudioTranscript({ examConfig }),
             displayImage: displayImageTool({ session, dataStream }),
           },

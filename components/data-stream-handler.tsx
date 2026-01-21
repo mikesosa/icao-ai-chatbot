@@ -47,7 +47,12 @@ export function DataStreamHandler({
   dataStream?: any[];
 }) {
   const { artifact, setArtifact, setMetadata } = useArtifact();
-  const { handleAIExamControl } = useExamContext();
+  const {
+    handleAIExamControl,
+    setCurrentSection,
+    setCurrentSubsection,
+    examStarted,
+  } = useExamContext();
   const lastProcessedIndex = useRef(-1);
   // Add a ref to track last processed audio-player recordingId and timestamp
   const lastAudioPlayer = useRef<{
@@ -93,6 +98,18 @@ export function DataStreamHandler({
           '🎵 [DATA STREAM] Processing audio player data:',
           delta.content,
         );
+        // Keep the sidebar in sync with what the chat is currently presenting.
+        // When the AI plays an exam audio, update current section/subsection based on the emitted metadata.
+        if (
+          examStarted &&
+          delta.content?.isExamRecording &&
+          delta.content?.subsection
+        ) {
+          const subsection = String(delta.content.subsection);
+          const section = subsection.charAt(0);
+          if (section) setCurrentSection(section);
+          setCurrentSubsection(subsection);
+        }
         // Audio player data is handled by the message component
         return; // Early return for audio player events
       }
@@ -164,7 +181,16 @@ export function DataStreamHandler({
         }
       });
     });
-  }, [dataStream, setArtifact, setMetadata, artifact, handleAIExamControl]);
+  }, [
+    dataStream,
+    setArtifact,
+    setMetadata,
+    artifact,
+    handleAIExamControl,
+    examStarted,
+    setCurrentSection,
+    setCurrentSubsection,
+  ]);
 
   return null;
 }

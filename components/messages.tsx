@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useRef } from 'react';
 
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
@@ -7,6 +7,8 @@ import { motion } from 'framer-motion';
 
 import { useExamContext } from '@/hooks/use-exam-context';
 import { useMessages } from '@/hooks/use-messages';
+import { useTextToSpeech } from '@/hooks/use-text-to-speech';
+import { useTtsSelector } from '@/hooks/use-tts';
 import type { Vote } from '@/lib/db/schema';
 
 import { Greeting } from './greeting';
@@ -37,6 +39,9 @@ function PureMessages({
   selectedModel,
 }: MessagesProps) {
   const { examStarted } = useExamContext();
+  const ttsEnabled = useTtsSelector((s) => s.enabled);
+  const { isSupported, speak, stop } = useTextToSpeech();
+  const lastAutoSpokenIdRef = useRef<string | null>(null);
   const {
     containerRef: messagesContainerRef,
     endRef: messagesEndRef,
@@ -47,6 +52,30 @@ function PureMessages({
     chatId,
     status,
   });
+
+  useEffect(() => {
+    if (!ttsEnabled || !isSupported) return;
+
+    // Only auto-read when the assistant message is done streaming.
+    if (status === 'streaming' || status === 'submitted') return;
+
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== 'assistant') return;
+    if (last.id === lastAutoSpokenIdRef.current) return;
+
+    const text = last.parts
+      ?.filter((p) => p.type === 'text')
+      .map((p) => p.text)
+      .join('\n')
+      .trim();
+
+    if (!text) return;
+
+    // Stop any in-progress speech and read the latest assistant reply.
+    stop();
+    const didSpeak = speak(text, { messageId: last.id });
+    if (didSpeak) lastAutoSpokenIdRef.current = last.id;
+  }, [ttsEnabled, isSupported, messages, status, speak, stop]);
 
   return (
     <div

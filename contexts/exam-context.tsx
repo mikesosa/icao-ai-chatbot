@@ -196,6 +196,10 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   const setCurrentSubsectionSafe = (subsection: string | null) => {
     if (subsection) {
       manualSubsectionChange.current = true;
+      // Only suppress auto-selection briefly to avoid race conditions.
+      setTimeout(() => {
+        manualSubsectionChange.current = false;
+      }, 250);
     }
     setCurrentSubsection(subsection);
   };
@@ -279,8 +283,9 @@ export function ExamProvider({ children }: { children: ReactNode }) {
 
   // Admin-specific actions
   const jumpToSection = (section: string) => {
-    if (!isAdmin) {
-      console.warn('Only admins can jump to sections');
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev) {
+      console.warn('Jump-to-section is disabled in production');
       return;
     }
 
@@ -294,8 +299,9 @@ export function ExamProvider({ children }: { children: ReactNode }) {
   };
 
   const jumpToSubsection = (subsection: string) => {
-    if (!isAdmin) {
-      console.warn('Only admins can jump to subsections');
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev) {
+      console.warn('Jump-to-subsection is disabled in production');
       return;
     }
 

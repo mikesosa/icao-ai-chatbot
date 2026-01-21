@@ -24,7 +24,8 @@ export function ExamSidebar({ examConfig, append }: ExamSidebarProps) {
   const { setOpen } = useSidebar();
   const { data: session } = useSession();
   const userType = session?.user?.type || 'guest';
-  const isAdmin = userType === 'admin';
+  const _isAdmin = userType === 'admin';
+  const allowJump = process.env.NODE_ENV === 'development';
 
   const {
     examStarted,
@@ -71,10 +72,10 @@ export function ExamSidebar({ examConfig, append }: ExamSidebarProps) {
   };
 
   const handleSectionChange = (section: ExamSection) => {
-    // Use admin context method if admin, otherwise use regular logic
-    if (isAdmin) {
+    // In development we allow jumping (for debugging) and also notify chat via setOnSectionChange callback.
+    if (allowJump) {
       jumpToSection(section.toString());
-      toast.info(`[Admin Mode] Jumped to Section ${section}`);
+      toast.info(`[Dev] Jumped to Section ${section}`);
       return;
     }
 
@@ -120,10 +121,10 @@ export function ExamSidebar({ examConfig, append }: ExamSidebarProps) {
   };
 
   const handleSubsectionChange = (subsectionId: string) => {
-    // Use admin context method if admin, otherwise use regular logic
-    if (isAdmin) {
+    // In development we allow jumping (for debugging) and also notify chat via setOnSectionChange callback.
+    if (allowJump) {
       jumpToSubsection(subsectionId);
-      toast.info(`[Admin Mode] Jumped to Subsection ${subsectionId}`);
+      toast.info(`[Dev] Jumped to Subsection ${subsectionId}`);
       return;
     }
 
