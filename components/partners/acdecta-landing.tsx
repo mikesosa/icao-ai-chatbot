@@ -31,7 +31,7 @@ export function AcdectaLanding({ partner }: { partner: PartnerBrand }) {
         <div className="absolute left-1/2 top-1/2 size-[620px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-emerald-200/70 via-cyan-200/40 to-indigo-200/10 blur-2xl" />
 
         <div
-          className="absolute inset-0 opacity-[0.08] mix-blend-overlay"
+          className="absolute inset-0 opacity-10 mix-blend-overlay"
           style={{
             WebkitMaskImage:
               'radial-gradient(circle at 50% 45%, black 0%, transparent 62%)',
@@ -151,7 +151,7 @@ export function AcdectaLanding({ partner }: { partner: PartnerBrand }) {
             <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white sm:text-6xl">
               Plataforma ICAO / ELPAC
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/85 sm:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white sm:text-base">
               {headline}. {subheadline}
             </p>
 
