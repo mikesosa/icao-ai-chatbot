@@ -22,6 +22,7 @@ import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
 import { useExamContext } from '@/hooks/use-exam-context';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
+import { useTextToSpeech } from '@/hooks/use-text-to-speech';
 
 import AudioControls from './audio-controls';
 import { ArrowUpIcon, StopIcon } from './icons';
@@ -66,6 +67,7 @@ function PureMultimodalInput({
 }) {
   const { examStarted, examType, currentSection, examConfig } =
     useExamContext();
+  const { aiSpeaking } = useTextToSpeech();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
 
@@ -397,6 +399,8 @@ function PureMultimodalInput({
       onTranscriptComplete={handleTranscriptComplete}
       onTranscriptUpdate={handleTranscriptUpdate}
       onRecordingStart={handleRecordingStart}
+      pushToTalkMode={true}
+      aiSpeaking={aiSpeaking}
     />
   );
 }

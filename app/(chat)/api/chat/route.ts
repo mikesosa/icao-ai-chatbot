@@ -387,6 +387,18 @@ export async function POST(request: Request) {
     if (error instanceof ChatSDKError) {
       return error.toResponse();
     }
+
+    // Return a generic error response for unexpected errors
+    return new Response(
+      JSON.stringify({
+        error: 'An unexpected error occurred',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   }
 }
 

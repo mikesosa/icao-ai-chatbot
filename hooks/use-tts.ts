@@ -7,16 +7,22 @@ import useSWR from 'swr';
 export type TtsState = {
   enabled: boolean;
   activeMessageId: string | null;
+  selectedVoice: string | null;
+  speechRate: number;
 };
 
 const initialTtsState: TtsState = {
-  enabled: false,
+  enabled: true,
   activeMessageId: null,
+  selectedVoice: null,
+  speechRate: 1.0,
 };
 
 type Selector<T> = (state: TtsState) => T;
 
-const STORAGE_KEY = 'tts:enabled';
+const STORAGE_KEY_ENABLED = 'tts:enabled';
+const STORAGE_KEY_VOICE = 'tts:voice';
+const STORAGE_KEY_RATE = 'tts:rate';
 const INIT_GUARD = '__tts_init__';
 
 export function useTtsSelector<Selected>(selector: Selector<Selected>) {
@@ -36,7 +42,7 @@ export function useTts() {
 
   const didInitRef = useRef(false);
 
-  // Initialize `enabled` from localStorage once per session.
+  // Initialize state from localStorage once per session.
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -45,12 +51,26 @@ export function useTts() {
     if (w[INIT_GUARD] === true) return;
     w[INIT_GUARD] = true;
 
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    const enabled = stored === '1';
+    const storedEnabled = window.localStorage.getItem(STORAGE_KEY_ENABLED);
+    const enabled = storedEnabled !== '0'; // Default to true unless explicitly disabled
 
-    mutate((current) => ({ ...(current || initialTtsState), enabled }), {
-      revalidate: false,
-    });
+    const storedVoice = window.localStorage.getItem(STORAGE_KEY_VOICE);
+    const selectedVoice = storedVoice || null;
+
+    const storedRate = window.localStorage.getItem(STORAGE_KEY_RATE);
+    const speechRate = storedRate ? Number.parseFloat(storedRate) : 1.0;
+
+    mutate(
+      (current) => ({
+        ...(current || initialTtsState),
+        enabled,
+        selectedVoice,
+        speechRate,
+      }),
+      {
+        revalidate: false,
+      },
+    );
   }, [mutate]);
 
   // Extra safety: ensure we only attempt init logic once per component instance.
@@ -66,7 +86,7 @@ export function useTts() {
       });
 
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(STORAGE_KEY, enabled ? '1' : '0');
+        window.localStorage.setItem(STORAGE_KEY_ENABLED, enabled ? '1' : '0');
       }
     },
     [mutate],
@@ -82,12 +102,47 @@ export function useTts() {
     [mutate],
   );
 
+  const setSelectedVoice = useCallback(
+    (selectedVoice: string | null) => {
+      mutate(
+        (current) => ({ ...(current || initialTtsState), selectedVoice }),
+        {
+          revalidate: false,
+        },
+      );
+
+      if (typeof window !== 'undefined') {
+        if (selectedVoice) {
+          window.localStorage.setItem(STORAGE_KEY_VOICE, selectedVoice);
+        } else {
+          window.localStorage.removeItem(STORAGE_KEY_VOICE);
+        }
+      }
+    },
+    [mutate],
+  );
+
+  const setSpeechRate = useCallback(
+    (speechRate: number) => {
+      mutate((current) => ({ ...(current || initialTtsState), speechRate }), {
+        revalidate: false,
+      });
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(STORAGE_KEY_RATE, speechRate.toString());
+      }
+    },
+    [mutate],
+  );
+
   return useMemo(
     () => ({
       ...state,
       setEnabled,
       setActiveMessageId,
+      setSelectedVoice,
+      setSpeechRate,
     }),
-    [state, setEnabled, setActiveMessageId],
+    [state, setEnabled, setActiveMessageId, setSelectedVoice, setSpeechRate],
   );
 }

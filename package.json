@@ -22,6 +22,7 @@
     "test": "export PLAYWRIGHT=True && pnpm exec playwright test"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^1.0.0",
     "@ai-sdk/react": "^1.2.11",
     "@ai-sdk/xai": "^1.2.15",
     "@codemirror/lang-javascript": "^6.2.2",
@@ -67,6 +68,7 @@
     "next": "15.3.0-canary.31",
     "next-auth": "5.0.0-beta.25",
     "next-themes": "^0.3.0",
+    "openai": "^4.80.0",
     "orderedmap": "^2.1.1",
     "papaparse": "^5.5.2",
     "postgres": "^3.4.4",
@@ -127,7 +129,6 @@
   "packageManager": "pnpm@9.12.3",
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": ["biome check --write --unsafe", "eslint --fix"],
-    "*.{yml,yaml}": ["biome format --write"],
     "package.json": ["biome format --write"],
     "tsconfig*.json": ["biome format --write"],
     "components.json": ["biome format --write"],

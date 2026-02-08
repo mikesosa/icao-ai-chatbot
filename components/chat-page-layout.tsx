@@ -9,6 +9,7 @@ import type { Session } from 'next-auth';
 import { Chat } from '@/components/chat';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { ExamSidebar } from '@/components/exam-interface/exam-sidebar';
+import { ExamVoiceSession } from '@/components/exam-voice-session';
 import { useExamConfig } from '@/hooks/use-exam-configs';
 import { useExamContext } from '@/hooks/use-exam-context';
 
@@ -31,7 +32,7 @@ export function ChatPageLayout({
   isReadonly,
   autoResume,
 }: ChatPageLayoutProps) {
-  const { examType, setExamConfig } = useExamContext();
+  const { examType, examStarted, setExamConfig } = useExamContext();
   const { config: examConfig } = useExamConfig(examType);
 
   // Track the last examConfig id to prevent duplicate setExamConfig calls
@@ -105,6 +106,19 @@ export function ChatPageLayout({
     initialMessages.length,
   ]);
 
+  // ── When exam is started, show the dedicated voice exam screen ──
+  if (examStarted && examConfig) {
+    return (
+      <ExamVoiceSession
+        session={session}
+        id={id}
+        examConfig={examConfig}
+        initialMessages={resolvedInitialMessages}
+      />
+    );
+  }
+
+  // ── Default: chat UI with optional exam sidebar ──
   return (
     <div className="flex">
       <div className="flex-1 flex flex-col">

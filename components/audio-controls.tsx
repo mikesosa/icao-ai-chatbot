@@ -61,12 +61,16 @@ interface AudioControlsProps {
   onTranscriptComplete?: (transcript: string) => void;
   onTranscriptUpdate?: (transcript: string) => void;
   onRecordingStart?: () => void;
+  pushToTalkMode?: boolean; // New prop for push-to-talk mode
+  aiSpeaking?: boolean; // New prop to disable during AI speaking
 }
 
 export default function AudioControls({
   onTranscriptComplete,
   onTranscriptUpdate,
   onRecordingStart,
+  pushToTalkMode = false,
+  aiSpeaking = false,
 }: AudioControlsProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -75,6 +79,7 @@ export default function AudioControls({
   const [interimTranscript, setInterimTranscript] = useState('');
   const [micFft, setMicFft] = useState<number[]>([]);
   const [isRecognitionActive, setIsRecognitionActive] = useState(false);
+  const [isPressing, setIsPressing] = useState(false);
 
   // Initialize refs to match initial state
   useEffect(() => {
@@ -434,6 +439,19 @@ export default function AudioControls({
     stopRecording();
   };
 
+  // Push-to-talk handlers
+  const onPushToTalkStart = () => {
+    if (isPressing || aiSpeaking) return;
+    setIsPressing(true);
+    startRecording();
+  };
+
+  const onPushToTalkEnd = () => {
+    if (!isPressing) return;
+    setIsPressing(false);
+    stopRecording();
+  };
+
   // Clean up on unmount
   useEffect(() => {
     return () => {
@@ -450,12 +468,39 @@ export default function AudioControls({
   }, []);
 
   if (!isRecording) {
+    // Push-to-talk mode: button with hold handlers
+    if (pushToTalkMode) {
+      return (
+        <div className="bottom-0 left-0 p-4 pb-6 flex items-center justify-center w-full">
+          <Button
+            className="flex items-center gap-1 rounded-full"
+            type="button"
+            onMouseDown={onPushToTalkStart}
+            onMouseUp={onPushToTalkEnd}
+            onMouseLeave={onPushToTalkEnd}
+            onTouchStart={onPushToTalkStart}
+            onTouchEnd={onPushToTalkEnd}
+            onTouchCancel={onPushToTalkEnd}
+            disabled={aiSpeaking}
+            variant="success"
+          >
+            <span>
+              <Mic className="size-4 opacity-50 fill-current" strokeWidth={0} />
+            </span>
+            <span>Push to Talk</span>
+          </Button>
+        </div>
+      );
+    }
+
+    // Regular mode: click to start recording
     return (
       <div className="bottom-0 left-0 p-4 pb-6 flex items-center justify-center w-full">
         <Button
           className="flex items-center gap-1 rounded-full"
           type="button"
           onClick={startRecording}
+          disabled={aiSpeaking}
           variant="success"
         >
           <span>
@@ -538,48 +583,72 @@ export default function AudioControls({
                 'p-4 bg-card border border-border/50 rounded-full flex items-center gap-4'
               }
             >
-              <Toggle
-                className={'rounded-full'}
-                pressed={!isMuted}
-                onPressedChange={toggleMute}
-              >
-                {isMuted ? (
-                  <MicOff className={'size-4'} />
-                ) : (
-                  <Mic className={'size-4'} />
-                )}
-              </Toggle>
+              {!pushToTalkMode && (
+                <Toggle
+                  className={'rounded-full'}
+                  pressed={!isMuted}
+                  onPressedChange={toggleMute}
+                >
+                  {isMuted ? (
+                    <MicOff className={'size-4'} />
+                  ) : (
+                    <Mic className={'size-4'} />
+                  )}
+                </Toggle>
+              )}
 
               <div className={'relative grid h-8 w-48 shrink grow-0'}>
                 <MicFFT fft={micFft} className={'fill-current'} />
               </div>
 
-              <Button
-                className="flex items-center gap-1 rounded-full"
-                onClick={cancelRecording}
-                type="button"
-                variant={'outline'}
-                title="Cancel recording"
-              >
-                <X className="size-4" />
-                <span>Cancel</span>
-              </Button>
+              {!pushToTalkMode && (
+                <>
+                  <Button
+                    className="flex items-center gap-1 rounded-full"
+                    onClick={cancelRecording}
+                    type="button"
+                    variant={'outline'}
+                    title="Cancel recording"
+                  >
+                    <X className="size-4" />
+                    <span>Cancel</span>
+                  </Button>
 
-              <Button
-                className="flex items-center gap-1 rounded-full"
-                disabled={!transcriptRef.current.trim()}
-                onClick={disconnect}
-                type="button"
-                variant="secondary"
-              >
-                <span>
-                  <ArrowBigUp
-                    className="size-4 opacity-50 fill-current"
-                    strokeWidth={0}
-                  />
-                </span>
-                <span>Send</span>
-              </Button>
+                  <Button
+                    className="flex items-center gap-1 rounded-full"
+                    disabled={!transcriptRef.current.trim()}
+                    onClick={disconnect}
+                    type="button"
+                    variant="secondary"
+                  >
+                    <span>
+                      <ArrowBigUp
+                        className="size-4 opacity-50 fill-current"
+                        strokeWidth={0}
+                      />
+                    </span>
+                    <span>Send</span>
+                  </Button>
+                </>
+              )}
+
+              {pushToTalkMode && (
+                <Button
+                  className="flex items-center gap-1 rounded-full"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onPushToTalkEnd();
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    onPushToTalkEnd();
+                  }}
+                  type="button"
+                  variant="secondary"
+                >
+                  <span>Release to Send</span>
+                </Button>
+              )}
             </motion.div>
           ) : null}
         </AnimatePresence>

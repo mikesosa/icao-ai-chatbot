@@ -1,3 +1,4 @@
+import { openai } from '@ai-sdk/openai';
 import { xai } from '@ai-sdk/xai';
 import {
   customProvider,
@@ -31,17 +32,16 @@ export const myProvider = isTestEnvironment
     })
   : customProvider({
       languageModels: {
-        // Grok-2 models have been deprecated; default to Grok-4.
-        [MODEL_IDS.CHAT_MODEL]: xai('grok-4'),
+        // Use OpenAI models for chat and evaluators
+        [MODEL_IDS.CHAT_MODEL]: openai('gpt-4o'),
         [MODEL_IDS.CHAT_MODEL_REASONING]: wrapLanguageModel({
-          // Keep a smaller reasoning model (if available) to reduce cost/latency.
-          model: xai('grok-3-mini-beta'),
+          model: openai('o1-mini'),
           middleware: extractReasoningMiddleware({ tagName: 'think' }),
         }),
-        [MODEL_IDS.TITLE_MODEL]: xai('grok-4'),
-        [MODEL_IDS.ARTIFACT_MODEL]: xai('grok-4'),
-        [MODEL_IDS.TEA_EVALUATOR]: xai('grok-4-fast-non-reasoning'),
-        [MODEL_IDS.ELPAC_EVALUATOR]: xai('grok-4-fast-non-reasoning'),
+        [MODEL_IDS.TITLE_MODEL]: openai('gpt-4o-mini'),
+        [MODEL_IDS.ARTIFACT_MODEL]: openai('gpt-4o'),
+        [MODEL_IDS.TEA_EVALUATOR]: openai('gpt-4o'),
+        [MODEL_IDS.ELPAC_EVALUATOR]: openai('gpt-4o'),
       },
       imageModels: {
         'small-model': xai.image('grok-2-image'),

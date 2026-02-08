@@ -71,7 +71,6 @@ function ChatWithSearchParams({
     chatId: id,
     initialVisibilityType,
   });
-
   // Use examType as the selected model when available, otherwise use initialChatModel
   const selectedChatModel = examType || initialChatModel;
 
