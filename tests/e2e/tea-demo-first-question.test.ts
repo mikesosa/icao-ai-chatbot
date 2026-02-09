@@ -2,6 +2,12 @@ import { type Page, expect, test } from '@playwright/test';
 import postgres from 'postgres';
 
 const TEST_PASSWORD = 'Playwright!12345';
+const EXPECTED_FIRST_EXAMINER_PROMPT =
+  "Welcome to the TEA Demo. Let's begin with Section 1. Tell me briefly about your current role in aviation.";
+const CANDIDATE_FIRST_ANSWER =
+  'I work as a first officer on regional flights and handle short-haul operations.';
+const EXPECTED_SECOND_EXAMINER_PROMPT =
+  "Thank you for sharing that. Your answer was clear and relevant. Let's move on to Section 2, where you will listen to a short recording and answer a question.";
 
 function createTestEmail(): string {
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -11,9 +17,63 @@ function createTestEmail(): string {
 function extractStreamedText(streamPayload: string): string {
   return streamPayload
     .split('\n')
-    .filter((line) => line.startsWith('0:"') && line.endsWith('"'))
-    .map((line) => line.slice(3, -1))
+    .filter((line) => line.startsWith('0:'))
+    .map((line) => {
+      const parsed = JSON.parse(line.slice(2));
+      return typeof parsed === 'string' ? parsed : '';
+    })
     .join('');
+}
+
+function normalizeText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+async function installMockSpeechRecognition(page: Page) {
+  await page.addInitScript(() => {
+    class PlaywrightSpeechRecognition {
+      lang = 'en-US';
+      continuous = true;
+      interimResults = true;
+      maxAlternatives = 1;
+      onresult: ((event: any) => void) | null = null;
+      onerror: ((event: any) => void) | null = null;
+      onend: (() => void) | null = null;
+
+      start() {
+        const transcript = (window as any).__pwSpeechTranscript || '';
+        setTimeout(() => {
+          if (!this.onresult) return;
+          this.onresult({
+            resultIndex: 0,
+            results: [
+              {
+                0: { transcript },
+                isFinal: true,
+                length: 1,
+              },
+            ],
+          });
+        }, 30);
+      }
+
+      stop() {
+        setTimeout(() => {
+          this.onend?.();
+        }, 0);
+      }
+    }
+
+    (window as any).__pwSpeechTranscript = '';
+    (window as any).SpeechRecognition = PlaywrightSpeechRecognition;
+    (window as any).webkitSpeechRecognition = PlaywrightSpeechRecognition;
+  });
+}
+
+async function setMockSpeechTranscript(page: Page, transcript: string) {
+  await page.evaluate((value) => {
+    (window as any).__pwSpeechTranscript = value;
+  }, transcript);
 }
 
 async function registerUser(page: Page, email: string) {
@@ -139,17 +199,110 @@ test.describe('TEA Demo E2E', () => {
 
     const firstChatResponse = await firstChatResponsePromise;
     const firstChatPayload = await firstChatResponse.text();
-    const firstExaminerText = extractStreamedText(firstChatPayload);
-
-    expect(firstExaminerText).toContain(
-      'Tell me briefly about your current role in aviation.',
+    const firstExaminerText = normalizeText(
+      extractStreamedText(firstChatPayload),
     );
 
-    await expect(
-      page.getByText('Section 1 — Interview (Demo)', { exact: true }),
-    ).toBeVisible();
+    expect(firstExaminerText).toBe(EXPECTED_FIRST_EXAMINER_PROMPT);
+
+    await page.getByTestId('exam-transcript-toggle').click();
+    await expect(page.getByTestId('exam-transcript-panel')).toBeVisible();
+    await expect(page.getByTestId('exam-transcript-speaker-0')).toHaveText(
+      'Examiner',
+    );
+    await expect
+      .poll(async () =>
+        normalizeText(
+          await page.getByTestId('exam-transcript-text-0').innerText(),
+        ),
+      )
+      .toBe(EXPECTED_FIRST_EXAMINER_PROMPT);
+
     await expect(
       page.getByRole('button', { name: /Push to Talk/i }),
     ).toBeVisible();
+  });
+
+  test('captures candidate response and validates examiner follow-up', async ({
+    page,
+  }) => {
+    await installMockSpeechRecognition(page);
+
+    const email = createTestEmail();
+
+    await registerUser(page, email);
+    await activateExamSubscription(email);
+
+    await page.goto('/');
+
+    await page.getByTestId('model-selector').click();
+    await page.getByTestId('model-selector-item-tea-demo').click();
+    await page.getByRole('button', { name: 'Start Demo' }).click();
+    await page.getByRole('button', { name: 'Start Exam' }).click();
+
+    await page.waitForResponse((response) => {
+      if (
+        !response.url().includes('/api/chat') ||
+        response.request().method() !== 'POST' ||
+        response.status() !== 200
+      ) {
+        return false;
+      }
+      const payload = response.request().postData() || '';
+      return payload.includes(
+        'Start the evaluation. Begin with the first section.',
+      );
+    });
+
+    await page.getByTestId('exam-transcript-toggle').click();
+    await expect(page.getByTestId('exam-transcript-panel')).toBeVisible();
+
+    const pttButton = page.getByRole('button', { name: /Push to Talk/i });
+    await expect(pttButton).toBeEnabled();
+    await setMockSpeechTranscript(page, CANDIDATE_FIRST_ANSWER);
+
+    const followUpResponsePromise = page.waitForResponse((response) => {
+      if (
+        !response.url().includes('/api/chat') ||
+        response.request().method() !== 'POST' ||
+        response.status() !== 200
+      ) {
+        return false;
+      }
+      const payload = response.request().postData() || '';
+      return payload.includes(CANDIDATE_FIRST_ANSWER);
+    });
+
+    await pttButton.dispatchEvent('mousedown');
+    await page.waitForTimeout(150);
+    await pttButton.dispatchEvent('mouseup');
+
+    const followUpResponse = await followUpResponsePromise;
+    const followUpPayload = await followUpResponse.text();
+    const followUpText = normalizeText(extractStreamedText(followUpPayload));
+
+    expect(followUpText).toBe(EXPECTED_SECOND_EXAMINER_PROMPT);
+
+    await expect(page.getByTestId('exam-transcript-speaker-1')).toHaveText(
+      'You',
+    );
+    await expect
+      .poll(async () =>
+        normalizeText(
+          await page.getByTestId('exam-transcript-text-1').innerText(),
+        ),
+      )
+      .toBe(CANDIDATE_FIRST_ANSWER);
+
+    await expect(page.getByTestId('exam-transcript-speaker-2')).toHaveText(
+      'Examiner',
+    );
+    await expect
+      .poll(async () =>
+        normalizeText(
+          await page.getByTestId('exam-transcript-text-2').innerText(),
+        ),
+      )
+      .toBe(EXPECTED_SECOND_EXAMINER_PROMPT);
   });
 });

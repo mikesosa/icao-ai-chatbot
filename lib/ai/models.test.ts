@@ -143,6 +143,12 @@ const getExamResponseChunks = (
     );
   }
 
+  if (!lastUserText.startsWith('[system]')) {
+    return createTextResponse(
+      "Thank you for sharing that. Your answer was clear and relevant. Let's move on to Section 2, where you will listen to a short recording and answer a question.",
+    );
+  }
+
   return createTextResponse('Thank you. Please continue.');
 };
 

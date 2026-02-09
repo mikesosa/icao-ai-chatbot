@@ -255,7 +255,10 @@ function TranscriptPanel({
   }, [turns.length]);
 
   return (
-    <div className="w-80 border-l bg-background flex flex-col h-full">
+    <div
+      className="w-80 border-l bg-background flex flex-col h-full"
+      data-testid="exam-transcript-panel"
+    >
       <div className="flex items-center justify-between p-3 border-b">
         <span className="text-sm font-medium">Transcript</span>
         <Button
@@ -272,11 +275,20 @@ function TranscriptPanel({
           <div
             key={`turn-${turn.speaker}-${i}-${turn.text.slice(0, 20)}`}
             className="space-y-1"
+            data-testid={`exam-transcript-turn-${i}`}
           >
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+            <span
+              className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider"
+              data-testid={`exam-transcript-speaker-${i}`}
+            >
               {turn.speaker === 'EXAMINER' ? 'Examiner' : 'You'}
             </span>
-            <p className="text-sm leading-relaxed">{turn.text}</p>
+            <p
+              className="text-sm leading-relaxed"
+              data-testid={`exam-transcript-text-${i}`}
+            >
+              {turn.text}
+            </p>
           </div>
         ))}
         <div ref={bottomRef} />
@@ -1449,6 +1461,7 @@ export function ExamVoiceSession({
             size="sm"
             onClick={() => setShowTranscript(!showTranscript)}
             title="Toggle transcript"
+            data-testid="exam-transcript-toggle"
           >
             {showTranscript ? (
               <PanelRightClose className="size-4 mr-1.5" />
