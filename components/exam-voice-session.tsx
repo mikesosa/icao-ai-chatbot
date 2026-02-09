@@ -19,6 +19,7 @@ import type { Session } from 'next-auth';
 import { useSWRConfig } from 'swr';
 import { unstable_serialize } from 'swr/infinite';
 
+import { AudioPlayer } from '@/components/audio-player';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { VoiceSettings } from '@/components/voice-settings';
 import { useAutoResume } from '@/hooks/use-auto-resume';
@@ -203,6 +204,15 @@ function ProgressHeader({
 
 // ─── Transcript panel ───────────────────────────────────────────────────────
 type TranscriptTurn = { speaker: 'EXAMINER' | 'YOU'; text: string };
+type ExamAudioCard = {
+  src: string;
+  title: string;
+  description?: string;
+  recordingId?: string;
+  isExamRecording: boolean;
+  subsection?: string;
+  audioFile?: string;
+};
 
 function TranscriptPanel({
   turns,
@@ -356,6 +366,14 @@ export function ExamVoiceSession({
   const [interimText, setInterimText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isExamAudioPlaying, setIsExamAudioPlaying] = useState(false);
+  const [completedExamAudioIds, setCompletedExamAudioIds] = useState<string[]>(
+    [],
+  );
+  const [pinnedAudioPlayer, setPinnedAudioPlayer] =
+    useState<ExamAudioCard | null>(null);
+  const [audioPlayerReadyToShow, setAudioPlayerReadyToShow] = useState(false);
+  const handledAudioCompletionRef = useRef<Set<string>>(new Set());
 
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef('');
@@ -365,7 +383,75 @@ export function ExamVoiceSession({
   const lastAutoTTSId = useRef<string | null>(null);
   // Track the first AI response (welcome/description) so we skip TTS for it
   const firstAssistantSeen = useRef(false);
-  const ttsTrackLogCountRef = useRef(0);
+
+  // ── Extract audio player from latest assistant message ──
+  const currentAudioPlayer = useMemo((): ExamAudioCard | null => {
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((m) => m.role === 'assistant');
+    if (!lastAssistant?.parts) return null;
+
+    // Find playAudio tool result (state === 'result')
+    for (const part of lastAssistant.parts) {
+      if (
+        part.type === 'tool-invocation' &&
+        part.toolInvocation?.toolName === 'playAudio' &&
+        part.toolInvocation?.state === 'result'
+      ) {
+        const result = part.toolInvocation.result as any;
+        const details = result?.details;
+        if (details?.url) {
+          return {
+            src: details.url,
+            title: details.title || 'Audio Recording',
+            description: details.description,
+            recordingId: details.recordingId,
+            isExamRecording: details.isExamRecording || false,
+            subsection: details.subsection,
+            audioFile: details.audioFile,
+          };
+        }
+      }
+    }
+    return null;
+  }, [messages]);
+
+  useEffect(() => {
+    if (!currentAudioPlayer?.recordingId) return;
+    setPinnedAudioPlayer((prev) =>
+      prev?.recordingId === currentAudioPlayer.recordingId
+        ? prev
+        : currentAudioPlayer,
+    );
+    setAudioPlayerReadyToShow(false);
+  }, [currentAudioPlayer]);
+
+  useEffect(() => {
+    if (!pinnedAudioPlayer) {
+      setAudioPlayerReadyToShow(false);
+      return;
+    }
+
+    if (!aiSpeaking && !ttsLoading && !isPaused && status === 'ready') {
+      setAudioPlayerReadyToShow(true);
+    }
+  }, [pinnedAudioPlayer, aiSpeaking, ttsLoading, isPaused, status]);
+
+  const currentAudioIsCompleted =
+    !!pinnedAudioPlayer?.recordingId &&
+    completedExamAudioIds.includes(pinnedAudioPlayer.recordingId);
+
+  const shouldAutoPlayCurrentAudio =
+    !!pinnedAudioPlayer &&
+    audioPlayerReadyToShow &&
+    pinnedAudioPlayer.isExamRecording &&
+    !currentAudioIsCompleted &&
+    !aiSpeaking &&
+    !ttsLoading &&
+    !isPaused &&
+    status === 'ready';
+
+  const showAudioPlayer = !!pinnedAudioPlayer && audioPlayerReadyToShow;
 
   // ── Derived phase ──
   const phase: OrbPhase = useMemo(() => {
@@ -378,24 +464,7 @@ export function ExamVoiceSession({
 
   // ── Auto-start exam ──
   useEffect(() => {
-    console.log('[EVS:auto-start] check', {
-      hasStartedRef: hasStartedRef.current,
-      examStarted,
-      examType,
-      messageCount: messages.length,
-      messageRoles: messages.map((m) => m.role),
-    });
-
-    if (hasStartedRef.current || !examStarted || !examType) {
-      console.log('[EVS:auto-start] SKIPPED', {
-        reason: hasStartedRef.current
-          ? 'ref already true'
-          : !examStarted
-            ? 'not started'
-            : 'no examType',
-      });
-      return;
-    }
+    if (hasStartedRef.current || !examStarted || !examType) return;
 
     // Check if the start message was already appended (e.g. by chat.tsx before unmount)
     const alreadyStarted = messages.some(
@@ -405,9 +474,6 @@ export function ExamVoiceSession({
         m.content.includes('Start the evaluation'),
     );
     if (alreadyStarted) {
-      console.log(
-        '[EVS:auto-start] SKIPPED — start message already in messages',
-      );
       hasStartedRef.current = true;
       return;
     }
@@ -417,9 +483,6 @@ export function ExamVoiceSession({
     const alreadyInStorage =
       typeof window !== 'undefined' && sessionStorage.getItem(ssKey) === '1';
     if (alreadyInStorage) {
-      console.log(
-        '[EVS:auto-start] SKIPPED — sessionStorage flag set by chat.tsx',
-      );
       hasStartedRef.current = true;
       return;
     }
@@ -428,7 +491,6 @@ export function ExamVoiceSession({
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(ssKey, '1');
     }
-    console.log('[EVS:auto-start] APPENDING start message');
     append({
       role: 'user',
       content: 'Start the evaluation. Begin with the first section.',
@@ -454,8 +516,9 @@ export function ExamVoiceSession({
 
   // ── Extract sentences while streaming and enqueue TTS immediately ──
   useEffect(() => {
-    const last = messages[messages.length - 1];
-    if (!last || last.role !== 'assistant') return;
+    // Find the latest assistant message (may not be the very last if tool results follow)
+    const last = [...messages].reverse().find((m) => m.role === 'assistant');
+    if (!last) return;
 
     const text = last.parts
       ?.filter((p) => p.type === 'text')
@@ -464,31 +527,9 @@ export function ExamVoiceSession({
       .trim();
     if (!text) return;
 
-    if (ttsTrackLogCountRef.current < 2) {
-      console.log('[EVS:tts-track]', {
-        callNum: ttsTrackLogCountRef.current + 1,
-        lastMsgId: last.id,
-        lastRole: last.role,
-        status,
-        firstAssistantSeen: firstAssistantSeen.current,
-        lastAutoTTSId: lastAutoTTSId.current,
-        currentStreamMsgId: currentStreamMsgId.current,
-        textLen: text.length,
-        textPreview: text.slice(0, 80),
-      });
-      ttsTrackLogCountRef.current++;
-    }
-
     // Skip the very first assistant message (welcome/description)
     if (!firstAssistantSeen.current) {
       if (status === 'ready' && last.id !== lastAutoTTSId.current) {
-        if (ttsTrackLogCountRef.current < 2) {
-          console.log(
-            '[EVS:tts-track] Marking first assistant as SEEN (skip TTS)',
-            { callNum: ttsTrackLogCountRef.current + 1, id: last.id },
-          );
-          ttsTrackLogCountRef.current++;
-        }
         firstAssistantSeen.current = true;
         lastAutoTTSId.current = last.id;
         setTeleprompterText(text);
@@ -503,14 +544,6 @@ export function ExamVoiceSession({
 
     // New message started streaming
     if (last.id !== currentStreamMsgId.current) {
-      if (ttsTrackLogCountRef.current < 2) {
-        console.log('[EVS:tts-track] NEW streaming message', {
-          callNum: ttsTrackLogCountRef.current + 1,
-          id: last.id,
-          prevId: currentStreamMsgId.current,
-        });
-        ttsTrackLogCountRef.current++;
-      }
       currentStreamMsgId.current = last.id;
       sentCharsRef.current = 0;
       resetStreamingTTS();
@@ -536,14 +569,6 @@ export function ExamVoiceSession({
 
     // When streaming finishes, flush any remaining text
     if (status === 'ready' && last.id !== lastAutoTTSId.current) {
-      if (ttsTrackLogCountRef.current < 2) {
-        console.log('[EVS:tts-track] Streaming FINISHED, flushing remainder', {
-          callNum: ttsTrackLogCountRef.current + 1,
-          id: last.id,
-          remainingLen: text.length - sentCharsRef.current,
-        });
-        ttsTrackLogCountRef.current++;
-      }
       lastAutoTTSId.current = last.id;
       const remaining = text.slice(sentCharsRef.current).trim();
       if (remaining) {
@@ -675,6 +700,9 @@ export function ExamVoiceSession({
       if (!text) return;
       setUserCaptionText(text);
       setTranscriptTurns((prev) => [...prev, { speaker: 'YOU', text }]);
+      setPinnedAudioPlayer(null);
+      setAudioPlayerReadyToShow(false);
+      setIsExamAudioPlaying(false);
       append({ role: 'user', content: text });
     }, 200);
   }, [stopListening, append]);
@@ -729,6 +757,7 @@ export function ExamVoiceSession({
     const canPTT = () =>
       !aiSpeaking &&
       !ttsLoading &&
+      !isExamAudioPlaying &&
       !isPaused &&
       status !== 'streaming' &&
       status !== 'submitted';
@@ -757,7 +786,15 @@ export function ExamVoiceSession({
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [aiSpeaking, ttsLoading, isPaused, status, onPTTStart, onPTTEnd]);
+  }, [
+    aiSpeaking,
+    ttsLoading,
+    isExamAudioPlaying,
+    isPaused,
+    status,
+    onPTTStart,
+    onPTTEnd,
+  ]);
 
   // ── Cleanup ──
   useEffect(() => {
@@ -909,6 +946,42 @@ export function ExamVoiceSession({
             </AnimatePresence>
           </div>
 
+          {/* ─── Audio Player (when exam audio is played) ─── */}
+          {showAudioPlayer && pinnedAudioPlayer && (
+            <div className="w-full max-w-lg mb-4">
+              <AudioPlayer
+                src={pinnedAudioPlayer.src}
+                title={pinnedAudioPlayer.title}
+                description={pinnedAudioPlayer.description}
+                recordingId={pinnedAudioPlayer.recordingId}
+                isExamRecording={pinnedAudioPlayer.isExamRecording}
+                isCompleted={currentAudioIsCompleted}
+                subsection={pinnedAudioPlayer.subsection}
+                audioFile={pinnedAudioPlayer.audioFile}
+                autoPlay={shouldAutoPlayCurrentAudio}
+                onPlaybackStateChange={setIsExamAudioPlaying}
+                onComplete={() => {
+                  const recordingId = pinnedAudioPlayer.recordingId;
+                  if (!recordingId) return;
+
+                  setCompletedExamAudioIds((prev) =>
+                    prev.includes(recordingId) ? prev : [...prev, recordingId],
+                  );
+
+                  if (handledAudioCompletionRef.current.has(recordingId))
+                    return;
+                  handledAudioCompletionRef.current.add(recordingId);
+
+                  append({
+                    role: 'user',
+                    content:
+                      '[System] The exam audio playback has finished. Continue with the next step in this subsection.',
+                  });
+                }}
+              />
+            </div>
+          )}
+
           {/* ─── Push-to-Talk button ─── */}
           <Button
             size="lg"
@@ -922,6 +995,7 @@ export function ExamVoiceSession({
             disabled={
               aiSpeaking ||
               ttsLoading ||
+              isExamAudioPlaying ||
               isPaused ||
               status === 'streaming' ||
               status === 'submitted'

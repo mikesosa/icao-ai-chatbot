@@ -108,10 +108,6 @@ export function ChatPageLayout({
 
   // ── When exam is started, show the dedicated voice exam screen ──
   if (examStarted && examConfig) {
-    console.log('[chat-page-layout] Rendering ExamVoiceSession', {
-      examStarted,
-      initialMsgCount: resolvedInitialMessages.length,
-    });
     return (
       <ExamVoiceSession
         session={session}
@@ -121,11 +117,6 @@ export function ChatPageLayout({
       />
     );
   }
-
-  console.log('[chat-page-layout] Rendering default chat UI', {
-    examStarted,
-    hasExamConfig: !!examConfig,
-  });
 
   // ── Default: chat UI with optional exam sidebar ──
   return (

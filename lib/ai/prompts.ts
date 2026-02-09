@@ -2,7 +2,7 @@ import type { Geo } from '@vercel/functions';
 
 import type { ArtifactKind } from '@/components/artifact';
 import type { SerializedCompleteExamConfig } from '@/components/exam-interface/exam';
-import { MODEL_IDS } from '@/lib/types';
+import { MODEL_IDS, isValidExamModel } from '@/lib/types';
 
 // ==========================================
 // CORE PROMPTS
@@ -328,9 +328,7 @@ export const getExamSectionPrompt = (
  * Checks if a model ID is an exam evaluator
  */
 export const isExamEvaluator = (modelId: string): boolean => {
-  return (
-    modelId === MODEL_IDS.TEA_EVALUATOR || modelId === MODEL_IDS.ELPAC_EVALUATOR
-  );
+  return isValidExamModel(modelId);
 };
 
 /**

@@ -137,8 +137,10 @@ export const playAudioTool = ({
         // Extract exam type from examConfig
         let examType = 'tea'; // Default fallback
         if (examConfig?.id) {
-          // Extract exam type from ID (e.g., 'tea-evaluator' -> 'tea', 'elpac-evaluator' -> 'elpac')
-          examType = examConfig.id.replace('-evaluator', '');
+          // Extract exam type from ID (e.g., 'tea-evaluator' -> 'tea', 'tea-demo' -> 'tea', 'elpac-evaluator' -> 'elpac')
+          examType = examConfig.id
+            .replace('-evaluator', '')
+            .replace('-demo', '');
           console.log('🎵 [PLAY AUDIO TOOL] Detected exam type:', examType);
         } else {
           console.warn(

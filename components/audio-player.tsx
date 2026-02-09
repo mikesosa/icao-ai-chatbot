@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { CheckCircle, Pause, Play, RotateCcw, Volume2 } from 'lucide-react';
+import { Pause, Play, RotateCcw, Volume2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useExamContext } from '@/hooks/use-exam-context';
@@ -19,6 +19,9 @@ interface AudioPlayerProps {
   onComplete?: () => void; // Callback when recording is completed
   subsection?: string; // Exam subsection identifier
   audioFile?: string; // Audio file name for reference
+  autoPlay?: boolean; // Auto-start playback when ready
+  onPlaybackStateChange?: (isPlaying: boolean) => void; // Notify parent about playback state
+  onPlaybackEnded?: () => void; // Notify parent when playback ends
 }
 
 export function AudioPlayer({
@@ -30,8 +33,11 @@ export function AudioPlayer({
   isExamRecording = false,
   isCompleted = false,
   onComplete,
-  subsection,
+  subsection: _subsection,
   audioFile,
+  autoPlay = false,
+  onPlaybackStateChange,
+  onPlaybackEnded,
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -39,7 +45,7 @@ export function AudioPlayer({
   const [volume, setVolume] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
+  const hasAutoPlayedRef = useRef(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -60,8 +66,8 @@ export function AudioPlayer({
     const updateDuration = () => setDuration(audio.duration);
     const handleEnded = () => {
       setIsPlaying(false);
-      setHasPlayedOnce(true);
       setActiveAudioPlayerId?.(null);
+      onPlaybackEnded?.();
       // Mark as completed if this is an exam recording
       if (isExamRecording && !isCompleted && onComplete) {
         onComplete();
@@ -72,6 +78,7 @@ export function AudioPlayer({
     const handleError = () => {
       setError('Error loading audio file');
       setIsLoading(false);
+      setIsPlaying(false);
       setActiveAudioPlayerId?.(null);
     };
 
@@ -90,7 +97,33 @@ export function AudioPlayer({
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('error', handleError);
     };
-  }, [isExamRecording, isCompleted, onComplete, setActiveAudioPlayerId]);
+  }, [
+    isExamRecording,
+    isCompleted,
+    onComplete,
+    setActiveAudioPlayerId,
+    onPlaybackEnded,
+  ]);
+
+  const startPlayback = useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Stop any other playing audio first (only if exam context is available)
+    if (examContext && setActiveAudioPlayerId) {
+      setActiveAudioPlayerId(recordingId || '');
+    }
+
+    try {
+      await audio.play();
+      setError(null);
+      setIsPlaying(true);
+    } catch {
+      setIsPlaying(false);
+      setActiveAudioPlayerId?.(null);
+      setError('Playback failed. Please press Play to try again.');
+    }
+  }, [examContext, setActiveAudioPlayerId, recordingId]);
 
   const togglePlayPause = () => {
     const audio = audioRef.current;
@@ -101,13 +134,7 @@ export function AudioPlayer({
       setIsPlaying(false);
       setActiveAudioPlayerId?.(null);
     } else {
-      // Stop any other playing audio first (only if exam context is available)
-      if (examContext && setActiveAudioPlayerId) {
-        setActiveAudioPlayerId(recordingId || '');
-      }
-
-      audio.play();
-      setIsPlaying(true);
+      startPlayback();
     }
   };
 
@@ -127,14 +154,9 @@ export function AudioPlayer({
     // Only reset the audio to the beginning and play it again
     audio.currentTime = 0;
     setCurrentTime(0);
-    setHasPlayedOnce(false);
     // Do not change section/subsection or trigger any advancement
     if (!isPlaying) {
-      audio.play();
-      setIsPlaying(true);
-      if (examContext && setActiveAudioPlayerId) {
-        setActiveAudioPlayerId(recordingId || '');
-      }
+      startPlayback();
     }
   };
 
@@ -160,6 +182,29 @@ export function AudioPlayer({
     }
   }, [examContext, isActivePlayer, isPlaying]);
 
+  useEffect(() => {
+    onPlaybackStateChange?.(isPlaying);
+  }, [isPlaying, onPlaybackStateChange]);
+
+  useEffect(() => {
+    hasAutoPlayedRef.current = false;
+  }, [src, recordingId]);
+
+  useEffect(() => {
+    if (
+      !autoPlay ||
+      hasAutoPlayedRef.current ||
+      isPlaying ||
+      isLoading ||
+      !!error
+    ) {
+      return;
+    }
+
+    hasAutoPlayedRef.current = true;
+    startPlayback();
+  }, [autoPlay, isPlaying, isLoading, error, startPlayback]);
+
   if (error) {
     return (
       <div className={cn('bg-muted rounded-lg p-4', className)}>
@@ -170,64 +215,27 @@ export function AudioPlayer({
 
   return (
     <div
-      className={cn(
-        'bg-card border rounded-lg p-4 space-y-3',
-        {
-          'ring-2 ring-primary/20': isExamRecording && isPlaying,
-          'ring-2 ring-green-500/20': isExamRecording && isCompleted,
-        },
-        className,
-      )}
+      className={cn('bg-card/70 border rounded-lg p-3 space-y-3', className)}
       data-recording-id={recordingId}
       data-audio-file={audioFile}
     >
       <audio ref={audioRef} src={src} preload="metadata" />
 
-      {/* Header with Recording Info */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="space-y-1">
           {title && (
-            <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-              {title}
-              {isExamRecording && isCompleted && (
-                <CheckCircle className="size-4 text-green-500" />
-              )}
-            </h4>
+            <h4 className="text-sm font-medium text-foreground">{title}</h4>
           )}
           {description && (
             <p className="text-xs text-muted-foreground">{description}</p>
           )}
-          {subsection && (
-            <p className="text-xs text-muted-foreground">
-              Section: {subsection}
-            </p>
-          )}
-          {recordingId && (
-            <p className="text-xs text-muted-foreground">ID: {recordingId}</p>
-          )}
         </div>
 
-        {/* Status indicator for exam recordings */}
-        {isExamRecording && (
-          <div className="flex items-center gap-1">
-            {isCompleted ? (
-              <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                Completed
-              </span>
-            ) : hasPlayedOnce ? (
-              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                Played
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                Not played
-              </span>
-            )}
-          </div>
+        {isLoading && (
+          <span className="text-xs text-muted-foreground">Loading...</span>
         )}
       </div>
 
-      {/* Main Controls */}
       <div className="flex items-center gap-3">
         <Button
           size="sm"
@@ -255,7 +263,6 @@ export function AudioPlayer({
           <RotateCcw className="size-3" />
         </Button>
 
-        {/* Progress Bar */}
         <div className="flex-1 space-y-1">
           <input
             type="range"
@@ -276,7 +283,6 @@ export function AudioPlayer({
           </div>
         </div>
 
-        {/* Volume Control */}
         <div className="flex items-center gap-2">
           <Volume2 className="size-3 text-muted-foreground" />
           <input
@@ -296,12 +302,9 @@ export function AudioPlayer({
         </div>
       </div>
 
-      {/* Instructions for exam recordings */}
-      {isExamRecording && (
-        <div className="text-xs text-muted-foreground">
-          Press Play to listen.
-          <br />💡 You may request repetition once if you didn&apos;t understand
-          something the first time
+      {isCompleted && (
+        <div className="text-[11px] text-muted-foreground">
+          Playback complete
         </div>
       )}
     </div>

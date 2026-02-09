@@ -279,8 +279,9 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: systemPromptContent,
           messages,
-          // Exam evaluators must not chain multiple tool calls in one turn (causes item skipping).
-          maxSteps: isExamEvaluator(selectedChatModel) ? 1 : 5,
+          // Exam evaluators: 2 steps allows text + tool call + follow-up text.
+          // (1 step caused tool-only responses with no spoken text.)
+          maxSteps: isExamEvaluator(selectedChatModel) ? 2 : 5,
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []

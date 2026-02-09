@@ -39,7 +39,6 @@ export function useStreamingTTS() {
   const progressTimerRef = useRef<number | null>(null);
   const playingIndexRef = useRef(-1);
   const stoppedRef = useRef(false);
-  const enqueueLogCountRef = useRef(0);
 
   const [aiSpeaking, setAiSpeaking] = useState(false);
   const [ttsLoading, setTtsLoading] = useState(false);
@@ -113,6 +112,17 @@ export function useStreamingTTS() {
       setAudioDuration(audio.duration || 0);
     };
 
+    const checkAllDone = () => {
+      const allDone = queueRef.current.every(
+        (q) => q.status === 'done' || q.status === 'error',
+      );
+      if (allDone) {
+        setAiSpeaking(false);
+        setTtsLoading(false);
+        setActiveMessageId(null);
+      }
+    };
+
     audio.onended = () => {
       clearProgressTimer();
       item.status = 'done';
@@ -124,18 +134,9 @@ export function useStreamingTTS() {
       }
       audioRef.current = null;
 
-      // Try to play next
+      // Try to play next, then check if we're all done
       playNext();
-
-      // If nothing left, we're done speaking
-      const allDone = queueRef.current.every(
-        (q) => q.status === 'done' || q.status === 'error',
-      );
-      if (allDone) {
-        setAiSpeaking(false);
-        setTtsLoading(false);
-        setActiveMessageId(null);
-      }
+      checkAllDone();
     };
 
     audio.onerror = () => {
@@ -147,11 +148,13 @@ export function useStreamingTTS() {
       }
       audioRef.current = null;
       playNext();
+      checkAllDone();
     };
 
     audio.play().catch(() => {
       item.status = 'error';
       playNext();
+      checkAllDone();
     });
 
     // Start progress polling
@@ -198,17 +201,6 @@ export function useStreamingTTS() {
           ? selectedVoice
           : undefined;
 
-      if (enqueueLogCountRef.current < 2) {
-        console.log('[StreamingTTS:enqueue]', {
-          callNum: enqueueLogCountRef.current + 1,
-          id,
-          text: cleaned.slice(0, 60),
-          voice,
-          queueLen: queueRef.current.length,
-        });
-        enqueueLogCountRef.current++;
-      }
-
       // Fire TTS fetch immediately (don't await — runs in parallel)
       fetch('/api/voice/tts', {
         method: 'POST',
@@ -247,6 +239,15 @@ export function useStreamingTTS() {
           const idx = queueRef.current.indexOf(item);
           if (idx === playingIndexRef.current + 1) {
             playNext();
+          }
+          // Always check if all items are now done/errored
+          const allDone = queueRef.current.every(
+            (q) => q.status === 'done' || q.status === 'error',
+          );
+          if (allDone && !audioRef.current) {
+            setAiSpeaking(false);
+            setTtsLoading(false);
+            setActiveMessageId(null);
           }
         });
     },

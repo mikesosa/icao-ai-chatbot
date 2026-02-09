@@ -861,5 +861,191 @@
         "Demonstrate your English skills confidently"
       ]
     }
+  },
+  "tea-demo": {
+    "id": "tea-demo",
+    "name": "TEA Demo",
+    "aiConfig": {
+      "mainPrompt": "You are a CERTIFIED EVALUATOR conducting a SHORT DEMO VERSION of the Aviation English Test (TEA).\n\nDEMO EXAM INFORMATION:\n- Duration: ~10 minutes (condensed version)\n- 3 sections with ONE question/task each\n- Assessment based on ICAO Language Proficiency Rating Scale\n- This is a DEMONSTRATION, not a full certification exam\n\nIMPORTANT DEMO BEHAVIOR:\n- Keep interactions brief and focused\n- Move through sections quickly\n- Provide a short evaluation at the end\n- Use the same professional standards as the full TEA\n\nSPEAKING STYLE FOR VOICE MODE:\n- CRITICAL: Your responses will be read aloud via text-to-speech. Write naturally as spoken language.\n- NEVER use numbered lists (e.g., \"1.\", \"2.\", \"3.\") in your responses. Use conversational transitions instead.\n- Keep responses very concise — this is a demo\n- Use short, clear sentences\n\nSECTION STRUCTURE:\n- Section 1: ONE brief interview question\n- Section 2: ONE audio recording from each type (2A, 2B, 2C)\n- Section 3: ONE image description + ONE brief discussion question\n\nUse examSectionControl to progress through sections and complete_exam when done.",
+      "evaluationCriteria": "Provide a brief assessment of the 6 ICAO criteria (Pronunciation, Structure, Vocabulary, Fluency, Comprehension, Interactions) with an overall impression. This is a demo, so keep the evaluation concise.",
+      "sections": {
+        "1": {
+          "prompt": "SECTION 1: BRIEF INTERVIEW (2-3 minutes)\n\nAsk ONE question about their aviation role and experience. Keep it conversational and brief.\n\nExample: \"Tell me about your current role in aviation and what you do on a typical day.\"\n\nAfter their response, provide brief follow-up, then advance to Section 2.",
+          "objectives": ["Quick rapport", "Basic communication assessment"]
+        },
+        "2": {
+          "prompt": "SECTION 2: AUDIO COMPREHENSION DEMO (3-4 minutes)\n\nPresent ONE audio recording from each subsection:\n- 2A: One short non-routine situation\n- 2B: One problem description\n- 2C: One general situation\n\nUse playAudio tool for each. Keep questions brief.\n\nAfter completing all three, advance to Section 3.",
+          "objectives": ["Basic listening comprehension"]
+        },
+        "3": {
+          "prompt": "SECTION 3: IMAGE & DISCUSSION DEMO (4-5 minutes)\n\nPart A: Show ONE image set, ask for a brief description (30-60 seconds).\nPart B: Ask ONE discussion question related to the images.\n\nAfter their response, call examSectionControl to complete_exam and provide a brief evaluation.",
+          "objectives": ["Descriptive vocabulary", "Opinion expression"]
+        }
+      },
+      "finalEvaluationPrompt": "Provide a BRIEF evaluation report:\n\n# TEA DEMO EVALUATION\n\n**Candidate Performance Summary:**\n- Brief assessment of each ICAO criterion\n- Overall impression\n- One or two recommendations\n\n**Note:** This was a demonstration exam. For full certification, complete the standard TEA exam."
+    },
+    "examConfig": {
+      "name": "TEA Demo",
+      "sections": {
+        "1": {
+          "name": "Interview (Demo)",
+          "duration": 180,
+          "color": "bg-blue-500"
+        },
+        "2": {
+          "name": "Comprehension (Demo)",
+          "duration": 240,
+          "color": "bg-green-500",
+          "subsections": {
+            "2A": {
+              "name": "Non-Routine (Demo)",
+              "description": "1 short recording",
+              "instructions": ["Listen and identify the message and speaker"],
+              "audioFiles": [
+                {
+                  "recording": 1,
+                  "title": "Demo Recording - Emergency",
+                  "description": "Listen and answer questions",
+                  "transcript": "Pilot: 'Tower, this is Echo Hotel 654, we have smoke in the cockpit, declaring emergency, requesting immediate landing.' Controller: 'Echo Hotel 654, emergency declared, cleared to land runway 15, fire services standing by.'",
+                  "correctAnswers": {
+                    "message": "Pilot declared emergency due to smoke in cockpit",
+                    "speaker": "pilot",
+                    "emergency": "smoke in cockpit"
+                  }
+                }
+              ]
+            },
+            "2B": {
+              "name": "Problem (Demo)",
+              "description": "1 problem description",
+              "instructions": ["Listen and describe the problem"],
+              "audioFiles": [
+                {
+                  "recording": 1,
+                  "title": "Demo Recording - Engine Problem",
+                  "description": "Listen and take notes",
+                  "transcript": "Pilot: 'Tower, Alpha Bravo 123. We have a serious situation. Our number two engine is showing high oil temperature and pressure fluctuations. We've shut down the engine and need to return to the airport immediately. We're single-engine at 12,000 feet, 25 miles northeast. We need priority handling and emergency services on standby.'",
+                  "correctAnswers": {
+                    "problem": "Engine oil temperature and pressure problems",
+                    "action_taken": "Engine shut down",
+                    "needs": "Priority landing and emergency services"
+                  }
+                }
+              ]
+            },
+            "2C": {
+              "name": "General (Demo)",
+              "description": "1 general situation",
+              "instructions": ["Listen, ask questions, give advice"],
+              "audioFiles": [
+                {
+                  "recording": 1,
+                  "title": "Demo Recording - Weather Concern",
+                  "description": "Listen and respond",
+                  "transcript": "Pilot: 'I'm planning a cross-country flight tomorrow. The weather forecast shows scattered thunderstorms along my route. I'm flying a Cessna 172 and I'm not instrument rated. I'm nervous about the weather and want to make sure I'm making the right decision.'",
+                  "correctAnswers": {
+                    "situation": "VFR pilot concerned about thunderstorms",
+                    "advice": "Check weather thoroughly, consider delaying, have alternates"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "3": {
+          "name": "Description & Discussion (Demo)",
+          "duration": 300,
+          "color": "bg-purple-500",
+          "subsections": {
+            "3A": {
+              "name": "Image Description (Demo)",
+              "description": "Describe 1 image set",
+              "instructions": ["Describe the images briefly", "Compare them"],
+              "imageSets": [
+                {
+                  "setId": 1,
+                  "title": "Airport Operations",
+                  "description": "Describe these airport scenes",
+                  "layout": "side-by-side",
+                  "images": [
+                    {
+                      "url": "https://images.unsplash.com/photo-1527007622069-3a0241e1cd8c?w=600&h=400&fit=crop&auto=format&v=2",
+                      "alt": "Busy airport terminal",
+                      "caption": "Terminal Operations"
+                    },
+                    {
+                      "url": "https://images.unsplash.com/photo-1689820583426-bcc5b22617a0?w=600&h=400&fit=crop&auto=format&v=2",
+                      "alt": "Aircraft on runway",
+                      "caption": "Flight Operations"
+                    }
+                  ],
+                  "tasks": [
+                    "Briefly describe what you see",
+                    "Compare the two scenes"
+                  ]
+                }
+              ]
+            },
+            "3B": {
+              "name": "Discussion (Demo)",
+              "description": "Brief discussion",
+              "instructions": ["Answer one discussion question"],
+              "discussionTopics": [
+                {
+                  "topic": "Aviation Safety",
+                  "questions": [
+                    "What do you think is the most important aspect of aviation safety today?"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "controlsConfig": {
+      "name": "TEA Demo",
+      "totalSections": 3,
+      "sections": [
+        {
+          "number": 1,
+          "title": "Interview (Demo)",
+          "description": "One brief question about your aviation background",
+          "icon": "User",
+          "duration": "2-3 min"
+        },
+        {
+          "number": 2,
+          "title": "Comprehension (Demo)",
+          "description": "Three short audio recordings",
+          "icon": "Headphones",
+          "duration": "3-4 min"
+        },
+        {
+          "number": 3,
+          "title": "Description & Discussion (Demo)",
+          "description": "One image set and one discussion question",
+          "icon": "MessageSquare",
+          "duration": "4-5 min"
+        }
+      ],
+      "totalDuration": "~10 minutes",
+      "startButtonText": "Start Demo",
+      "finishButtonText": "Finish Demo"
+    },
+    "messagesConfig": {
+      "welcomeMessage": "Welcome to the TEA Demo!\n\nThis is a SHORT DEMONSTRATION of the Aviation English Test. It includes one question from each section type.\n\n**DEMO STRUCTURE:**\n- **Interview** - One question (2-3 min)\n- **Comprehension** - Three short recordings (3-4 min)\n- **Description & Discussion** - One image + one question (4-5 min)\n\n**Total Duration:** ~10 minutes\n\nThis demo will give you a feel for the full TEA exam format.\n\nReady to begin? Click \"Start Demo\" when prepared.",
+      "sectionStartMessages": {
+        "1": "**INTERVIEW** (2-3 minutes)\n\nLet's start with a brief question about your aviation background.\n\nAnswer naturally and completely.",
+        "2": "**COMPREHENSION** (3-4 minutes)\n\nYou'll listen to three short audio recordings.\n\nAfter each recording, I'll ask you questions about what you heard.",
+        "3": "**DESCRIPTION & DISCUSSION** (4-5 minutes)\n\nI'll show you some images to describe, then we'll have a brief discussion.\n\nLet's begin..."
+      },
+      "completionMessage": "Demo completed! Thank you for participating in the TEA Demo.",
+      "quickInstructions": [
+        "This is a demo - keep responses brief",
+        "Speak naturally and clearly",
+        "Don't worry about minor mistakes"
+      ]
+    }
   }
 }
