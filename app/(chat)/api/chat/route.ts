@@ -37,6 +37,7 @@ import {
   createStreamId,
   deleteChatById,
   getChatById,
+  getExamAttemptCountByUserId,
   getMessageCountByUserId,
   getMessagesByChatId,
   getStreamIdsByChatId,
@@ -56,6 +57,33 @@ import { type PostRequestBody, postRequestBodySchema } from './schema';
 export const maxDuration = 60;
 
 let globalStreamContext: ResumableStreamContext | null = null;
+
+const DEFAULT_EXAM_ATTEMPTS_PER_DAY = 2;
+const DEFAULT_EXAM_ATTEMPTS_PER_30_DAYS = 24;
+
+function parseRateLimitEnv(name: string, defaultValue: number): number {
+  const value = process.env[name];
+  if (!value) return defaultValue;
+
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) {
+    console.warn(
+      `⚠️ [RATE LIMIT] Invalid ${name} value "${value}". Using default ${defaultValue}.`,
+    );
+    return defaultValue;
+  }
+
+  return parsed;
+}
+
+const examAttemptsPerDayLimit = parseRateLimitEnv(
+  'EXAM_ATTEMPTS_PER_DAY_LIMIT',
+  DEFAULT_EXAM_ATTEMPTS_PER_DAY,
+);
+const examAttemptsPerRolling30DaysLimit = parseRateLimitEnv(
+  'EXAM_ATTEMPTS_PER_30_DAYS_LIMIT',
+  DEFAULT_EXAM_ATTEMPTS_PER_30_DAYS,
+);
 
 function getStreamContext() {
   if (!globalStreamContext) {
@@ -135,13 +163,14 @@ export async function POST(request: Request) {
     }
 
     const userType: UserType = session.user.type;
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isExamModel = isExamEvaluator(selectedChatModel);
 
     const messageCount = await getMessageCountByUserId({
       id: session.user.id,
       differenceInHours: 24,
     });
 
-    const isDevelopment = process.env.NODE_ENV === 'development';
     const maxMessages = isDevelopment
       ? -1
       : entitlementsByUserType[userType].maxMessagesPerDay;
@@ -156,7 +185,56 @@ export async function POST(request: Request) {
       return new ChatSDKError('rate_limit:chat').toResponse();
     }
 
-    if (isExamEvaluator(selectedChatModel)) {
+    const chat = await getChatById({ id });
+    const isNewChat = !chat;
+    const shouldEnforceExamAttemptLimits =
+      !isDevelopment && userType !== 'admin' && isExamModel && isNewChat;
+
+    if (shouldEnforceExamAttemptLimits) {
+      const [examAttemptsLast24Hours, examAttemptsLast30Days] =
+        await Promise.all([
+          getExamAttemptCountByUserId({
+            id: session.user.id,
+            differenceInHours: 24,
+          }),
+          getExamAttemptCountByUserId({
+            id: session.user.id,
+            differenceInHours: 24 * 30,
+          }),
+        ]);
+
+      console.log(
+        `🧪 [EXAM LIMIT] User ${session.user.id}: ${examAttemptsLast24Hours}/${examAttemptsPerDayLimit === -1 ? '∞' : examAttemptsPerDayLimit} attempts (24h), ${examAttemptsLast30Days}/${examAttemptsPerRolling30DaysLimit === -1 ? '∞' : examAttemptsPerRolling30DaysLimit} attempts (30d)`,
+      );
+
+      if (
+        examAttemptsPerDayLimit !== -1 &&
+        examAttemptsLast24Hours >= examAttemptsPerDayLimit
+      ) {
+        console.log(
+          `❌ [EXAM LIMIT] User ${session.user.id} exceeded daily exam cap: ${examAttemptsLast24Hours} >= ${examAttemptsPerDayLimit}`,
+        );
+        return new ChatSDKError(
+          'rate_limit:billing',
+          `daily_exam_attempts_limit:${examAttemptsPerDayLimit}`,
+        ).toResponse();
+      }
+
+      if (
+        examAttemptsPerRolling30DaysLimit !== -1 &&
+        examAttemptsLast30Days >= examAttemptsPerRolling30DaysLimit
+      ) {
+        console.log(
+          `❌ [EXAM LIMIT] User ${session.user.id} exceeded rolling 30-day exam cap: ${examAttemptsLast30Days} >= ${examAttemptsPerRolling30DaysLimit}`,
+        );
+        return new ChatSDKError(
+          'rate_limit:billing',
+          `monthly_exam_attempts_limit:${examAttemptsPerRolling30DaysLimit}`,
+        ).toResponse();
+      }
+    }
+
+    if (isExamModel) {
       const subscription = await getSubscriptionByUserId(session.user.id);
       const isActive = isActiveSubscriptionStatus(subscription?.status);
 
@@ -164,8 +242,6 @@ export async function POST(request: Request) {
         return new ChatSDKError('payment_required:billing').toResponse();
       }
     }
-
-    const chat = await getChatById({ id });
 
     if (!chat) {
       const title = await generateTitleFromUserMessage({
@@ -219,7 +295,7 @@ export async function POST(request: Request) {
     let examConfig: SerializedCompleteExamConfig | undefined;
     let currentSection: string | undefined;
 
-    if (isExamEvaluator(selectedChatModel)) {
+    if (isExamModel) {
       try {
         // Load exam config from imported data
         const examConfigs = examConfigsData as Record<

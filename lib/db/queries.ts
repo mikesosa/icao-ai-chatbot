@@ -784,6 +784,36 @@ export async function getMessageCountByUserId({
   }
 }
 
+export async function getExamAttemptCountByUserId({
+  id,
+  differenceInHours,
+}: { id: string; differenceInHours: number }) {
+  try {
+    const windowStart = new Date(
+      Date.now() - differenceInHours * 60 * 60 * 1000,
+    );
+
+    const [stats] = await db
+      .select({ count: count(chat.id) })
+      .from(chat)
+      .where(
+        and(
+          eq(chat.userId, id),
+          eq(chat.modelType, 'exam-evaluator'),
+          gte(chat.createdAt, windowStart),
+        ),
+      )
+      .execute();
+
+    return stats?.count ?? 0;
+  } catch (_error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get exam attempt count by user id',
+    );
+  }
+}
+
 export async function createStreamId({
   streamId,
   chatId,

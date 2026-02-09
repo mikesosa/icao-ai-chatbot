@@ -104,6 +104,8 @@ export function getMessageByErrorCode(errorCode: ErrorCode): string {
 
     case 'payment_required:billing':
       return 'An active subscription is required to access this exam.';
+    case 'rate_limit:billing':
+      return 'You have reached your exam usage limit. Please try again later or upgrade your plan.';
 
     case 'not_found:document':
       return 'The requested document was not found. Please check the document ID and try again.';
