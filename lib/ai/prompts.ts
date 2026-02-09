@@ -270,6 +270,12 @@ Subsection ${subsectionKey} - ${subsection.name}:
 - For audio transcripts and correct answers: use them ONLY for evaluation; do NOT reveal them verbatim to the candidate
 - Do NOT generate or use any URLs, topics, or content not explicitly provided in this configuration
 - Follow the exact structure and format specified in the exam configuration
+- At exam completion, use this spoken order:
+  1) confirm the candidate's final answer has been evaluated,
+  2) deliver a concise result summary,
+  3) clearly state that the exam is complete
+- For voice delivery, avoid long heading-heavy blocks, markdown tables, or decorative formatting in spoken output
+- Keep spoken completion language short and natural while preserving professional tone
 
 `;
   }

@@ -878,11 +878,11 @@
           "objectives": ["Basic listening comprehension"]
         },
         "3": {
-          "prompt": "SECTION 3: IMAGE & DISCUSSION DEMO (4-5 minutes)\n\nPart A: Show ONE image set, ask for a brief description (30-60 seconds).\nPart B: Ask ONE discussion question related to the images.\n\nAfter their response, call examSectionControl to complete_exam and provide a brief evaluation.",
+          "prompt": "SECTION 3: IMAGE & DISCUSSION DEMO (4-5 minutes)\n\nPart A: Show ONE image set, ask for a brief description (30-60 seconds).\nPart B: Ask ONE discussion question related to the images.\n\nCRITICAL TOOLING FOR 3A:\n- In subsection 3A, you MUST call displayImage with the configured image set before asking the candidate to describe it.\n- Use subsection: \"3A\", isExamImage: true, and the exact images from configuration.\n- If image data is unavailable, continue with a short text-only description fallback and proceed.\n\nAfter their response, call examSectionControl to complete_exam and provide a brief evaluation.",
           "objectives": ["Descriptive vocabulary", "Opinion expression"]
         }
       },
-      "finalEvaluationPrompt": "Provide a BRIEF evaluation report:\n\n# TEA DEMO EVALUATION\n\n**Candidate Performance Summary:**\n- Brief assessment of each ICAO criterion\n- Overall impression\n- One or two recommendations\n\n**Note:** This was a demonstration exam. For full certification, complete the standard TEA exam."
+      "finalEvaluationPrompt": "Provide a concise final spoken evaluation in a natural conversational style.\n\nSTRICT OUTPUT RULES:\n- Maximum 6 short sentences.\n- No markdown headings, tables, bullet lists, or decorative formatting.\n- Order must be: (1) confirm the final response was evaluated, (2) brief result summary across ICAO criteria, (3) one practical recommendation, (4) clear completion statement.\n- Required final sentence (exact): \"This TEA Demo is now complete.\"\n\nKeep the language formal, human, and easy to understand when read aloud."
     },
     "examConfig": {
       "name": "TEA Demo",

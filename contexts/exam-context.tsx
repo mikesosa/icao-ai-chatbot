@@ -618,9 +618,8 @@ export function ExamProvider({ children }: { children: ReactNode }) {
           completeSection(currentSection);
         }
 
-        // For complete_exam action, always end the exam immediately
-        // This is because the AI has determined all objectives are met
-        endExam();
+        // Keep the exam session open so the final evaluation can be delivered
+        // and acknowledged in the UI before the user exits the session.
         break;
       }
     }

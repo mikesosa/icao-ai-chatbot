@@ -141,7 +141,10 @@ export async function POST(request: Request) {
       differenceInHours: 24,
     });
 
-    const maxMessages = entitlementsByUserType[userType].maxMessagesPerDay;
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const maxMessages = isDevelopment
+      ? -1
+      : entitlementsByUserType[userType].maxMessagesPerDay;
     console.log(
       `🚦 [RATE LIMIT] User ${session.user.id} (${userType}): ${messageCount}/${maxMessages === -1 ? '∞' : maxMessages} messages in last 24h`,
     );

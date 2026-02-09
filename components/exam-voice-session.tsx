@@ -21,6 +21,7 @@ import { unstable_serialize } from 'swr/infinite';
 
 import { AudioPlayer } from '@/components/audio-player';
 import { DataStreamHandler } from '@/components/data-stream-handler';
+import { ImageDisplay } from '@/components/image-display';
 import { VoiceSettings } from '@/components/voice-settings';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
@@ -39,6 +40,16 @@ import {
 import type { CompleteExamConfig } from './exam-interface/exam';
 import { getChatHistoryPaginationKey } from './sidebar-history';
 import { toast } from './toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { Button } from './ui/button';
 
 // ─── Sentence extraction helper ──────────────────────────────────────────────
@@ -69,6 +80,7 @@ const ABBREVIATIONS = new Set([
   'fig',
   'sec',
 ]);
+const AUTO_CLOSE_SECONDS = 5;
 
 function extractSentences(text: string): {
   sentences: string[];
@@ -204,6 +216,7 @@ function ProgressHeader({
 
 // ─── Transcript panel ───────────────────────────────────────────────────────
 type TranscriptTurn = { speaker: 'EXAMINER' | 'YOU'; text: string };
+type ExamCompletionPhase = 'active' | 'evaluating' | 'delivering' | 'complete';
 type ExamAudioCard = {
   src: string;
   title: string;
@@ -212,6 +225,20 @@ type ExamAudioCard = {
   isExamRecording: boolean;
   subsection?: string;
   audioFile?: string;
+};
+type ExamImageCard = {
+  title: string;
+  description?: string;
+  images: Array<{
+    url: string;
+    alt: string;
+    caption?: string;
+  }>;
+  imageSetId?: string;
+  isExamImage: boolean;
+  subsection?: string;
+  layout?: 'single' | 'side-by-side' | 'stacked';
+  instructions?: string[];
 };
 
 function TranscriptPanel({
@@ -373,7 +400,26 @@ export function ExamVoiceSession({
   const [pinnedAudioPlayer, setPinnedAudioPlayer] =
     useState<ExamAudioCard | null>(null);
   const [audioPlayerReadyToShow, setAudioPlayerReadyToShow] = useState(false);
+  const [pinnedImageDisplay, setPinnedImageDisplay] =
+    useState<ExamImageCard | null>(null);
+  const [imageDisplayReadyToShow, setImageDisplayReadyToShow] = useState(false);
+  const [suppressImageUntilNextAssistant, setSuppressImageUntilNextAssistant] =
+    useState(false);
+  const [dismissedImageSetIds, setDismissedImageSetIds] = useState<string[]>(
+    [],
+  );
+  const [examCompletionPhase, setExamCompletionPhase] =
+    useState<ExamCompletionPhase>('active');
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [autoCloseCountdown, setAutoCloseCountdown] =
+    useState(AUTO_CLOSE_SECONDS);
   const handledAudioCompletionRef = useRef<Set<string>>(new Set());
+  const hasAutoClosedRef = useRef(false);
+  const lastProcessedCompletionEventIndexRef = useRef(-1);
+  const completionRequestRef = useRef<{
+    assistantCountAtRequest: number;
+    watchdogRetrySent: boolean;
+  } | null>(null);
 
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef('');
@@ -416,15 +462,138 @@ export function ExamVoiceSession({
     return null;
   }, [messages]);
 
+  const currentImageDisplay = useMemo((): ExamImageCard | null => {
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((m) => m.role === 'assistant');
+    if (!lastAssistant?.parts) return null;
+
+    for (const part of lastAssistant.parts) {
+      if (
+        part.type === 'tool-invocation' &&
+        part.toolInvocation?.toolName === 'displayImage' &&
+        part.toolInvocation?.state === 'result'
+      ) {
+        const result = part.toolInvocation.result as any;
+        const details = result?.details;
+        if (Array.isArray(details?.images) && details.images.length > 0) {
+          return {
+            title: details.title || 'Image Display',
+            description: details.description,
+            images: details.images,
+            imageSetId: details.imageSetId,
+            isExamImage: details.isExamImage || false,
+            subsection: details.subsection,
+            layout: details.layout || 'single',
+            instructions: details.instructions || [],
+          };
+        }
+      }
+    }
+    return null;
+  }, [messages]);
+
+  const latestAssistantMessageId = useMemo(() => {
+    return (
+      [...messages].reverse().find((m) => m.role === 'assistant')?.id ?? null
+    );
+  }, [messages]);
+
+  const assistantMessages = useMemo(
+    () => messages.filter((message) => message.role === 'assistant'),
+    [messages],
+  );
+
+  const lastAssistantText = useMemo(() => {
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((message) => message.role === 'assistant');
+    if (!lastAssistant?.parts) return '';
+
+    return lastAssistant.parts
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text)
+      .join('\n')
+      .trim();
+  }, [messages]);
+
+  const fallback3AImageDisplay = useMemo((): ExamImageCard | null => {
+    if (currentSection !== '3' || currentSubsection !== '3A') return null;
+
+    const sectionThree = (examConfig.examConfig.sections as any)?.[3];
+    const subsection3A = sectionThree?.subsections?.['3A'];
+    const imageSet = subsection3A?.imageSets?.[0];
+
+    if (
+      !imageSet ||
+      !Array.isArray(imageSet.images) ||
+      imageSet.images.length === 0
+    ) {
+      return null;
+    }
+
+    return {
+      title: imageSet.title || 'Image Description',
+      description: imageSet.description || '',
+      images: imageSet.images,
+      imageSetId: `fallback-3A-${String(imageSet.setId ?? '1')}`,
+      isExamImage: true,
+      subsection: '3A',
+      layout: imageSet.layout || 'side-by-side',
+      instructions: imageSet.tasks || subsection3A?.instructions || [],
+    };
+  }, [examConfig, currentSection, currentSubsection]);
+
   useEffect(() => {
     if (!currentAudioPlayer?.recordingId) return;
-    setPinnedAudioPlayer((prev) =>
-      prev?.recordingId === currentAudioPlayer.recordingId
+
+    setPinnedAudioPlayer((prev) => {
+      const isNewRecording =
+        prev?.recordingId !== currentAudioPlayer.recordingId;
+      if (isNewRecording) {
+        setAudioPlayerReadyToShow(false);
+        return currentAudioPlayer;
+      }
+      return prev;
+    });
+  }, [currentAudioPlayer?.recordingId, currentAudioPlayer]);
+
+  useEffect(() => {
+    if (!currentImageDisplay?.imageSetId) return;
+    if (suppressImageUntilNextAssistant) return;
+    if (dismissedImageSetIds.includes(currentImageDisplay.imageSetId)) return;
+    setPinnedImageDisplay((prev) =>
+      prev?.imageSetId === currentImageDisplay.imageSetId
         ? prev
-        : currentAudioPlayer,
+        : currentImageDisplay,
     );
-    setAudioPlayerReadyToShow(false);
-  }, [currentAudioPlayer]);
+    setImageDisplayReadyToShow(false);
+  }, [
+    currentImageDisplay?.imageSetId,
+    currentImageDisplay,
+    suppressImageUntilNextAssistant,
+    dismissedImageSetIds,
+  ]);
+
+  useEffect(() => {
+    if (!fallback3AImageDisplay?.imageSetId) return;
+    if (pinnedImageDisplay) return;
+    if (suppressImageUntilNextAssistant) return;
+    if (dismissedImageSetIds.includes(fallback3AImageDisplay.imageSetId))
+      return;
+    setPinnedImageDisplay(fallback3AImageDisplay);
+    setImageDisplayReadyToShow(false);
+  }, [
+    fallback3AImageDisplay?.imageSetId,
+    fallback3AImageDisplay,
+    pinnedImageDisplay,
+    suppressImageUntilNextAssistant,
+    dismissedImageSetIds,
+  ]);
+
+  useEffect(() => {
+    setSuppressImageUntilNextAssistant(false);
+  }, [latestAssistantMessageId]);
 
   useEffect(() => {
     if (!pinnedAudioPlayer) {
@@ -436,6 +605,17 @@ export function ExamVoiceSession({
       setAudioPlayerReadyToShow(true);
     }
   }, [pinnedAudioPlayer, aiSpeaking, ttsLoading, isPaused, status]);
+
+  useEffect(() => {
+    if (!pinnedImageDisplay) {
+      setImageDisplayReadyToShow(false);
+      return;
+    }
+
+    if (!aiSpeaking && !ttsLoading && !isPaused && status === 'ready') {
+      setImageDisplayReadyToShow(true);
+    }
+  }, [pinnedImageDisplay, aiSpeaking, ttsLoading, isPaused, status]);
 
   const currentAudioIsCompleted =
     !!pinnedAudioPlayer?.recordingId &&
@@ -452,6 +632,7 @@ export function ExamVoiceSession({
     status === 'ready';
 
   const showAudioPlayer = !!pinnedAudioPlayer && audioPlayerReadyToShow;
+  const showImageDisplay = !!pinnedImageDisplay && imageDisplayReadyToShow;
 
   // ── Derived phase ──
   const phase: OrbPhase = useMemo(() => {
@@ -596,8 +777,116 @@ export function ExamVoiceSession({
     interimRef.current = '';
   }, []);
 
+  const beginCompletionFlow = useCallback(
+    (assistantCountAtRequest: number) => {
+      completionRequestRef.current = {
+        assistantCountAtRequest,
+        watchdogRetrySent: false,
+      };
+      setExamCompletionPhase((previous) =>
+        previous === 'complete' ? previous : 'evaluating',
+      );
+      stopListening();
+    },
+    [stopListening],
+  );
+
+  // ── Exam completion sequencing ──
+  useEffect(() => {
+    if (!dataStream?.length) return;
+
+    const start = lastProcessedCompletionEventIndexRef.current + 1;
+    const deltas = dataStream.slice(start);
+    lastProcessedCompletionEventIndexRef.current = dataStream.length - 1;
+
+    for (const delta of deltas as any[]) {
+      if (
+        delta?.type === 'exam-section-control' &&
+        delta?.content?.action === 'complete_exam'
+      ) {
+        if (examCompletionPhase === 'active') {
+          beginCompletionFlow(assistantMessages.length);
+        }
+        break;
+      }
+    }
+  }, [
+    dataStream,
+    assistantMessages.length,
+    beginCompletionFlow,
+    examCompletionPhase,
+  ]);
+
+  useEffect(() => {
+    if (examCompletionPhase !== 'evaluating') return;
+
+    const assistantCountAtRequest =
+      completionRequestRef.current?.assistantCountAtRequest ?? 0;
+
+    if (
+      status === 'streaming' ||
+      status === 'submitted' ||
+      assistantMessages.length > assistantCountAtRequest
+    ) {
+      setExamCompletionPhase((previous) =>
+        previous === 'complete' ? previous : 'delivering',
+      );
+    }
+  }, [examCompletionPhase, status, assistantMessages.length]);
+
+  useEffect(() => {
+    if (examCompletionPhase !== 'evaluating') return;
+    if (completionRequestRef.current?.watchdogRetrySent) return;
+
+    const timer = window.setTimeout(() => {
+      if (completionRequestRef.current?.watchdogRetrySent) return;
+      completionRequestRef.current = {
+        assistantCountAtRequest:
+          completionRequestRef.current?.assistantCountAtRequest ??
+          assistantMessages.length,
+        watchdogRetrySent: true,
+      };
+      append({
+        role: 'user',
+        content:
+          '[System] Please provide the final evaluation now and confirm exam completion.',
+      });
+    }, 12000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [examCompletionPhase, append, assistantMessages.length]);
+
+  useEffect(() => {
+    if (examCompletionPhase !== 'delivering') return;
+
+    const assistantCountAtRequest =
+      completionRequestRef.current?.assistantCountAtRequest ?? 0;
+    const hasDeliveredResponse =
+      assistantMessages.length > assistantCountAtRequest;
+
+    if (
+      status === 'ready' &&
+      !aiSpeaking &&
+      !ttsLoading &&
+      !!lastAssistantText &&
+      hasDeliveredResponse
+    ) {
+      setExamCompletionPhase('complete');
+    }
+  }, [
+    examCompletionPhase,
+    status,
+    assistantMessages.length,
+    aiSpeaking,
+    ttsLoading,
+    lastAssistantText,
+  ]);
+
   const startListening = useCallback(() => {
     if (isRecordingRef.current || aiSpeaking || isPaused) return;
+    if (examCompletionPhase !== 'active') return;
 
     const Ctor =
       typeof window !== 'undefined'
@@ -673,7 +962,7 @@ export function ExamVoiceSession({
         description: 'Failed to start speech recognition.',
       });
     }
-  }, [aiSpeaking, isPaused, stopListening]);
+  }, [aiSpeaking, isPaused, stopListening, examCompletionPhase]);
 
   // ── Push-to-talk handlers ──
   const pressingRef = useRef(false);
@@ -703,9 +992,18 @@ export function ExamVoiceSession({
       setPinnedAudioPlayer(null);
       setAudioPlayerReadyToShow(false);
       setIsExamAudioPlaying(false);
+      const imageSetId = pinnedImageDisplay?.imageSetId;
+      if (imageSetId) {
+        setDismissedImageSetIds((prev) =>
+          prev.includes(imageSetId) ? prev : [...prev, imageSetId],
+        );
+      }
+      setPinnedImageDisplay(null);
+      setImageDisplayReadyToShow(false);
+      setSuppressImageUntilNextAssistant(true);
       append({ role: 'user', content: text });
     }, 200);
-  }, [stopListening, append]);
+  }, [stopListening, append, pinnedImageDisplay]);
 
   // ── Repeat last examiner message ──
   const handleRepeat = useCallback(() => {
@@ -738,23 +1036,81 @@ export function ExamVoiceSession({
   }, [isPaused, stopAllTTS, stopListening]);
 
   // ── End exam ──
-  const handleEndExam = useCallback(() => {
+  const handleConfirmExit = useCallback(() => {
+    setShowExitConfirm(false);
     stopAllTTS();
     stopListening();
     stopChat();
+    endExam();
+  }, [stopAllTTS, stopListening, stopChat, endExam]);
 
-    // Ask for report
+  const handleEndExam = useCallback(() => {
+    if (examCompletionPhase === 'complete') {
+      handleConfirmExit();
+      return;
+    }
+
+    if (
+      examCompletionPhase === 'evaluating' ||
+      examCompletionPhase === 'delivering'
+    ) {
+      setShowExitConfirm(true);
+      return;
+    }
+
+    // Active session: request final evaluation and keep the exam open
+    stopAllTTS();
+    stopListening();
+    stopChat();
+    beginCompletionFlow(assistantMessages.length);
     append({
       role: 'user',
       content:
-        'I want to finish the exam now. Please provide the final evaluation based on my performance.',
+        'I want to finish the exam now. Please provide the final evaluation and clearly confirm that the exam is complete.',
     });
-    endExam();
-  }, [stopAllTTS, stopListening, stopChat, append, endExam]);
+  }, [
+    examCompletionPhase,
+    handleConfirmExit,
+    stopAllTTS,
+    stopListening,
+    stopChat,
+    beginCompletionFlow,
+    assistantMessages.length,
+    append,
+  ]);
+
+  useEffect(() => {
+    if (examCompletionPhase !== 'complete') {
+      hasAutoClosedRef.current = false;
+      setAutoCloseCountdown(AUTO_CLOSE_SECONDS);
+      return;
+    }
+
+    setAutoCloseCountdown(AUTO_CLOSE_SECONDS);
+
+    const interval = window.setInterval(() => {
+      setAutoCloseCountdown((previous) => {
+        if (previous <= 1) {
+          window.clearInterval(interval);
+          if (!hasAutoClosedRef.current) {
+            hasAutoClosedRef.current = true;
+            handleConfirmExit();
+          }
+          return 0;
+        }
+        return previous - 1;
+      });
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [examCompletionPhase, handleConfirmExit]);
 
   // ── Global spacebar PTT ──
   useEffect(() => {
     const canPTT = () =>
+      examCompletionPhase === 'active' &&
       !aiSpeaking &&
       !ttsLoading &&
       !isExamAudioPlaying &&
@@ -787,6 +1143,7 @@ export function ExamVoiceSession({
       window.removeEventListener('keyup', onKeyUp);
     };
   }, [
+    examCompletionPhase,
     aiSpeaking,
     ttsLoading,
     isExamAudioPlaying,
@@ -865,6 +1222,32 @@ export function ExamVoiceSession({
           <p className="text-sm text-muted-foreground mb-2">
             {statusLabel(phase)}
           </p>
+
+          {examCompletionPhase === 'evaluating' && (
+            <div className="mb-4 rounded-md border bg-muted/40 px-4 py-3 text-center max-w-2xl">
+              <p className="text-sm font-medium text-foreground">
+                Thank you. I&apos;m reviewing your final response.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Please wait a moment while I finalize your evaluation.
+              </p>
+            </div>
+          )}
+
+          {examCompletionPhase === 'complete' && (
+            <div className="mb-4 rounded-md border border-green-600/20 bg-green-500/10 px-4 py-3 text-center max-w-2xl">
+              <p className="text-sm font-medium text-foreground">
+                Evaluation complete.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Your final response has been evaluated. This exam is now
+                concluded.
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Closing automatically in {autoCloseCountdown}s.
+              </p>
+            </div>
+          )}
 
           {/* ─── Unified caption area ─── */}
           <div className="text-center max-w-lg mb-6 min-h-16 flex flex-col items-center justify-center px-4 gap-2">
@@ -982,29 +1365,50 @@ export function ExamVoiceSession({
             </div>
           )}
 
+          {showImageDisplay && pinnedImageDisplay && (
+            <div className="w-full max-w-3xl mb-4">
+              <ImageDisplay
+                title={pinnedImageDisplay.title}
+                description={pinnedImageDisplay.description}
+                images={pinnedImageDisplay.images}
+                imageSetId={pinnedImageDisplay.imageSetId}
+                isExamImage={pinnedImageDisplay.isExamImage}
+                subsection={pinnedImageDisplay.subsection}
+                layout={pinnedImageDisplay.layout || 'single'}
+                instructions={pinnedImageDisplay.instructions || []}
+              />
+            </div>
+          )}
+
           {/* ─── Push-to-Talk button ─── */}
-          <Button
-            size="lg"
-            className={`rounded-full px-8 py-6 text-base ${isRecording ? 'bg-green-600 hover:bg-green-700' : ''}`}
-            onMouseDown={onPTTStart}
-            onMouseUp={onPTTEnd}
-            onMouseLeave={onPTTEnd}
-            onTouchStart={onPTTStart}
-            onTouchEnd={onPTTEnd}
-            onTouchCancel={onPTTEnd}
-            disabled={
-              aiSpeaking ||
-              ttsLoading ||
-              isExamAudioPlaying ||
-              isPaused ||
-              status === 'streaming' ||
-              status === 'submitted'
-            }
-          >
-            <Mic className="size-5 mr-2" />
-            {isRecording ? 'Release to Send' : 'Push to Talk'}
-            <span className="ml-2 text-xs opacity-50">[space]</span>
-          </Button>
+          {examCompletionPhase === 'active' ? (
+            <Button
+              size="lg"
+              className={`rounded-full px-8 py-6 text-base ${isRecording ? 'bg-green-600 hover:bg-green-700' : ''}`}
+              onMouseDown={onPTTStart}
+              onMouseUp={onPTTEnd}
+              onMouseLeave={onPTTEnd}
+              onTouchStart={onPTTStart}
+              onTouchEnd={onPTTEnd}
+              onTouchCancel={onPTTEnd}
+              disabled={
+                aiSpeaking ||
+                ttsLoading ||
+                isExamAudioPlaying ||
+                isPaused ||
+                status === 'streaming' ||
+                status === 'submitted'
+              }
+            >
+              <Mic className="size-5 mr-2" />
+              {isRecording ? 'Release to Send' : 'Push to Talk'}
+              <span className="ml-2 text-xs opacity-50">[space]</span>
+            </Button>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Microphone disabled while finalizing the exam.
+            </p>
+          )}
         </div>
 
         {/* ─── Bottom toolbar ─── */}
@@ -1013,7 +1417,9 @@ export function ExamVoiceSession({
             variant="ghost"
             size="sm"
             onClick={handleRepeat}
-            disabled={aiSpeaking || isPaused}
+            disabled={
+              examCompletionPhase !== 'active' || aiSpeaking || isPaused
+            }
             title="Repeat last instruction"
           >
             <RotateCcw className="size-4 mr-1.5" />
@@ -1024,6 +1430,7 @@ export function ExamVoiceSession({
             variant="ghost"
             size="sm"
             onClick={togglePause}
+            disabled={examCompletionPhase !== 'active'}
             title={isPaused ? 'Resume' : 'Pause'}
           >
             {isPaused ? (
@@ -1051,16 +1458,22 @@ export function ExamVoiceSession({
             Transcript
           </Button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:text-destructive"
-            onClick={handleEndExam}
-            title="End exam"
-          >
-            <Square className="size-4 mr-1.5" />
-            End
-          </Button>
+          {examCompletionPhase === 'complete' ? (
+            <Button size="sm" onClick={handleConfirmExit} title="Close exam">
+              Close Exam
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={handleEndExam}
+              title="End exam"
+            >
+              <Square className="size-4 mr-1.5" />
+              End
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1081,6 +1494,25 @@ export function ExamVoiceSession({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Final evaluation is in progress. Exit now?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              If you exit now, the final evaluation may not be fully delivered.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmExit}>
+              Exit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Hidden data stream handler for exam control events */}
       <DataStreamHandler id={id} dataStream={dataStream} />

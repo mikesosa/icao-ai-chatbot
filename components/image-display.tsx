@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import Image from 'next/image';
 
-import { CheckCircle, Eye, Image as ImageIcon, ZoomIn } from 'lucide-react';
+import { Eye, Image as ImageIcon, ZoomIn } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -37,20 +37,15 @@ const addCacheBusting = (url: string): string => {
 };
 
 export function ImageDisplay({
-  title,
-  description,
   images,
   className,
   imageSetId,
   isExamImage = false,
   isCompleted = false,
   onComplete,
-  subsection,
   layout = 'single',
 }: ImageDisplayProps) {
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [, setLoadingStates] = useState<Record<string, boolean>>({});
   const [errorStates, setErrorStates] = useState<Record<string, boolean>>({});
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [hasViewed, setHasViewed] = useState(false);
@@ -97,7 +92,7 @@ export function ImageDisplay({
   return (
     <div
       className={cn(
-        'bg-card border rounded-lg p-4 space-y-4',
+        'bg-card rounded-lg p-4 space-y-4',
         {
           'ring-2 ring-primary/20': isExamImage && selectedImage !== null,
           'ring-2 ring-green-500/20': isExamImage && isCompleted,
@@ -107,7 +102,7 @@ export function ImageDisplay({
       data-image-set-id={imageSetId}
     >
       {/* Header with Image Info */}
-      <div className="flex items-center justify-between">
+      {/* <div className="flex items-center justify-between">
         <div className="space-y-1">
           {title && (
             <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -131,7 +126,6 @@ export function ImageDisplay({
           )}
         </div>
 
-        {/* Status indicator for exam images */}
         {isExamImage && (
           <div className="flex items-center gap-1">
             {isCompleted ? (
@@ -149,7 +143,7 @@ export function ImageDisplay({
             )}
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Images */}
       <div className={getLayoutClasses()}>
@@ -169,11 +163,11 @@ export function ImageDisplay({
                 )}
                 onClick={() => handleImageClick(index)}
               >
-                {loadingStates[index] && (
+                {/* {loadingStates[index] && (
                   <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
                     <ImageIcon className="size-8 text-muted-foreground" />
                   </div>
-                )}
+                )} */}
 
                 {errorStates[index] ? (
                   <div className="aspect-[4/3] bg-muted flex items-center justify-center">
@@ -226,7 +220,7 @@ export function ImageDisplay({
       </div>
 
       {/* Image count and layout info */}
-      <div className="flex justify-between items-center text-xs text-muted-foreground">
+      <div className="text-center items-center text-xs text-muted-foreground">
         <span>
           {images.length} image{images.length > 1 ? 's' : ''}
           {layout !== 'single' && ` • ${layout} layout`}
