@@ -65,7 +65,7 @@
     "lucide-react": "^0.446.0",
     "mercadopago": "^2.12.0",
     "nanoid": "^5.0.8",
-    "next": "15.3.0-canary.31",
+    "next": "15.6.0-canary.58",
     "next-auth": "5.0.0-beta.25",
     "next-themes": "^0.3.0",
     "openai": "^4.80.0",
@@ -128,10 +128,13 @@
   },
   "packageManager": "pnpm@9.12.3",
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": ["biome check --write --unsafe", "eslint --fix"],
-    "package.json": ["biome format --write"],
-    "tsconfig*.json": ["biome format --write"],
-    "components.json": ["biome format --write"],
-    "biome.jsonc": ["biome format --write"]
+    "*.{ts,tsx,js,jsx}": [
+      "pnpm exec biome check --write --unsafe",
+      "pnpm exec eslint --fix"
+    ],
+    "package.json": ["pnpm exec biome format --write"],
+    "tsconfig*.json": ["pnpm exec biome format --write"],
+    "components.json": ["pnpm exec biome format --write"],
+    "biome.jsonc": ["pnpm exec biome format --write"]
   }
 }
