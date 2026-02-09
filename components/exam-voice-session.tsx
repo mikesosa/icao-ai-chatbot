@@ -24,6 +24,7 @@ import { VoiceSettings } from '@/components/voice-settings';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useExamContext } from '@/hooks/use-exam-context';
+import { useStreamingTTS } from '@/hooks/use-streaming-tts';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTextToSpeech } from '@/hooks/use-text-to-speech';
 import { useTts } from '@/hooks/use-tts';
@@ -38,6 +39,71 @@ import type { CompleteExamConfig } from './exam-interface/exam';
 import { getChatHistoryPaginationKey } from './sidebar-history';
 import { toast } from './toast';
 import { Button } from './ui/button';
+
+// ─── Sentence extraction helper ──────────────────────────────────────────────
+// Smarter than a simple regex split: avoids breaking on numbered lists ("2."),
+// single-letter abbreviations ("A."), and common abbreviations ("Dr.", "e.g.").
+const ABBREVIATIONS = new Set([
+  'mr',
+  'mrs',
+  'ms',
+  'dr',
+  'prof',
+  'sr',
+  'jr',
+  'st',
+  'vs',
+  'etc',
+  'capt',
+  'sgt',
+  'lt',
+  'col',
+  'gen',
+  'dept',
+  'approx',
+  'incl',
+  'no',
+  'vol',
+  'ref',
+  'fig',
+  'sec',
+]);
+
+function extractSentences(text: string): {
+  sentences: string[];
+  consumed: number;
+} {
+  const sentences: string[] = [];
+  let consumed = 0;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const nextCh = text[i + 1];
+
+    // Only consider it a boundary when punctuation is followed by a space
+    // (meaning more text came after, so the sentence is complete)
+    if ((ch === '.' || ch === '!' || ch === '?') && nextCh === ' ') {
+      const segment = text.slice(consumed, i + 1).trim();
+      if (!segment) continue;
+
+      // Skip numbered list items: the segment is just a number + dot, e.g. "2."
+      if (ch === '.' && /^\d+\.$/.test(segment)) continue;
+
+      // Skip if the final word is a single uppercase letter + dot (initial)
+      const words = segment.split(/\s+/);
+      const lastWord = (words[words.length - 1] || '').replace(/\.$/, '');
+      if (ch === '.' && /^[A-Z]$/.test(lastWord)) continue;
+
+      // Skip common abbreviations (case-insensitive)
+      if (ch === '.' && ABBREVIATIONS.has(lastWord.toLowerCase())) continue;
+
+      sentences.push(segment);
+      consumed = i + 2; // skip past the space
+    }
+  }
+
+  return { sentences, consumed };
+}
 
 // ─── Speech Recognition types ───────────────────────────────────────────────
 declare global {
@@ -77,73 +143,6 @@ function ExaminerOrb({ phase }: { phase: OrbPhase }) {
         className={`${base} ${sizes[phase]} ${colors[phase]} ${rings[phase]}`}
       />
     </div>
-  );
-}
-
-// ─── Sentence-based subtitles ───────────────────────────────────────────────
-// Splits text into sentences, maps each sentence to a character range,
-// and shows one full sentence at a time based on audio progress —
-// just like TV closed captions.
-
-/** Split text into natural sentences. Handles ., !, ?, and : followed by space/end. */
-function splitSentences(text: string): string[] {
-  // Split on sentence-ending punctuation followed by whitespace or end-of-string
-  const raw = text.match(/[^.!?:]+[.!?:]+[\s]?|[^.!?:]+$/g);
-  if (!raw) return [text];
-  return raw.map((s) => s.trim()).filter(Boolean);
-}
-
-/** For each sentence, compute { start, end } as character offsets in the full text. */
-function useSentenceOffsets(fullText: string, sentences: string[]) {
-  return useMemo(() => {
-    const totalChars = fullText.length;
-    const offsets: Array<{ start: number; end: number }> = [];
-    let cursor = 0;
-    for (const sentence of sentences) {
-      const idx = fullText.indexOf(sentence, cursor);
-      const start = idx >= 0 ? idx : cursor;
-      const end = start + sentence.length;
-      offsets.push({ start, end });
-      cursor = end;
-    }
-    return { offsets, totalChars };
-  }, [fullText, sentences]);
-}
-
-function SubtitleTeleprompter({
-  fullText,
-  progress,
-}: {
-  fullText: string;
-  progress: number; // 0-1
-}) {
-  const sentences = useMemo(() => splitSentences(fullText), [fullText]);
-  const { offsets, totalChars } = useSentenceOffsets(fullText, sentences);
-
-  // Character position the audio has reached
-  const charPos = progress * totalChars;
-
-  // Which sentence is currently being spoken?
-  let activeSentenceIndex = 0;
-  for (let i = 0; i < offsets.length; i++) {
-    if (charPos >= offsets[i].start) activeSentenceIndex = i;
-  }
-
-  const currentSentence = sentences[activeSentenceIndex] || '';
-
-  return (
-    <AnimatePresence mode="wait">
-      <motion.p
-        key={`s-${activeSentenceIndex}`}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        className="text-lg md:text-xl font-medium leading-relaxed text-foreground"
-      >
-        {currentSentence}
-      </motion.p>
-    </AnimatePresence>
   );
 }
 
@@ -279,12 +278,25 @@ export function ExamVoiceSession({
     initialVisibilityType: 'private',
   });
   const { enabled: ttsEnabled } = useTts();
+  // Single-shot TTS (used for Repeat button)
   const {
-    speak: speakTTS,
-    stop: stopTTS,
-    aiSpeaking,
-    audioProgress,
+    speak: speakTTSSingle,
+    stop: stopTTSSingle,
+    ttsLoading: ttsLoadingSingle,
+    aiSpeaking: aiSpeakingSingle,
   } = useTextToSpeech();
+  // Streaming TTS (used for live sentence-by-sentence playback)
+  const {
+    enqueue: enqueueSentence,
+    stop: stopStreamingTTS,
+    reset: resetStreamingTTS,
+    aiSpeaking: aiSpeakingStream,
+    ttsLoading: ttsLoadingStream,
+    currentSentence,
+  } = useStreamingTTS();
+
+  const aiSpeaking = aiSpeakingSingle || aiSpeakingStream;
+  const ttsLoading = ttsLoadingSingle || ttsLoadingStream;
 
   const selectedChatModel = examType || '';
 
@@ -340,34 +352,88 @@ export function ExamVoiceSession({
   const [showTranscript, setShowTranscript] = useState(false);
   const [transcriptTurns, setTranscriptTurns] = useState<TranscriptTurn[]>([]);
   const [teleprompterText, setTeleprompterText] = useState('');
+  const [userCaptionText, setUserCaptionText] = useState('');
   const [interimText, setInterimText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef('');
+  const interimRef = useRef(''); // mirror of interimText for use in callbacks
+  const isRecordingRef = useRef(false); // mirror for global key handler
   const hasStartedRef = useRef(false);
   const lastAutoTTSId = useRef<string | null>(null);
   // Track the first AI response (welcome/description) so we skip TTS for it
   const firstAssistantSeen = useRef(false);
+  const ttsTrackLogCountRef = useRef(0);
 
   // ── Derived phase ──
   const phase: OrbPhase = useMemo(() => {
     if (aiSpeaking) return 'speaking';
     if (isRecording) return 'listening';
-    if (status === 'streaming' || status === 'submitted') return 'thinking';
+    if (ttsLoading || status === 'streaming' || status === 'submitted')
+      return 'thinking';
     return 'idle';
-  }, [aiSpeaking, isRecording, status]);
+  }, [aiSpeaking, isRecording, ttsLoading, status]);
 
   // ── Auto-start exam ──
   useEffect(() => {
-    if (hasStartedRef.current || !examStarted || !examType) return;
+    console.log('[EVS:auto-start] check', {
+      hasStartedRef: hasStartedRef.current,
+      examStarted,
+      examType,
+      messageCount: messages.length,
+      messageRoles: messages.map((m) => m.role),
+    });
+
+    if (hasStartedRef.current || !examStarted || !examType) {
+      console.log('[EVS:auto-start] SKIPPED', {
+        reason: hasStartedRef.current
+          ? 'ref already true'
+          : !examStarted
+            ? 'not started'
+            : 'no examType',
+      });
+      return;
+    }
+
+    // Check if the start message was already appended (e.g. by chat.tsx before unmount)
+    const alreadyStarted = messages.some(
+      (m) =>
+        m.role === 'user' &&
+        typeof m.content === 'string' &&
+        m.content.includes('Start the evaluation'),
+    );
+    if (alreadyStarted) {
+      console.log(
+        '[EVS:auto-start] SKIPPED — start message already in messages',
+      );
+      hasStartedRef.current = true;
+      return;
+    }
+
+    // Also check sessionStorage (set by chat.tsx)
+    const ssKey = `exam-started:${id}`;
+    const alreadyInStorage =
+      typeof window !== 'undefined' && sessionStorage.getItem(ssKey) === '1';
+    if (alreadyInStorage) {
+      console.log(
+        '[EVS:auto-start] SKIPPED — sessionStorage flag set by chat.tsx',
+      );
+      hasStartedRef.current = true;
+      return;
+    }
+
     hasStartedRef.current = true;
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(ssKey, '1');
+    }
+    console.log('[EVS:auto-start] APPENDING start message');
     append({
       role: 'user',
       content: 'Start the evaluation. Begin with the first section.',
     });
-  }, [examStarted, examType, append]);
+  }, [examStarted, examType, append, messages, id]);
 
   // ── Section change callback for admin jump ──
   useEffect(() => {
@@ -382,13 +448,14 @@ export function ExamVoiceSession({
     }
   }, [examType, examStarted, setOnSectionChange, append]);
 
-  // ── Track assistant messages → transcript + auto-TTS ──
-  useEffect(() => {
-    if (status !== 'ready') return;
+  // Track how much text we've already sent to TTS for the current streaming message
+  const sentCharsRef = useRef(0);
+  const currentStreamMsgId = useRef<string | null>(null);
 
+  // ── Extract sentences while streaming and enqueue TTS immediately ──
+  useEffect(() => {
     const last = messages[messages.length - 1];
     if (!last || last.role !== 'assistant') return;
-    if (last.id === lastAutoTTSId.current) return;
 
     const text = last.parts
       ?.filter((p) => p.type === 'text')
@@ -397,22 +464,96 @@ export function ExamVoiceSession({
       .trim();
     if (!text) return;
 
-    lastAutoTTSId.current = last.id;
+    if (ttsTrackLogCountRef.current < 2) {
+      console.log('[EVS:tts-track]', {
+        callNum: ttsTrackLogCountRef.current + 1,
+        lastMsgId: last.id,
+        lastRole: last.role,
+        status,
+        firstAssistantSeen: firstAssistantSeen.current,
+        lastAutoTTSId: lastAutoTTSId.current,
+        currentStreamMsgId: currentStreamMsgId.current,
+        textLen: text.length,
+        textPreview: text.slice(0, 80),
+      });
+      ttsTrackLogCountRef.current++;
+    }
 
-    // The very first assistant message is the welcome/description — skip TTS for it
+    // Skip the very first assistant message (welcome/description)
     if (!firstAssistantSeen.current) {
-      firstAssistantSeen.current = true;
+      if (status === 'ready' && last.id !== lastAutoTTSId.current) {
+        if (ttsTrackLogCountRef.current < 2) {
+          console.log(
+            '[EVS:tts-track] Marking first assistant as SEEN (skip TTS)',
+            { callNum: ttsTrackLogCountRef.current + 1, id: last.id },
+          );
+          ttsTrackLogCountRef.current++;
+        }
+        firstAssistantSeen.current = true;
+        lastAutoTTSId.current = last.id;
+        setTeleprompterText(text);
+      }
+      return;
+    }
+
+    // Guard: Skip if we've already processed this message (prevent duplicate TTS after re-renders)
+    if (last.id === lastAutoTTSId.current) {
+      return;
+    }
+
+    // New message started streaming
+    if (last.id !== currentStreamMsgId.current) {
+      if (ttsTrackLogCountRef.current < 2) {
+        console.log('[EVS:tts-track] NEW streaming message', {
+          callNum: ttsTrackLogCountRef.current + 1,
+          id: last.id,
+          prevId: currentStreamMsgId.current,
+        });
+        ttsTrackLogCountRef.current++;
+      }
+      currentStreamMsgId.current = last.id;
+      sentCharsRef.current = 0;
+      resetStreamingTTS();
+      setUserCaptionText('');
+    }
+
+    if (!ttsEnabled) {
       setTeleprompterText(text);
       return;
     }
 
-    setTeleprompterText(text);
-    setTranscriptTurns((prev) => [...prev, { speaker: 'EXAMINER', text }]);
+    // Extract new complete sentences from the unprocessed portion
+    const unprocessed = text.slice(sentCharsRef.current);
+    const { sentences, consumed } = extractSentences(unprocessed);
 
-    if (ttsEnabled) {
-      speakTTS(text, { messageId: last.id });
+    for (const sentence of sentences) {
+      enqueueSentence(sentence, { messageId: last.id });
     }
-  }, [status, messages, ttsEnabled, speakTTS]);
+
+    if (consumed > 0) {
+      sentCharsRef.current += consumed;
+    }
+
+    // When streaming finishes, flush any remaining text
+    if (status === 'ready' && last.id !== lastAutoTTSId.current) {
+      if (ttsTrackLogCountRef.current < 2) {
+        console.log('[EVS:tts-track] Streaming FINISHED, flushing remainder', {
+          callNum: ttsTrackLogCountRef.current + 1,
+          id: last.id,
+          remainingLen: text.length - sentCharsRef.current,
+        });
+        ttsTrackLogCountRef.current++;
+      }
+      lastAutoTTSId.current = last.id;
+      const remaining = text.slice(sentCharsRef.current).trim();
+      if (remaining) {
+        enqueueSentence(remaining, { messageId: last.id });
+        sentCharsRef.current = text.length;
+      }
+      setTeleprompterText(text);
+      setTranscriptTurns((prev) => [...prev, { speaker: 'EXAMINER', text }]);
+    }
+  }, [status, messages, ttsEnabled, enqueueSentence, resetStreamingTTS]);
 
   // ── Speech Recognition helpers ──
   const stopListening = useCallback(() => {
@@ -425,11 +566,13 @@ export function ExamVoiceSession({
       recognitionRef.current = null;
     }
     setIsRecording(false);
+    isRecordingRef.current = false;
     setInterimText('');
+    interimRef.current = '';
   }, []);
 
   const startListening = useCallback(() => {
-    if (isRecording || aiSpeaking || isPaused) return;
+    if (isRecordingRef.current || aiSpeaking || isPaused) return;
 
     const Ctor =
       typeof window !== 'undefined'
@@ -438,17 +581,18 @@ export function ExamVoiceSession({
     if (!Ctor) {
       toast({
         type: 'error',
-        description: 'Speech recognition not supported.',
+        description: 'Speech recognition not supported in this browser.',
       });
       return;
     }
 
     transcriptRef.current = '';
+    interimRef.current = '';
     setInterimText('');
 
     const recognition = new Ctor();
     recognition.lang = 'en-US';
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
@@ -461,20 +605,50 @@ export function ExamVoiceSession({
         else interim += t;
       }
       if (finalText) transcriptRef.current += finalText;
+      interimRef.current = interim;
       setInterimText(interim);
     };
-    recognition.onerror = () => {
+
+    recognition.onerror = (event: any) => {
+      const errType = event?.error || 'unknown';
+      // "aborted" is expected when we stop() manually
+      if (errType !== 'aborted') {
+        toast({
+          type: 'error',
+          description: `Mic error: ${errType}. Check mic permissions.`,
+        });
+      }
       stopListening();
     };
+
     recognition.onend = () => {
+      // If the user is still pressing, restart recognition (Chrome auto-stops)
+      if (pressingRef.current && recognitionRef.current) {
+        try {
+          recognition.start();
+          return;
+        } catch {
+          /* fall through to stop */
+        }
+      }
       setIsRecording(false);
+      isRecordingRef.current = false;
       setInterimText('');
+      interimRef.current = '';
     };
 
-    recognition.start();
-    recognitionRef.current = recognition;
-    setIsRecording(true);
-  }, [isRecording, aiSpeaking, isPaused, stopListening]);
+    try {
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsRecording(true);
+      isRecordingRef.current = true;
+    } catch (_err) {
+      toast({
+        type: 'error',
+        description: 'Failed to start speech recognition.',
+      });
+    }
+  }, [aiSpeaking, isPaused, stopListening]);
 
   // ── Push-to-talk handlers ──
   const pressingRef = useRef(false);
@@ -488,15 +662,21 @@ export function ExamVoiceSession({
   const onPTTEnd = useCallback(() => {
     if (!pressingRef.current) return;
     pressingRef.current = false;
+
+    // Snapshot interim from ref (always fresh, no stale closure)
+    const interimSnapshot = interimRef.current.trim();
     stopListening();
 
-    // Submit after a tiny delay so final transcript settles
+    // Short delay to let the recognition engine flush its last result
     setTimeout(() => {
-      const text = transcriptRef.current.trim();
+      let text = transcriptRef.current.trim();
+      // If recognition didn't finalize but we had interim, use it
+      if (!text && interimSnapshot) text = interimSnapshot;
       if (!text) return;
+      setUserCaptionText(text);
       setTranscriptTurns((prev) => [...prev, { speaker: 'YOU', text }]);
       append({ role: 'user', content: text });
-    }, 300);
+    }, 200);
   }, [stopListening, append]);
 
   // ── Repeat last examiner message ──
@@ -510,23 +690,28 @@ export function ExamVoiceSession({
       .map((p) => p.text)
       .join('\n')
       .trim();
-    if (text) speakTTS(text, { messageId: lastExaminer.id });
-  }, [messages, speakTTS]);
+    if (text) speakTTSSingle(text, { messageId: lastExaminer.id });
+  }, [messages, speakTTSSingle]);
+
+  const stopAllTTS = useCallback(() => {
+    stopStreamingTTS();
+    stopTTSSingle();
+  }, [stopStreamingTTS, stopTTSSingle]);
 
   // ── Pause / Resume ──
   const togglePause = useCallback(() => {
     if (isPaused) {
       setIsPaused(false);
     } else {
-      stopTTS();
+      stopAllTTS();
       stopListening();
       setIsPaused(true);
     }
-  }, [isPaused, stopTTS, stopListening]);
+  }, [isPaused, stopAllTTS, stopListening]);
 
   // ── End exam ──
   const handleEndExam = useCallback(() => {
-    stopTTS();
+    stopAllTTS();
     stopListening();
     stopChat();
 
@@ -537,15 +722,50 @@ export function ExamVoiceSession({
         'I want to finish the exam now. Please provide the final evaluation based on my performance.',
     });
     endExam();
-  }, [stopTTS, stopListening, stopChat, append, endExam]);
+  }, [stopAllTTS, stopListening, stopChat, append, endExam]);
+
+  // ── Global spacebar PTT ──
+  useEffect(() => {
+    const canPTT = () =>
+      !aiSpeaking &&
+      !ttsLoading &&
+      !isPaused &&
+      status !== 'streaming' &&
+      status !== 'submitted';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.code === 'Space' && !e.repeat && canPTT()) {
+        e.preventDefault();
+        onPTTStart();
+      }
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        onPTTEnd();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, [aiSpeaking, ttsLoading, isPaused, status, onPTTStart, onPTTEnd]);
 
   // ── Cleanup ──
   useEffect(() => {
     return () => {
       stopListening();
-      stopTTS();
+      stopAllTTS();
     };
-  }, [stopListening, stopTTS]);
+  }, [stopListening, stopAllTTS]);
 
   const totalSections = examConfig.controlsConfig.totalSections;
 
@@ -609,41 +829,85 @@ export function ExamVoiceSession({
             {statusLabel(phase)}
           </p>
 
-          {/* Subtitles — sentence by sentence, like TV captions */}
-          <div className="text-center max-w-lg mb-6 min-h-16 flex items-center justify-center px-4">
-            {aiSpeaking && teleprompterText ? (
-              <SubtitleTeleprompter
-                fullText={teleprompterText}
-                progress={audioProgress}
-              />
-            ) : (
-              <p className="text-sm text-foreground/60">
-                {phase === 'idle' && !aiSpeaking && !teleprompterText
-                  ? examConfig.messagesConfig.welcomeMessage.split('\n')[0] ||
-                    'Welcome.'
-                  : ''}
-              </p>
-            )}
+          {/* ─── Unified caption area ─── */}
+          <div className="text-center max-w-lg mb-6 min-h-16 flex flex-col items-center justify-center px-4 gap-2">
+            <AnimatePresence mode="wait">
+              {/* Examiner captions — sentence-by-sentence from streaming TTS */}
+              {aiSpeakingStream && currentSentence ? (
+                <motion.p
+                  key={`examiner-${currentSentence.slice(0, 30)}`}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-lg md:text-xl font-medium leading-relaxed text-foreground"
+                >
+                  {currentSentence}
+                </motion.p>
+              ) : aiSpeakingSingle && teleprompterText ? (
+                /* Single-shot TTS (Repeat) — show full text */
+                <motion.p
+                  key="examiner-repeat"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-lg md:text-xl font-medium leading-relaxed text-foreground"
+                >
+                  {teleprompterText.split('\n')[0].slice(0, 200)}
+                </motion.p>
+              ) : ttsLoadingStream ? (
+                /* Loading first sentence */
+                <motion.p
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-sm text-muted-foreground"
+                >
+                  Preparing response...
+                </motion.p>
+              ) : isRecording ? (
+                /* User live caption — green, while recording */
+                <motion.p
+                  key="user-live"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-lg md:text-xl font-medium leading-relaxed text-green-400"
+                >
+                  {transcriptRef.current || interimText || 'Listening...'}
+                  {transcriptRef.current && interimText && (
+                    <span className="text-green-400/50"> {interimText}</span>
+                  )}
+                </motion.p>
+              ) : userCaptionText && !ttsLoading ? (
+                /* User submitted caption — green, after release */
+                <motion.p
+                  key="user-sent"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-lg md:text-xl font-medium leading-relaxed text-green-400"
+                >
+                  {userCaptionText}
+                </motion.p>
+              ) : !teleprompterText ? (
+                /* Welcome fallback */
+                <motion.p
+                  key="welcome"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-sm text-foreground/60"
+                >
+                  {examConfig.messagesConfig.welcomeMessage.split('\n')[0] ||
+                    'Welcome.'}
+                </motion.p>
+              ) : null}
+            </AnimatePresence>
           </div>
-
-          {/* Interim transcript while recording */}
-          <AnimatePresence>
-            {isRecording && (interimText || transcriptRef.current) && (
-              <motion.p
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 5 }}
-                className="text-xs text-muted-foreground italic text-center mb-4 max-w-sm"
-              >
-                {transcriptRef.current}
-                {interimText && (
-                  <span className="text-muted-foreground/60">
-                    {interimText}
-                  </span>
-                )}
-              </motion.p>
-            )}
-          </AnimatePresence>
 
           {/* ─── Push-to-Talk button ─── */}
           <Button
@@ -655,20 +919,9 @@ export function ExamVoiceSession({
             onTouchStart={onPTTStart}
             onTouchEnd={onPTTEnd}
             onTouchCancel={onPTTEnd}
-            onKeyDown={(e) => {
-              if (e.key === ' ' || e.key === 'Enter') {
-                e.preventDefault();
-                onPTTStart();
-              }
-            }}
-            onKeyUp={(e) => {
-              if (e.key === ' ' || e.key === 'Enter') {
-                e.preventDefault();
-                onPTTEnd();
-              }
-            }}
             disabled={
               aiSpeaking ||
+              ttsLoading ||
               isPaused ||
               status === 'streaming' ||
               status === 'submitted'
@@ -676,6 +929,7 @@ export function ExamVoiceSession({
           >
             <Mic className="size-5 mr-2" />
             {isRecording ? 'Release to Send' : 'Push to Talk'}
+            <span className="ml-2 text-xs opacity-50">[space]</span>
           </Button>
         </div>
 

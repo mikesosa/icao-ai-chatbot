@@ -41,7 +41,14 @@ function PureMessages({
   const { examStarted, examType } = useExamContext();
   const ttsEnabled = useTtsSelector((s) => s.enabled);
   const { isSupported, speak, stop } = useTextToSpeech();
-  const lastAutoSpokenIdRef = useRef<string | null>(null);
+  // Tracks the last assistant message we've already spoken (or skipped).
+  const lastAutoSpokenIdRef = useRef<string | null>(
+    messages.findLast((m) => m.role === 'assistant')?.id ?? null,
+  );
+  // Track whether the ref has been seeded with the initial batch of messages.
+  const hasSeededRef = useRef(lastAutoSpokenIdRef.current !== null);
+  const prevMessageCountRef = useRef(messages.length);
+  const autoTtsLogCountRef = useRef(0);
   const {
     containerRef: messagesContainerRef,
     endRef: messagesEndRef,
@@ -53,10 +60,44 @@ function PureMessages({
     status,
   });
 
+  // Seed the ref when messages first arrive from DB (handles async loading).
+  // This MUST be declared BEFORE the auto-TTS effect so it runs first.
+  useEffect(() => {
+    const prevCount = prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+
+    // Initial batch load: messages jumped from 0 to N
+    if (!hasSeededRef.current && messages.length > 0) {
+      hasSeededRef.current = true;
+      const lastAssistant = messages.findLast((m) => m.role === 'assistant');
+      if (lastAssistant) {
+        console.log(
+          '[messages:seed] Seeding lastAutoSpokenIdRef on batch load',
+          {
+            id: lastAssistant.id,
+            prevCount,
+            newCount: messages.length,
+          },
+        );
+        lastAutoSpokenIdRef.current = lastAssistant.id;
+      }
+    }
+  }, [messages]);
+
   useEffect(() => {
     // Disable auto-TTS in messages.tsx when an exam model is selected.
     // ExamVoiceSession handles all TTS once the exam starts.
-    if (examStarted || examType) return;
+    if (examStarted || examType) {
+      if (autoTtsLogCountRef.current < 2) {
+        console.log('[messages:auto-tts] SKIPPED — exam mode active', {
+          callNum: autoTtsLogCountRef.current + 1,
+          examStarted,
+          examType,
+        });
+        autoTtsLogCountRef.current++;
+      }
+      return;
+    }
 
     if (!ttsEnabled || !isSupported) return;
 
@@ -66,6 +107,20 @@ function PureMessages({
     const last = messages[messages.length - 1];
     if (!last || last.role !== 'assistant') return;
     if (last.id === lastAutoSpokenIdRef.current) return;
+
+    if (autoTtsLogCountRef.current < 2) {
+      console.log('[messages:auto-tts] SPEAKING', {
+        callNum: autoTtsLogCountRef.current + 1,
+        id: last.id,
+        refId: lastAutoSpokenIdRef.current,
+        textPreview: last.parts
+          ?.filter((p) => p.type === 'text')
+          .map((p) => p.text)
+          .join('\n')
+          .slice(0, 80),
+      });
+      autoTtsLogCountRef.current++;
+    }
 
     const text = last.parts
       ?.filter((p) => p.type === 'text')

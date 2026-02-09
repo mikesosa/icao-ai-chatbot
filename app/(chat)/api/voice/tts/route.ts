@@ -15,6 +15,7 @@ export const runtime = 'nodejs';
 const requestSchema = z.object({
   text: z.string().min(1).max(4096),
   voice: z.enum(OPENAI_TTS_VOICES).optional(),
+  instructions: z.string().max(1024).optional(),
 });
 
 const LEGACY_TTS_VOICES = new Set([
@@ -41,13 +42,21 @@ async function synthesizeSpeech(options: {
   model: string;
   voice: string;
   input: string;
+  instructions?: string;
 }) {
-  const speech = await options.client.audio.speech.create({
+  const params: Record<string, unknown> = {
     model: options.model,
-    voice: normalizeVoiceForModel(options.model, options.voice) as any,
+    voice: normalizeVoiceForModel(options.model, options.voice),
     input: options.input,
     response_format: 'mp3',
-  });
+  };
+
+  // gpt-4o-mini-tts supports an `instructions` field for controlling tone
+  if (options.instructions && options.model === 'gpt-4o-mini-tts') {
+    params.instructions = options.instructions;
+  }
+
+  const speech = await options.client.audio.speech.create(params as any);
   return speech.arrayBuffer();
 }
 
@@ -80,6 +89,14 @@ export async function POST(req: NextRequest) {
       process.env.OPENAI_TTS_MODEL ?? DEFAULT_OPENAI_TTS_MODEL;
     const selectedVoice = body.voice ?? DEFAULT_OPENAI_TTS_VOICE;
 
+    // Use a consistent voice instruction to prevent tone shifts across sentence chunks
+    const defaultInstructions =
+      'Speak in a calm, professional, and steady tone throughout. ' +
+      'Maintain consistent vocal energy, pacing, and pitch. ' +
+      'Do not add dramatic pauses or change emotion between sentences. ' +
+      'Read numbered items naturally (e.g. "1." as "one", "2." as "two").';
+    const instructions = body.instructions || defaultInstructions;
+
     let audioBuffer: ArrayBuffer;
     let resolvedModel = primaryModel;
     try {
@@ -88,6 +105,7 @@ export async function POST(req: NextRequest) {
         model: primaryModel,
         voice: selectedVoice,
         input: body.text,
+        instructions,
       });
     } catch (err) {
       // If model access is restricted, fallback once to tts-1 for compatibility.

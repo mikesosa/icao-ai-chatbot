@@ -23,7 +23,8 @@ export function useTextToSpeech() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const progressTimerRef = useRef<number | null>(null);
   const [isSupported] = useState(true);
-  const [aiSpeaking, setAiSpeaking] = useState(false);
+  const [ttsLoading, setTtsLoading] = useState(false); // fetch in flight
+  const [aiSpeaking, setAiSpeaking] = useState(false); // audio actually playing
   const [audioDuration, setAudioDuration] = useState(0);
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
 
@@ -51,6 +52,7 @@ export function useTextToSpeech() {
       audioUrlRef.current = null;
     }
 
+    setTtsLoading(false);
     setAiSpeaking(false);
     setAudioDuration(0);
     setAudioCurrentTime(0);
@@ -71,7 +73,8 @@ export function useTextToSpeech() {
 
       const messageId = opts?.messageId ?? null;
       setActiveMessageId(messageId);
-      setAiSpeaking(true);
+      // Only mark as loading — NOT speaking yet
+      setTtsLoading(true);
       setAudioCurrentTime(0);
       setAudioDuration(0);
 
@@ -113,9 +116,8 @@ export function useTextToSpeech() {
 
         const cleanup = () => {
           clearProgressTimer();
+          setTtsLoading(false);
           setAiSpeaking(false);
-          setAudioDuration((d) => d); // keep final duration for last frame
-          setAudioCurrentTime((d) => d);
           if (audioUrlRef.current) {
             URL.revokeObjectURL(audioUrlRef.current);
             audioUrlRef.current = null;
@@ -129,6 +131,10 @@ export function useTextToSpeech() {
 
         await audio.play();
 
+        // NOW the audio is actually playing
+        setTtsLoading(false);
+        setAiSpeaking(true);
+
         // Poll currentTime at ~20 fps
         progressTimerRef.current = window.setInterval(() => {
           if (!audioRef.current) return;
@@ -137,6 +143,7 @@ export function useTextToSpeech() {
 
         return true;
       } catch (err) {
+        setTtsLoading(false);
         setAiSpeaking(false);
         setAudioDuration(0);
         setAudioCurrentTime(0);
@@ -168,6 +175,7 @@ export function useTextToSpeech() {
       isSupported,
       speak,
       stop,
+      ttsLoading,
       aiSpeaking,
       audioDuration,
       audioCurrentTime,
@@ -177,6 +185,7 @@ export function useTextToSpeech() {
       isSupported,
       speak,
       stop,
+      ttsLoading,
       aiSpeaking,
       audioDuration,
       audioCurrentTime,
