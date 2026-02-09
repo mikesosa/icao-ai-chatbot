@@ -165,6 +165,7 @@ export async function POST(request: Request) {
     const userType: UserType = session.user.type;
     const isDevelopment = process.env.NODE_ENV === 'development';
     const isExamModel = isExamEvaluator(selectedChatModel);
+    const isTeaDemoExam = selectedChatModel === 'tea-demo';
 
     const messageCount = await getMessageCountByUserId({
       id: session.user.id,
@@ -178,7 +179,7 @@ export async function POST(request: Request) {
       `🚦 [RATE LIMIT] User ${session.user.id} (${userType}): ${messageCount}/${maxMessages === -1 ? '∞' : maxMessages} messages in last 24h`,
     );
 
-    if (maxMessages !== -1 && messageCount > maxMessages) {
+    if (!isTeaDemoExam && maxMessages !== -1 && messageCount > maxMessages) {
       console.log(
         `❌ [RATE LIMIT] User ${session.user.id} exceeded limit: ${messageCount} > ${maxMessages}`,
       );
@@ -188,7 +189,11 @@ export async function POST(request: Request) {
     const chat = await getChatById({ id });
     const isNewChat = !chat;
     const shouldEnforceExamAttemptLimits =
-      !isDevelopment && userType !== 'admin' && isExamModel && isNewChat;
+      !isDevelopment &&
+      userType !== 'admin' &&
+      isExamModel &&
+      !isTeaDemoExam &&
+      isNewChat;
 
     if (shouldEnforceExamAttemptLimits) {
       const [examAttemptsLast24Hours, examAttemptsLast30Days] =
