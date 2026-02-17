@@ -7,6 +7,7 @@ import type { UIMessage } from 'ai';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
+  Copy,
   Mic,
   PanelRightClose,
   PanelRightOpen,
@@ -246,9 +247,13 @@ type ExamImageCard = {
 function TranscriptPanel({
   turns,
   onClose,
+  onCopyDebugLog,
+  isCopyingDebugLog = false,
 }: {
   turns: TranscriptTurn[];
   onClose: () => void;
+  onCopyDebugLog?: () => void;
+  isCopyingDebugLog?: boolean;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -263,14 +268,28 @@ function TranscriptPanel({
     >
       <div className="flex items-center justify-between p-3 border-b">
         <span className="text-sm font-medium">Transcript</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="size-7"
-        >
-          <PanelRightClose className="size-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {onCopyDebugLog && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCopyDebugLog}
+              disabled={isCopyingDebugLog}
+              data-testid="exam-debug-copy"
+            >
+              <Copy className="size-3.5 mr-1.5" />
+              {isCopyingDebugLog ? 'Copying...' : 'Copy Logs'}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="size-7"
+          >
+            <PanelRightClose className="size-4" />
+          </Button>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {turns.map((turn, i) => (
@@ -402,6 +421,7 @@ export function ExamVoiceSession({
   // ── Local state ──
   const [showTranscript, setShowTranscript] = useState(false);
   const [transcriptTurns, setTranscriptTurns] = useState<TranscriptTurn[]>([]);
+  const [isCopyingDebugLog, setIsCopyingDebugLog] = useState(false);
   const [teleprompterText, setTeleprompterText] = useState('');
   const [userCaptionText, setUserCaptionText] = useState('');
   const [interimText, setInterimText] = useState('');
@@ -649,6 +669,97 @@ export function ExamVoiceSession({
 
   const showAudioPlayer = !!pinnedAudioPlayer && audioPlayerReadyToShow;
   const showImageDisplay = !!pinnedImageDisplay && imageDisplayReadyToShow;
+
+  const debugLogPayload = useMemo(() => {
+    const simplifiedMessages = messages.map((message) => {
+      const text = message.parts
+        ?.filter((part) => part.type === 'text')
+        .map((part) => part.text)
+        .join('\n')
+        .trim();
+
+      const toolInvocations: Array<{
+        toolName: string;
+        state: string;
+        args: unknown;
+        result: unknown;
+      }> = [];
+
+      for (const part of message.parts || []) {
+        if (part.type !== 'tool-invocation') continue;
+
+        const invocation = part.toolInvocation;
+        if (!invocation?.toolName) continue;
+
+        toolInvocations.push({
+          toolName: invocation.toolName,
+          state: invocation.state,
+          args: invocation.args ?? null,
+          result:
+            invocation.state === 'result' ? (invocation.result ?? null) : null,
+        });
+      }
+
+      return {
+        id: message.id,
+        role: message.role,
+        text: text || '',
+        toolInvocations,
+      };
+    });
+
+    return {
+      exportedAt: new Date().toISOString(),
+      chatId: id,
+      examModel: examType,
+      examName: examConfig.name,
+      currentSection,
+      currentSubsection,
+      examCompletionPhase,
+      status,
+      transcriptTurns,
+      messages: simplifiedMessages,
+      streamEvents: dataStream,
+      pinnedAudioPlayer,
+      pinnedImageDisplay,
+    };
+  }, [
+    messages,
+    id,
+    examType,
+    examConfig.name,
+    currentSection,
+    currentSubsection,
+    examCompletionPhase,
+    status,
+    transcriptTurns,
+    dataStream,
+    pinnedAudioPlayer,
+    pinnedImageDisplay,
+  ]);
+
+  const handleCopyDebugLog = useCallback(async () => {
+    if (isCopyingDebugLog) return;
+    setIsCopyingDebugLog(true);
+
+    try {
+      const payloadText = JSON.stringify(debugLogPayload, null, 2);
+      await navigator.clipboard.writeText(payloadText);
+      toast({
+        type: 'success',
+        description:
+          'Exam debug log copied. Paste it here and I can tune the flow.',
+      });
+    } catch (_error) {
+      toast({
+        type: 'error',
+        description:
+          'Could not copy debug log. Your browser blocked clipboard access.',
+      });
+    } finally {
+      setIsCopyingDebugLog(false);
+    }
+  }, [debugLogPayload, isCopyingDebugLog]);
 
   // ── Derived phase ──
   const phase: OrbPhase = useMemo(() => {
@@ -1509,6 +1620,8 @@ export function ExamVoiceSession({
             <TranscriptPanel
               turns={transcriptTurns}
               onClose={() => setShowTranscript(false)}
+              onCopyDebugLog={handleCopyDebugLog}
+              isCopyingDebugLog={isCopyingDebugLog}
             />
           </motion.div>
         )}

@@ -276,9 +276,19 @@ export const playAudioTool = ({
       recordingId,
     }) => {
       try {
+        // If an exam subsection is provided for a known exam type, force exam mode
+        // even when the model forgets to include isExamRecording=true.
+        const examType = getExamTypeFromConfig(examConfig);
+        const effectiveIsExamRecording =
+          isExamRecording ||
+          (!!subsection && (examType === 'elpac' || examType === 'tea'));
+
         // Prevent the model from presenting multiple exam recordings in a single request/turn.
         // This avoids skipping items (Item 3 -> Item 4) and premature advancement.
-        if (isExamRecording && requestState?.playAudioCalledThisRequest) {
+        if (
+          effectiveIsExamRecording &&
+          requestState?.playAudioCalledThisRequest
+        ) {
           console.warn(
             '🎵 [PLAY AUDIO TOOL] Blocked duplicate playAudio call in the same request',
           );
@@ -289,7 +299,7 @@ export const playAudioTool = ({
             error: 'duplicate_play_audio_same_request',
           };
         }
-        if (isExamRecording && requestState) {
+        if (effectiveIsExamRecording && requestState) {
           requestState.playAudioCalledThisRequest = true;
         }
 
@@ -305,18 +315,16 @@ export const playAudioTool = ({
           };
         }
 
-        // Extract exam type from examConfig
-        const examType = getExamTypeFromConfig(examConfig);
         let finalSubsection = subsection;
         let finalRecordingNumber = recordingNumber;
-        const playbackPolicy = isExamRecording
+        const playbackPolicy = effectiveIsExamRecording
           ? STRICT_EXAM_PLAYBACK_POLICY
           : DEFAULT_PLAYBACK_POLICY;
 
         let audioFile: string;
         let audioUrl: string;
 
-        if (isExamRecording && examType === 'elpac') {
+        if (effectiveIsExamRecording && examType === 'elpac') {
           const routing = resolveElpacExamRouting({
             subsection,
             recordingNumber,
@@ -342,7 +350,7 @@ export const playAudioTool = ({
             audioFile = `elpac-1-listening-${padded}.mp3`;
             audioUrl = `/api/audio?exam=elpac&section=1&recording=${routing.recordingNumber}`;
           }
-        } else if (isExamRecording && subsection) {
+        } else if (effectiveIsExamRecording && subsection) {
           // For exam recordings with specific number, construct the filename.
           const rawSection = subsection.toLowerCase();
           const examSection = rawSection;
@@ -373,7 +381,7 @@ export const playAudioTool = ({
             subsection: finalSubsection || '',
             audioFile,
             recordingId: finalRecordingId,
-            isExamRecording,
+            isExamRecording: effectiveIsExamRecording,
             allowSeek: playbackPolicy.allowSeek,
             maxReplays: playbackPolicy.maxReplays,
           },
@@ -396,7 +404,7 @@ export const playAudioTool = ({
             subsection: finalSubsection,
             recordingNumber: finalRecordingNumber,
             recordingId: finalRecordingId,
-            isExamRecording,
+            isExamRecording: effectiveIsExamRecording,
             url: audioUrl,
             availableFiles: audioFiles.length,
             selectionMethod,

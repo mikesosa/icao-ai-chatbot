@@ -53,13 +53,17 @@ const addCacheBusting = (url: string, cacheBustToken: string): string => {
 };
 
 export function ImageDisplay({
+  title,
+  description,
   images,
   className,
   imageSetId,
   isExamImage = false,
   isCompleted = false,
   onComplete,
+  subsection,
   layout = 'single',
+  instructions = [],
 }: ImageDisplayProps) {
   const [, setLoadingStates] = useState<Record<string, boolean>>({});
   const [errorStates, setErrorStates] = useState<Record<string, boolean>>({});
@@ -122,26 +126,34 @@ export function ImageDisplay({
       )}
       data-image-set-id={imageSetId}
     >
-      {/* Header with Image Info */}
-      {/* <div className="flex items-center justify-between">
+      <div className="space-y-1">
+        {title && (
+          <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+            <ImageIcon className="size-4" />
+            {title}
+          </h4>
+        )}
+        {description && (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        )}
+        {subsection && (
+          <p className="text-xs text-muted-foreground">
+            Subsection: {subsection}
+          </p>
+        )}
+      </div>
+
+      {instructions.length > 0 && (
+        <div className="rounded-md border bg-muted/30 p-2 space-y-1">
+          <p className="text-xs font-medium text-foreground">What to do</p>
+          <p className="text-xs text-muted-foreground">
+            {instructions.join(' ')}
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
         <div className="space-y-1">
-          {title && (
-            <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-              <ImageIcon className="size-4" />
-              {title}
-              {isExamImage && isCompleted && (
-                <CheckCircle className="size-4 text-green-500" />
-              )}
-            </h4>
-          )}
-          {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
-          )}
-          {subsection && (
-            <p className="text-xs text-muted-foreground">
-              Section: {subsection}
-            </p>
-          )}
           {imageSetId && (
             <p className="text-xs text-muted-foreground">ID: {imageSetId}</p>
           )}
@@ -164,7 +176,7 @@ export function ImageDisplay({
             )}
           </div>
         )}
-      </div> */}
+      </div>
 
       {/* Images */}
       <div className={getLayoutClasses()}>

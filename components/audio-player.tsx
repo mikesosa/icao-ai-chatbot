@@ -68,7 +68,12 @@ export function AudioPlayer({
     if (!audio) return;
 
     const updateTime = () => setCurrentTime(audio.currentTime);
-    const updateDuration = () => setDuration(audio.duration);
+    const updateDuration = () => {
+      setDuration(audio.duration);
+      if (audio.readyState >= 1) {
+        setIsLoading(false);
+      }
+    };
     const handleEnded = () => {
       setIsPlaying(false);
       setActiveAudioPlayerId?.(null);
@@ -79,6 +84,8 @@ export function AudioPlayer({
       }
     };
     const handleCanPlay = () => setIsLoading(false);
+    const handleLoadedData = () => setIsLoading(false);
+    const handleCanPlayThrough = () => setIsLoading(false);
     const handleLoadStart = () => setIsLoading(true);
     const handleError = () => {
       setError('Error loading audio file');
@@ -91,6 +98,8 @@ export function AudioPlayer({
     audio.addEventListener('loadedmetadata', updateDuration);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('loadeddata', handleLoadedData);
+    audio.addEventListener('canplaythrough', handleCanPlayThrough);
     audio.addEventListener('loadstart', handleLoadStart);
     audio.addEventListener('error', handleError);
 
@@ -99,6 +108,8 @@ export function AudioPlayer({
       audio.removeEventListener('loadedmetadata', updateDuration);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('loadeddata', handleLoadedData);
+      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('error', handleError);
     };
@@ -327,8 +338,15 @@ export function AudioPlayer({
       )}
 
       {isExamRecording && (
-        <div className="text-[11px] text-muted-foreground">
-          Replays: {Math.min(replayCount, maxReplays)} / {maxReplays}
+        <div className="space-y-1">
+          <div className="text-[11px] text-muted-foreground">
+            Replays: {Math.min(replayCount, maxReplays)} / {maxReplays}
+          </div>
+          {audioFile && (
+            <div className="text-[11px] text-muted-foreground">
+              Source file: {audioFile}
+            </div>
+          )}
         </div>
       )}
     </div>
