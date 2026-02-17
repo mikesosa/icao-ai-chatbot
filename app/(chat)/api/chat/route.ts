@@ -299,6 +299,7 @@ export async function POST(request: Request) {
     // Load exam configuration if this is an exam evaluator model
     let examConfig: SerializedCompleteExamConfig | undefined;
     let currentSection: string | undefined;
+    let currentSubsection: string | undefined;
 
     if (isExamModel) {
       try {
@@ -323,15 +324,16 @@ export async function POST(request: Request) {
 
         // Use current section from request body if provided
         currentSection = requestCurrentSection ?? undefined;
+        currentSubsection = requestCurrentSubsection ?? undefined;
         if (currentSection) {
           console.log(
             '🎯 [PROMPT SYSTEM] Using current section from request:',
             currentSection,
           );
-          if (requestCurrentSubsection) {
+          if (currentSubsection) {
             console.log(
               '🎯 [PROMPT SYSTEM] Current subsection:',
-              requestCurrentSubsection,
+              currentSubsection,
             );
           }
         }
@@ -354,6 +356,7 @@ export async function POST(request: Request) {
           requestHints,
           examConfig,
           currentSection,
+          currentSubsection,
         });
 
         // Per-request guard to prevent multiple playAudio tool executions in one assistant turn.

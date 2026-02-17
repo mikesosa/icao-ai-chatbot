@@ -225,6 +225,8 @@ type ExamAudioCard = {
   isExamRecording: boolean;
   subsection?: string;
   audioFile?: string;
+  maxReplays?: number;
+  allowSeek?: boolean;
 };
 type ExamImageCard = {
   title: string;
@@ -467,6 +469,8 @@ export function ExamVoiceSession({
             isExamRecording: details.isExamRecording || false,
             subsection: details.subsection,
             audioFile: details.audioFile,
+            maxReplays: details.maxReplays,
+            allowSeek: details.allowSeek,
           };
         }
       }
@@ -1353,6 +1357,8 @@ export function ExamVoiceSession({
                 isCompleted={currentAudioIsCompleted}
                 subsection={pinnedAudioPlayer.subsection}
                 audioFile={pinnedAudioPlayer.audioFile}
+                maxReplays={pinnedAudioPlayer.maxReplays}
+                allowSeek={pinnedAudioPlayer.allowSeek}
                 autoPlay={shouldAutoPlayCurrentAudio}
                 onPlaybackStateChange={setIsExamAudioPlaying}
                 onComplete={() => {

@@ -27,6 +27,7 @@ export function VoiceSettings() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
+          id="voice-settings-trigger"
           variant="ghost"
           size="icon"
           className="rounded-full"

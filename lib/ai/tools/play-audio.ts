@@ -5,6 +5,29 @@ import { type DataStreamWriter, tool } from 'ai';
 import type { Session } from 'next-auth';
 import { z } from 'zod';
 
+const STRICT_EXAM_PLAYBACK_POLICY = {
+  allowSeek: false,
+  maxReplays: 1,
+} as const;
+
+const DEFAULT_PLAYBACK_POLICY = {
+  allowSeek: true,
+  maxReplays: 99,
+} as const;
+
+type ElpacRoutingResult =
+  | {
+      success: true;
+      subsection: string;
+      examSection: '1' | '2';
+      mode: 'recording' | 'prompt';
+      recordingNumber: number;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
 // Function to get available audio files
 async function getAvailableAudioFiles(): Promise<string[]> {
   try {
@@ -40,6 +63,154 @@ async function getAvailableAudioFiles(): Promise<string[]> {
   }
 }
 
+export function getExamTypeFromConfig(examConfig?: { id?: string }): string {
+  if (!examConfig?.id) {
+    return 'tea';
+  }
+
+  return examConfig.id.replace('-evaluator', '').replace('-demo', '');
+}
+
+function getConfiguredSubsectionRecording(
+  examConfig: any,
+  subsection: string,
+): number | undefined {
+  const normalizedSubsection = subsection.toUpperCase();
+
+  const sectionKey = normalizedSubsection.startsWith('1P')
+    ? '1'
+    : normalizedSubsection.startsWith('2')
+      ? '2'
+      : normalizedSubsection.charAt(0);
+
+  const subsectionConfig =
+    examConfig?.examConfig?.sections?.[sectionKey]?.subsections?.[
+      normalizedSubsection
+    ];
+  const configuredRecording = subsectionConfig?.audioFiles?.[0]?.recording;
+
+  return typeof configuredRecording === 'number'
+    ? configuredRecording
+    : undefined;
+}
+
+export function resolveElpacExamRouting({
+  subsection,
+  recordingNumber,
+  examConfig,
+}: {
+  subsection?: string;
+  recordingNumber?: number;
+  examConfig?: any;
+}): ElpacRoutingResult {
+  if (!subsection) {
+    if (typeof recordingNumber === 'number') {
+      if (recordingNumber < 1 || recordingNumber > 6) {
+        return {
+          success: false,
+          error:
+            'Invalid ELPAC listening recording number. Expected a value between 1 and 6.',
+        };
+      }
+
+      return {
+        success: true,
+        subsection: '1',
+        examSection: '1',
+        mode: 'recording',
+        recordingNumber,
+      };
+    }
+
+    return {
+      success: false,
+      error:
+        'ELPAC exam recordings require subsection or recordingNumber (supported subsections: 1P1-1P6, 2I).',
+    };
+  }
+
+  const normalized = subsection.toUpperCase();
+
+  if (/^1P[1-6]$/.test(normalized)) {
+    const configuredRecording =
+      getConfiguredSubsectionRecording(examConfig, normalized) ??
+      Number.parseInt(normalized.slice(2), 10);
+
+    const selectedRecording = recordingNumber ?? configuredRecording;
+
+    if (selectedRecording < 1 || selectedRecording > 6) {
+      return {
+        success: false,
+        error:
+          'Invalid ELPAC listening recording number. Expected a value between 1 and 6.',
+      };
+    }
+
+    if (
+      typeof recordingNumber === 'number' &&
+      recordingNumber !== configuredRecording
+    ) {
+      return {
+        success: false,
+        error: `Invalid ELPAC subsection/recording combination: ${normalized} must use recording ${configuredRecording}.`,
+      };
+    }
+
+    return {
+      success: true,
+      subsection: normalized,
+      examSection: '1',
+      mode: 'recording',
+      recordingNumber: selectedRecording,
+    };
+  }
+
+  if (normalized === '2I' || normalized === '2') {
+    const configuredRecording =
+      getConfiguredSubsectionRecording(examConfig, '2I') ?? 1;
+    const selectedRecording = recordingNumber ?? configuredRecording;
+
+    if (selectedRecording < 1 || selectedRecording > 3) {
+      return {
+        success: false,
+        error:
+          'Invalid ELPAC Task I prompt number. Expected a value between 1 and 3.',
+      };
+    }
+
+    if (
+      typeof recordingNumber === 'number' &&
+      recordingNumber !== configuredRecording
+    ) {
+      return {
+        success: false,
+        error: `Invalid ELPAC subsection/recording combination: 2I must use recording ${configuredRecording}.`,
+      };
+    }
+
+    return {
+      success: true,
+      subsection: '2I',
+      examSection: '2',
+      mode: 'prompt',
+      recordingNumber: selectedRecording,
+    };
+  }
+
+  if (normalized === '2II' || normalized === '2III') {
+    return {
+      success: false,
+      error:
+        'ELPAC visual tasks (2II/2III) do not support playAudio. Use displayImage instead.',
+    };
+  }
+
+  return {
+    success: false,
+    error: `Unsupported ELPAC subsection "${subsection}". Supported values: 1P1-1P6 and 2I.`,
+  };
+}
+
 export const playAudioTool = ({
   session: _session,
   dataStream,
@@ -52,7 +223,7 @@ export const playAudioTool = ({
   requestState?: { playAudioCalledThisRequest: boolean };
 }) =>
   tool({
-    description: `Play audio files for exam listening comprehension exercises. 
+    description: `Play audio files for exam listening comprehension exercises.
     Automatically discovers and randomly selects from available .mp3 audio files in the system.
     Use this tool to present listening exercises during any exam that requires audio content.
     This tool creates a unified audio player that works for both exam and general audio playback.`,
@@ -135,103 +306,62 @@ export const playAudioTool = ({
         }
 
         // Extract exam type from examConfig
-        let examType = 'tea'; // Default fallback
-        if (examConfig?.id) {
-          // Extract exam type from ID (e.g., 'tea-evaluator' -> 'tea', 'tea-demo' -> 'tea', 'elpac-evaluator' -> 'elpac')
-          examType = examConfig.id
-            .replace('-evaluator', '')
-            .replace('-demo', '');
-          console.log('🎵 [PLAY AUDIO TOOL] Detected exam type:', examType);
-        } else {
-          console.warn(
-            '🎵 [PLAY AUDIO TOOL] No exam config found, using default exam type:',
-            examType,
-          );
-        }
+        const examType = getExamTypeFromConfig(examConfig);
+        let finalSubsection = subsection;
+        let finalRecordingNumber = recordingNumber;
+        const playbackPolicy = isExamRecording
+          ? STRICT_EXAM_PLAYBACK_POLICY
+          : DEFAULT_PLAYBACK_POLICY;
 
-        // Select audio file based on recordingNumber or randomly
         let audioFile: string;
-        if (recordingNumber && isExamRecording && subsection) {
-          // For exam recordings with specific number, construct the filename
-          const rawSection = subsection.toLowerCase();
-          const examSection =
-            examType === 'elpac'
-              ? rawSection.startsWith('1p')
-                ? '1'
-                : rawSection.startsWith('2')
-                  ? '2'
-                  : rawSection
-              : rawSection;
-          const padded = recordingNumber.toString().padStart(2, '0');
-
-          // Use real filenames for ELPAC (Paper 1 listening, Paper 2 oral prompts)
-          if (examType === 'elpac') {
-            if (examSection === '1') {
-              audioFile = `elpac-1-listening-${padded}.mp3`;
-            } else if (examSection === '2') {
-              audioFile = `elpac-2-speaking-prompt-${padded}.mp3`;
-            } else {
-              audioFile = `${examSection}-recording-${padded}.mp3`;
-            }
-          } else {
-            audioFile = `${examSection}-recording-${padded}.mp3`;
-          }
-          console.log(
-            '🎵 [PLAY AUDIO TOOL] Using specific recording:',
-            audioFile,
-          );
-        } else {
-          // Randomly select an audio file (original behavior)
-          audioFile = audioFiles[Math.floor(Math.random() * audioFiles.length)];
-          console.log(
-            '🎵 [PLAY AUDIO TOOL] Randomly selected audio file:',
-            audioFile,
-          );
-        }
-
-        // Create the audio URL that points to our audio serving endpoint
         let audioUrl: string;
-        if (isExamRecording && subsection) {
-          // For exam recordings, use the exam-specific format with dynamic exam type
-          // Convert subsection like "2A" to section format like "2a"
-          const rawSection = subsection.toLowerCase();
-          const examSection =
-            examType === 'elpac'
-              ? rawSection.startsWith('1p')
-                ? '1'
-                : rawSection.startsWith('2')
-                  ? '2'
-                  : rawSection
-              : rawSection;
-          const recording = recordingNumber || 1; // Use specific recording or default to 1
 
-          // Handle ELPAC oral interaction prompts (Paper 2 / Section 2)
-          if (examType === 'elpac' && examSection === '2') {
-            audioUrl = `/api/audio?exam=${examType}&section=${examSection}&prompt=${recording}`;
-          } else {
-            audioUrl = `/api/audio?exam=${examType}&section=${examSection}&recording=${recording}`;
+        if (isExamRecording && examType === 'elpac') {
+          const routing = resolveElpacExamRouting({
+            subsection,
+            recordingNumber,
+            examConfig,
+          });
+
+          if (!routing.success) {
+            return {
+              success: false,
+              message: routing.error,
+              error: 'invalid_elpac_audio_mapping',
+            };
           }
-          console.log(
-            '🎵 [PLAY AUDIO TOOL] Generated exam audio URL:',
-            audioUrl,
-          );
+
+          finalSubsection = routing.subsection;
+          finalRecordingNumber = routing.recordingNumber;
+          const padded = routing.recordingNumber.toString().padStart(2, '0');
+
+          if (routing.mode === 'prompt') {
+            audioFile = `elpac-2-speaking-prompt-${padded}.mp3`;
+            audioUrl = `/api/audio?exam=elpac&section=2&prompt=${routing.recordingNumber}`;
+          } else {
+            audioFile = `elpac-1-listening-${padded}.mp3`;
+            audioUrl = `/api/audio?exam=elpac&section=1&recording=${routing.recordingNumber}`;
+          }
+        } else if (isExamRecording && subsection) {
+          // For exam recordings with specific number, construct the filename.
+          const rawSection = subsection.toLowerCase();
+          const examSection = rawSection;
+          const recording = finalRecordingNumber || 1;
+          const padded = recording.toString().padStart(2, '0');
+
+          audioFile = `${examSection}-recording-${padded}.mp3`;
+          audioUrl = `/api/audio?exam=${examType}&section=${examSection}&recording=${recording}`;
+          finalRecordingNumber = recording;
         } else {
-          // For general audio, use the file-based format
+          // Randomly select an audio file (general fallback behavior)
+          audioFile = audioFiles[Math.floor(Math.random() * audioFiles.length)];
           audioUrl = `/api/audio?file=${audioFile}`;
-          console.log(
-            '🎵 [PLAY AUDIO TOOL] Generated general audio URL:',
-            audioUrl,
-          );
         }
 
         // Generate recording ID if not provided
         const finalRecordingId =
           recordingId ||
           `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        console.log(
-          '🎵 [PLAY AUDIO TOOL] Final recording ID:',
-          finalRecordingId,
-        );
 
         // Prepare audio player data
         const audioPlayerData = {
@@ -240,23 +370,21 @@ export const playAudioTool = ({
             src: audioUrl,
             title,
             description: description || '',
-            subsection: subsection || '',
+            subsection: finalSubsection || '',
             audioFile,
             recordingId: finalRecordingId,
             isExamRecording,
+            allowSeek: playbackPolicy.allowSeek,
+            maxReplays: playbackPolicy.maxReplays,
           },
         };
-        console.log(
-          '🎵 [PLAY AUDIO TOOL] Audio player data to send:',
-          audioPlayerData,
-        );
 
         // Send audio player data to the data stream
         dataStream.writeData(audioPlayerData);
 
         // Return success message with details for the AI
-        const selectionMethod = recordingNumber
-          ? `specific recording #${recordingNumber}`
+        const selectionMethod = finalRecordingNumber
+          ? `specific recording #${finalRecordingNumber}`
           : `randomly selected from ${audioFiles.length} available files`;
         const result = {
           success: true,
@@ -265,14 +393,16 @@ export const playAudioTool = ({
             audioFile,
             title,
             description,
-            subsection,
-            recordingNumber,
+            subsection: finalSubsection,
+            recordingNumber: finalRecordingNumber,
             recordingId: finalRecordingId,
             isExamRecording,
             url: audioUrl,
             availableFiles: audioFiles.length,
             selectionMethod,
-            examType, // Include exam type in details
+            examType,
+            allowSeek: playbackPolicy.allowSeek,
+            maxReplays: playbackPolicy.maxReplays,
           },
         };
         return result;

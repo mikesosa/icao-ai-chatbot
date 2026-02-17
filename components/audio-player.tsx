@@ -22,6 +22,8 @@ interface AudioPlayerProps {
   autoPlay?: boolean; // Auto-start playback when ready
   onPlaybackStateChange?: (isPlaying: boolean) => void; // Notify parent about playback state
   onPlaybackEnded?: () => void; // Notify parent when playback ends
+  maxReplays?: number; // Maximum number of replay attempts allowed
+  allowSeek?: boolean; // Whether timeline seeking is allowed
 }
 
 export function AudioPlayer({
@@ -38,6 +40,8 @@ export function AudioPlayer({
   autoPlay = false,
   onPlaybackStateChange,
   onPlaybackEnded,
+  maxReplays = 99,
+  allowSeek = true,
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -45,6 +49,7 @@ export function AudioPlayer({
   const [volume, setVolume] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [replayCount, setReplayCount] = useState(0);
   const hasAutoPlayedRef = useRef(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -139,6 +144,8 @@ export function AudioPlayer({
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!allowSeek) return;
+
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -148,8 +155,15 @@ export function AudioPlayer({
   };
 
   const handleRestart = () => {
+    if (replayCount >= maxReplays) return;
+
     const audio = audioRef.current;
     if (!audio) return;
+
+    const shouldCountReplay = audio.currentTime > 0 || isPlaying || isCompleted;
+    if (shouldCountReplay) {
+      setReplayCount((previous) => previous + 1);
+    }
 
     // Only reset the audio to the beginning and play it again
     audio.currentTime = 0;
@@ -188,6 +202,7 @@ export function AudioPlayer({
 
   useEffect(() => {
     hasAutoPlayedRef.current = false;
+    setReplayCount(0);
   }, [src, recordingId]);
 
   useEffect(() => {
@@ -204,6 +219,9 @@ export function AudioPlayer({
     hasAutoPlayedRef.current = true;
     startPlayback();
   }, [autoPlay, isPlaying, isLoading, error, startPlayback]);
+
+  const restartDisabled =
+    isLoading || !!error || (isExamRecording && replayCount >= maxReplays);
 
   if (error) {
     return (
@@ -257,7 +275,7 @@ export function AudioPlayer({
           size="sm"
           variant="ghost"
           onClick={handleRestart}
-          disabled={isLoading || !!error}
+          disabled={restartDisabled}
           className="rounded-full size-8 p-0"
         >
           <RotateCcw className="size-3" />
@@ -270,7 +288,7 @@ export function AudioPlayer({
             max={duration || 0}
             value={currentTime}
             onChange={handleSeek}
-            disabled={isLoading || !!error}
+            disabled={isLoading || !!error || !allowSeek}
             className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer
                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-3
                      [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
@@ -305,6 +323,12 @@ export function AudioPlayer({
       {isCompleted && (
         <div className="text-[11px] text-muted-foreground">
           Playback complete
+        </div>
+      )}
+
+      {isExamRecording && (
+        <div className="text-[11px] text-muted-foreground">
+          Replays: {Math.min(replayCount, maxReplays)} / {maxReplays}
         </div>
       )}
     </div>

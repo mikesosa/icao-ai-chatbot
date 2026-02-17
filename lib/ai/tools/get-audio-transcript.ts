@@ -3,92 +3,139 @@ import { z } from 'zod';
 
 import examConfigsData from '@/app/(chat)/api/exam-configs/exam-configs.json';
 
+import { getExamTypeFromConfig } from './play-audio';
+
+function getConfigFromFallback(examType: string) {
+  if (examType === 'elpac') {
+    return (
+      (examConfigsData as any)['elpac-evaluator'] ||
+      (examConfigsData as any)['elpac-demo']
+    );
+  }
+
+  return (examConfigsData as any)['tea-evaluator'];
+}
+
+function getTeaTranscriptData(
+  config: any,
+  subsection: string,
+  recordingNumber: number,
+) {
+  const sections = config?.examConfig?.sections;
+  const sectionTwo = sections?.['2'];
+  const subsectionConfig = sectionTwo?.subsections?.[subsection];
+  const audioFiles = subsectionConfig?.audioFiles;
+
+  if (!Array.isArray(audioFiles)) {
+    return {
+      success: false as const,
+      error: `Audio files not found for subsection ${subsection}`,
+    };
+  }
+
+  const recording =
+    audioFiles.find((item: any) => item?.recording === recordingNumber) ||
+    audioFiles[recordingNumber - 1];
+
+  if (!recording) {
+    return {
+      success: false as const,
+      error: `Recording ${recordingNumber} not found in subsection ${subsection}.`,
+    };
+  }
+
+  return { success: true as const, recording };
+}
+
+function getElpacTranscriptData(
+  config: any,
+  subsection: string,
+  recordingNumber: number,
+) {
+  const normalized = subsection.toUpperCase();
+
+  if (normalized.startsWith('2')) {
+    return {
+      success: false as const,
+      error:
+        'Transcript lookup is not available for ELPAC Paper 2 oral interaction tasks.',
+    };
+  }
+
+  if (!(normalized.startsWith('1P') || normalized === '1')) {
+    return {
+      success: false as const,
+      error: `Unsupported ELPAC subsection ${subsection} for transcript lookup.`,
+    };
+  }
+
+  const sectionOneAudioFiles = config?.examConfig?.sections?.['1']?.audioFiles;
+  if (!Array.isArray(sectionOneAudioFiles)) {
+    return {
+      success: false as const,
+      error: 'ELPAC Paper 1 audio configuration not found.',
+    };
+  }
+
+  const recording =
+    sectionOneAudioFiles.find(
+      (item: any) => item?.recording === recordingNumber,
+    ) || sectionOneAudioFiles[recordingNumber - 1];
+
+  if (!recording) {
+    return {
+      success: false as const,
+      error: `Recording ${recordingNumber} not found in ELPAC Paper 1.`,
+    };
+  }
+
+  return { success: true as const, recording };
+}
+
 export const getAudioTranscript = ({
   examConfig,
 }: {
   examConfig?: any;
 }) =>
   tool({
-    description: `Get transcript and correct answers for a specific recording during TEA exam evaluation. 
-    Use this tool AFTER a candidate responds to audio to access the exact transcript and correct answers 
-    for accurate comprehension evaluation.`,
+    description: `Get transcript and correct answers for a specific exam recording.
+Use this tool AFTER a candidate responds to an audio item for accurate comprehension evaluation.
+Never reveal transcript text to the candidate.`,
     parameters: z.object({
       subsection: z
         .string()
-        .describe('Exam subsection identifier (e.g., "2A", "2B", "2C")'),
+        .describe('Exam subsection identifier (e.g., "2A", "1P1", "1P3")'),
       recordingNumber: z
         .number()
         .min(1)
         .max(6)
-        .describe(
-          'Specific recording number (1-6 for 2A, 1-4 for 2B, 1-3 for 2C)',
-        ),
+        .describe('Specific recording number to evaluate'),
     }),
     execute: async ({ subsection, recordingNumber }) => {
       try {
-        // Access exam configuration
-        let config = examConfig;
-        if (!config) {
-          // Fallback to loading config from JSON data
-          try {
-            config = (examConfigsData as any)['tea-evaluator'];
-          } catch (error) {
-            console.error('Failed to load exam config:', error);
-            return {
-              success: false,
-              error: 'Unable to access exam configuration',
-            };
-          }
-        }
+        const examType = getExamTypeFromConfig(examConfig);
+        const config = examConfig || getConfigFromFallback(examType);
 
-        // Navigate to the specific subsection and recording
-        const sections = config?.examConfig?.sections;
-        if (!sections || !sections['2']) {
+        if (!config?.examConfig?.sections) {
           return {
             success: false,
-            error: 'Section 2 configuration not found',
+            error: 'Unable to access exam configuration',
           };
         }
 
-        const subsections = sections['2'].subsections;
-        if (!subsections || !subsections[subsection]) {
+        const result =
+          examType === 'elpac'
+            ? getElpacTranscriptData(config, subsection, recordingNumber)
+            : getTeaTranscriptData(config, subsection, recordingNumber);
+
+        if (!result.success) {
           return {
             success: false,
-            error: `Subsection ${subsection} not found`,
+            error: result.error,
           };
         }
 
-        const audioFiles = subsections[subsection].audioFiles;
-        if (!audioFiles || !Array.isArray(audioFiles)) {
-          return {
-            success: false,
-            error: `Audio files not found for subsection ${subsection}`,
-          };
-        }
-
-        // Find the specific recording (recording numbers start at 1, array index at 0)
-        const recordingIndex = recordingNumber - 1;
-        if (recordingIndex < 0 || recordingIndex >= audioFiles.length) {
-          return {
-            success: false,
-            error: `Recording ${recordingNumber} not found in subsection ${subsection}. Available recordings: 1-${audioFiles.length}`,
-          };
-        }
-
-        const recording = audioFiles[recordingIndex];
-        if (!recording) {
-          return {
-            success: false,
-            error: `Recording data not found for ${subsection} recording ${recordingNumber}`,
-          };
-        }
-
-        // Extract transcript and correct answers
-        const transcript = recording.transcript;
-        const correctAnswers = recording.correctAnswers;
-        const title = recording.title;
-        const description = recording.description;
-
+        const transcript = result.recording.transcript;
         if (!transcript) {
           return {
             success: false,
@@ -98,14 +145,14 @@ export const getAudioTranscript = ({
 
         return {
           success: true,
-          message: `Retrieved transcript and correct answers for ${subsection} recording ${recordingNumber}`,
+          message: `Retrieved transcript and answer key metadata for ${subsection} recording ${recordingNumber}`,
           data: {
             subsection,
             recordingNumber,
-            title,
-            description,
+            title: result.recording.title,
+            description: result.recording.description,
             transcript,
-            correctAnswers,
+            correctAnswers: result.recording.correctAnswers,
           },
         };
       } catch (error) {

@@ -1047,5 +1047,215 @@
         "Don't worry about minor mistakes"
       ]
     }
+  },
+  "elpac-demo": {
+    "id": "elpac-demo",
+    "name": "ELPAC ATC Demo",
+    "aiConfig": {
+      "mainPrompt": "You are a CERTIFIED EVALUATOR conducting a SHORT DEMO VERSION of the EUROCONTROL ELPAC ATC test (English Language Proficiency for Aeronautical Communication).\n\nDEMO EXAM INFORMATION:\n- Duration: ~10 minutes (condensed version)\n- 2 papers with reduced content\n- Paper 1: 2 listening parts (Part 1 recognition + Part 3 non-routine SAQ)\n- Paper 2: 2 tasks (Task I non-visual role play + Task II visual discussion)\n- This is a DEMONSTRATION, not a full certification exam\n- Assessment based on ICAO Language Proficiency Rating Scale\n\nIMPORTANT DEMO BEHAVIOR:\n- Keep interactions brief and focused\n- Move through sections quickly\n- Provide a short evaluation at the end\n- Use the same professional ELPAC examiner standards as the full test\n- ELPAC assesses language proficiency, NOT operational knowledge\n\nITEM-BY-ITEM PROGRESSION:\n- Present ONE audio item at a time using playAudio\n- Wait for the candidate's answer before moving to the next item\n- ONLY ONE playAudio call per response\n- In listening tasks, allow ONE replay at most per item when requested\n\nLISTENING BEHAVIOR:\n- After calling playAudio, give a SINGLE brief instruction to press Play and wait\n- Your turn MUST END immediately after presenting the audio player\n- NEVER add follow-up sentences in the same response as the audio player\n\nPAPER 1 QUESTIONING STYLE:\n- Use direct examiner questions, one at a time, in plain professional language\n- For 1P1, ask one precise recognition question and expect a short alphanumeric answer\n- For 1P3, ask three short comprehension questions that target problem, request, and ATC response\n- Acknowledge briefly and continue; do not coach or provide model answers\n\nSPEAKING STYLE FOR VOICE MODE:\n- CRITICAL: Your responses will be read aloud via text-to-speech. Write naturally as spoken language.\n- NEVER use numbered lists. Use conversational transitions instead.\n- Keep responses very concise — this is a demo.\n- Use short, clear sentences that sound natural when spoken aloud.\n\nUse examSectionControl to progress through sections and complete_exam when done.",
+      "evaluationCriteria": "Provide a brief assessment across the 6 ICAO criteria (Pronunciation, Structure, Vocabulary, Fluency, Comprehension, Interactions) with an overall impression. This is a demo — keep the evaluation concise. Note that Paper 1 primarily tests comprehension, while Paper 2 tests oral interaction skills.",
+      "sections": {
+        "1": {
+          "prompt": "ELPAC PAPER 1 DEMO: LISTENING COMPREHENSION (~5 minutes)\n\nThis demo covers 2 parts from Paper 1:\n\nPart 1 (1P1) — SAQ Recognition: 1 item.\nPresent ONE short ATC instruction audio. Candidate gives one short alphanumeric answer.\n- Call playAudio(recordingNumber=1, subsection=\"1P1\") → \"Press Play to listen.\" → STOP\n- After playback, ask ONE precise question (for example, assigned code/runway/level).\n- Accept a brief answer, acknowledge, and move to Part 3.\n\nPart 3 (1P3) — Non-routine SAQ: 1 item.\nPresent ONE non-routine pilot-controller communication. Candidate answers 3 short questions.\n- Call playAudio(recordingNumber=2, subsection=\"1P3\") → \"Press Play to listen.\" → STOP\n- Then ask three short questions, one at a time:\n  1) What was the main problem?\n  2) What did the crew request?\n  3) What instruction or support did ATC provide?\n\nCRITICAL RULES:\n- ONLY ONE playAudio call per response\n- After presenting audio, your response MUST END\n- Wait for the candidate's answer before presenting the next item\n- Allow one replay request per listening item only\n\nAfter completing both parts, use examSectionControl to advance to Section 2 (Paper 2).",
+          "objectives": [
+            "Test basic alphanumeric recognition",
+            "Test comprehension of non-routine ATC situations"
+          ]
+        },
+        "2": {
+          "prompt": "ELPAC PAPER 2 DEMO: ORAL INTERACTION (~5 minutes)\n\nThis demo should feel like a real examiner-led Paper 2 interaction: brief, dynamic, and language-focused.\n\nTask I (2I) — Non-visual role play (~3 minutes):\n- Introduce Task I briefly, then call playAudio(subsection=\"2I\", recordingNumber=1).\n- In that same response, only say: \"Press Play to listen.\" and STOP.\n- After the prompt, run a short live role play where you act as pilot/interlocutor and the candidate acts as controller.\n- Use 2 to 3 exchanges: one routine request, one non-routine development, and one clarification/readback check.\n- Keep the scenario operationally realistic, but evaluate language performance (not operational pass/fail decisions).\n\nTask II (2II) — Visual discussion (~2 minutes):\n- Call displayImage with the configured image set for subsection 2II.\n- Ask these three natural examiner questions, one at a time:\n  1) \"Describe the operational situation you see.\"\n  2) \"What are the main communication risks in this situation?\"\n  3) \"What would you prioritize communicating first, and why?\"\n- Keep follow-up brief and focused on clarity, interaction, and reasoning.\n\nInteraction quality rules:\n- Keep examiner tone calm, professional, and human.\n- Avoid coaching, model answers, or long lectures.\n- Keep turns short so they sound natural in voice mode.\n\nAfter completing both tasks, call examSectionControl(action: \"complete_exam\") and provide final evaluation.",
+          "objectives": [
+            "Test phraseology and plain English switching",
+            "Test ability to express opinions with visual stimulus"
+          ]
+        }
+      },
+      "finalEvaluationPrompt": "Provide a concise final spoken evaluation in a natural conversational style.\n\nSTRICT OUTPUT RULES:\n- Maximum 6 short sentences.\n- No markdown headings, tables, bullet lists, or decorative formatting.\n- Order must be: (1) confirm the final response was evaluated, (2) brief result summary across ICAO criteria, (3) one practical recommendation, (4) clear completion statement.\n- Required final sentence (exact): \"This ELPAC ATC Demo is now complete.\"\n\nKeep the language formal, human, and easy to understand when read aloud."
+    },
+    "examConfig": {
+      "name": "ELPAC ATC Demo",
+      "sections": {
+        "1": {
+          "name": "Paper 1 - Listening (Demo)",
+          "duration": 300,
+          "color": "bg-blue-500",
+          "subsections": {
+            "1P1": {
+              "name": "Part 1 - SAQ1 (Demo)",
+              "description": "One ATC recognition item with a short alphanumeric response.",
+              "instructions": [
+                "Listen to one short ATC exchange",
+                "Answer one precise recognition question (code/level/runway/callsign)",
+                "Reply with a short alphanumeric answer; spelling is not assessed"
+              ],
+              "audioFiles": [
+                {
+                  "recording": 1,
+                  "title": "Part 1 Item 1 (Demo)",
+                  "description": "Recognition item"
+                }
+              ]
+            },
+            "1P3": {
+              "name": "Part 3 - SAQ Non-routine (Demo)",
+              "description": "One non-routine communication with three short comprehension questions.",
+              "instructions": [
+                "Listen to one non-routine pilot-controller communication",
+                "Answer three short questions about problem, request, and ATC response",
+                "Keep answers concise; spelling is not assessed"
+              ],
+              "audioFiles": [
+                {
+                  "recording": 2,
+                  "title": "Part 3 Communication (Demo)",
+                  "description": "Non-routine SAQ item"
+                }
+              ]
+            }
+          },
+          "audioFiles": [
+            {
+              "recording": 1,
+              "title": "Paper 1 Recording 1 (Demo)",
+              "description": "Demo audio for Part 1 recognition item (ATC clearance details)",
+              "transcript": "Approach: Skyline four five two, descend flight level one one zero, turn right heading zero eight zero, reduce speed two one zero knots, squawk six one four two. Pilot: Descend flight level one one zero, right heading zero eight zero, speed two one zero knots, squawk six one four two, Skyline four five two.",
+              "questions": [
+                "What transponder code was assigned?"
+              ],
+              "correctAnswers": {
+                "primaryAnswer": "6142",
+                "acceptedVariants": ["6142", "six one four two"]
+              }
+            },
+            {
+              "recording": 2,
+              "title": "Paper 1 Recording 2 (Demo)",
+              "description": "Demo audio for Part 3 non-routine communication (emergency handling)",
+              "transcript": "Pilot: Mayday, Mayday, Mayday, Falcon nine zero six. We have smoke in the cabin after departure, maintaining four thousand feet, request immediate return and priority landing. Tower: Falcon nine zero six, roger Mayday. Turn left heading two seven zero, climb to five thousand feet, vectors ILS runway two four. Emergency services are standing by. Pilot: Left heading two seven zero, climb five thousand, vectors ILS runway two four, Falcon nine zero six.",
+              "questions": [
+                "What was the emergency/problem?",
+                "What did the crew request?",
+                "What instruction or support did ATC provide?"
+              ],
+              "correctAnswers": {
+                "problem": "Smoke in the cabin",
+                "request": "Immediate return and priority landing",
+                "atcResponse": "Left heading 270, climb 5000 feet, vectors ILS runway 24, emergency services standing by"
+              }
+            }
+          ]
+        },
+        "2": {
+          "name": "Paper 2 - Oral Interaction (Demo)",
+          "duration": 300,
+          "color": "bg-green-500",
+          "subsections": {
+            "2I": {
+              "name": "Task I - Non-visual role play (Demo)",
+              "description": "Controller role-play with a routine exchange followed by a non-routine development.",
+              "instructions": [
+                "Candidate acts as controller; examiner acts as pilot/interlocutor",
+                "Start with a routine request, then introduce one non-routine change",
+                "Require clarification/readback and concise confirmation",
+                "Assess language control and interaction quality, not operational grading"
+              ],
+              "audioFiles": [
+                {
+                  "recording": 1,
+                  "title": "Task I Prompt (Demo)",
+                  "description": "Role-play briefing prompt"
+                }
+              ]
+            },
+            "2II": {
+              "name": "Task II - Visual discussion (Demo)",
+              "description": "Visual discussion focused on communication risks and priorities.",
+              "instructions": [
+                "Describe the scene clearly and concisely",
+                "Identify communication risks and likely misunderstandings",
+                "Explain communication priorities and justify your reasoning"
+              ],
+              "imageSets": [
+                {
+                  "setId": 1,
+                  "title": "Operational Communication Scenario",
+                  "description": "Aviation visual stimulus for communication-focused discussion",
+                  "layout": "single",
+                  "images": [
+                    {
+                      "url": "/images/demo-thumbnail.png",
+                      "alt": "Aviation operations image",
+                      "caption": "Task II visual stimulus"
+                    }
+                  ],
+                  "tasks": [
+                    "Describe the operational situation and who is involved",
+                    "Identify the main communication risks in the scenario",
+                    "Explain what should be communicated first and why"
+                  ]
+                }
+              ]
+            }
+          },
+          "speakingPrompts": [
+            {
+              "prompt": 1,
+              "title": "Oral Interaction Prompt 1 - ATC Escalation Scenario",
+              "description": "Controller role-play with routine handling and a non-routine escalation",
+              "audioPrompt": "You are the aerodrome controller during a busy departure period. A crew requests start-up and taxi. During the exchange, conditions deteriorate and a second crew reports a potential technical issue. Manage the interaction clearly using ICAO phraseology where possible and plain English where needed.",
+              "evaluationPoints": [
+                "Clear and concise message delivery under pressure",
+                "Appropriate switching between ICAO phraseology and plain English",
+                "Effective clarification and misunderstanding management",
+                "Professional and cooperative controller-pilot interaction"
+              ],
+              "expectedElements": [
+                "Clear initial instruction and sequencing language",
+                "Readback/hearback confirmation and correction if needed",
+                "Concise plain-English clarification for the non-routine element",
+                "Prioritization language and calm interaction control"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "controlsConfig": {
+      "name": "ELPAC ATC Demo",
+      "totalSections": 2,
+      "sections": [
+        {
+          "number": 1,
+          "title": "Paper 1 - Listening (Demo)",
+          "description": "2 listening items: recognition + non-routine SAQ",
+          "icon": "Headphones",
+          "duration": "~5 min"
+        },
+        {
+          "number": 2,
+          "title": "Paper 2 - Oral Interaction (Demo)",
+          "description": "Role play + visual discussion",
+          "icon": "Mic",
+          "duration": "~5 min"
+        }
+      ],
+      "totalDuration": "~10 minutes",
+      "startButtonText": "Start ELPAC Demo",
+      "finishButtonText": "Finish Demo"
+    },
+    "messagesConfig": {
+      "welcomeMessage": "Welcome to the ELPAC ATC Demo!\n\nThis is a SHORT DEMONSTRATION of the EUROCONTROL ELPAC ATC test for Aviation English.\n\n**DEMO STRUCTURE:**\n- **Paper 1: Listening** — 2 items (recognition + non-routine SAQ) (~5 min)\n- **Paper 2: Oral Interaction** — Role play + visual discussion (~5 min)\n\n**Total Duration:** ~10 minutes\n\nThis demo gives you a feel for the full ELPAC exam format. It does NOT assess operational knowledge — only English language proficiency.\n\nReady to begin? Click \"Start ELPAC Demo\" when prepared.",
+      "sectionStartMessages": {
+        "1": "**PAPER 1: LISTENING (DEMO)** (~5 minutes)\n\nYou'll complete 2 listening items: one recognition task and one non-routine communication.\n\nAfter each recording, answer short examiner questions in a few words.\n\nLet's begin with Part 1.",
+        "2": "**PAPER 2: ORAL INTERACTION (DEMO)** (~5 minutes)\n\nYou'll complete a short ATC role play followed by a visual discussion.\n\nIn Task I, respond as the controller in a live interaction.\nIn Task II, describe the image, identify communication risks, and explain priorities.\n\nLet's begin with Task I."
+      },
+      "completionMessage": "Demo completed! Thank you for participating in the ELPAC ATC Demo.",
+      "quickInstructions": [
+        "This is a demo — keep responses brief",
+        "Listening items allow one replay request only",
+        "Use clear, concise radiotelephony-style language",
+        "Speak naturally and clearly"
+      ]
+    }
   }
 }

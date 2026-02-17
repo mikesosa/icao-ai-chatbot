@@ -77,6 +77,7 @@ About the origin of user's request:
 export const buildExamEvaluatorPrompt = (
   examConfig: SerializedCompleteExamConfig,
   section?: string,
+  subsection?: string,
 ): string => {
   let prompt = `${examConfig.aiConfig.mainPrompt}\n\n${examConfig.aiConfig.evaluationCriteria}\n\n`;
 
@@ -283,6 +284,45 @@ Subsection ${subsectionKey} - ${subsection.name}:
   if (section && examConfig.aiConfig.sections[section]) {
     const sectionPrompt = examConfig.aiConfig.sections[section].prompt;
     prompt += `${sectionPrompt}\n\n`;
+
+    if (subsection) {
+      const sections = examConfig.examConfig.sections as Record<string, any>;
+      const subsectionConfig = sections?.[section]?.subsections?.[subsection];
+
+      if (subsectionConfig) {
+        prompt += `CURRENT SUBSECTION CONTEXT:
+You are currently in subsection ${subsection} (${subsectionConfig.name}).
+- Description: ${subsectionConfig.description}
+`;
+
+        if (Array.isArray(subsectionConfig.instructions)) {
+          prompt += `- Instructions: ${subsectionConfig.instructions.join(', ')}
+`;
+        }
+
+        if (Array.isArray(subsectionConfig.audioFiles)) {
+          prompt += `- Subsection Audio Files: ${subsectionConfig.audioFiles.length}
+`;
+          subsectionConfig.audioFiles.forEach(
+            (audioFile: any, index: number) => {
+              prompt += `  ${index + 1}. ${audioFile.title} (Recording ${audioFile.recording})
+`;
+            },
+          );
+        }
+
+        if (Array.isArray(subsectionConfig.imageSets)) {
+          prompt += `- Subsection Image Sets: ${subsectionConfig.imageSets.length}
+`;
+          subsectionConfig.imageSets.forEach((imageSet: any, index: number) => {
+            prompt += `  ${index + 1}. ${imageSet.title} (ID: ${imageSet.setId})
+`;
+          });
+        }
+
+        prompt += '\n';
+      }
+    }
   } else {
     // If no specific section, include general instructions
     const generalInstructions = `GENERAL INSTRUCTIONS:
@@ -303,7 +343,7 @@ During the exam:
 - Use examSectionControl when the candidate is ready to advance or when you determine the section is complete
 
 SECTION CONTROL:
-- When the candidate says "let's go to the next section" or similar, use examSectionControl with action "complete_and_advance"
+- When the candidate says "let's go to the next section" or similar, use examSectionControl with action "advance_to_next"
 - If you have completed the objectives of a section, mark it as completed with "complete_current"
 - Respond naturally to the candidate indicating the section change
 
@@ -345,11 +385,13 @@ export const systemPrompt = ({
   requestHints,
   examConfig,
   currentSection,
+  currentSubsection,
 }: {
   selectedChatModel: string;
   requestHints: RequestHints;
   examConfig?: SerializedCompleteExamConfig;
   currentSection?: string;
+  currentSubsection?: string;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
 
@@ -359,7 +401,11 @@ export const systemPrompt = ({
       '🎯 [PROMPT SYSTEM] Using dynamic exam configuration for:',
       examConfig.name,
     );
-    const builtPrompt = buildExamEvaluatorPrompt(examConfig, currentSection);
+    const builtPrompt = buildExamEvaluatorPrompt(
+      examConfig,
+      currentSection,
+      currentSubsection,
+    );
     return `${builtPrompt}\n\n${requestPrompt}`;
   }
 

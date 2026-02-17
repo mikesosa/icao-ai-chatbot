@@ -29,6 +29,126 @@ function normalizeText(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+async function installMockAudioSettingsCheck(page: Page) {
+  await page.addInitScript(() => {
+    const mockTrack = {
+      kind: 'audio',
+      enabled: true,
+      muted: false,
+      readyState: 'live',
+      label: 'Playwright Microphone',
+      stop: () => {},
+    };
+
+    const mockStream = {
+      id: 'playwright-audio-stream',
+      active: true,
+      getTracks: () => [mockTrack],
+      getAudioTracks: () => [mockTrack],
+      getVideoTracks: () => [],
+    };
+
+    const mediaDevices = navigator.mediaDevices || ({} as MediaDevices);
+    mediaDevices.getUserMedia = async () =>
+      mockStream as unknown as MediaStream;
+    mediaDevices.enumerateDevices = async () =>
+      [
+        {
+          deviceId: 'playwright-mic',
+          kind: 'audioinput',
+          label: 'Playwright Mic',
+          groupId: 'playwright',
+          toJSON: () => ({}),
+        },
+      ] as MediaDeviceInfo[];
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: mediaDevices,
+    });
+
+    class MockMediaStreamSource {
+      connect() {}
+      disconnect() {}
+    }
+
+    class MockAnalyser {
+      fftSize = 2048;
+      smoothingTimeConstant = 0.85;
+      connect() {}
+      disconnect() {}
+      getByteTimeDomainData(array: Uint8Array) {
+        for (let i = 0; i < array.length; i++) {
+          array[i] = i % 2 === 0 ? 144 : 112;
+        }
+      }
+    }
+
+    class MockGain {
+      gain = {
+        setValueAtTime() {},
+        exponentialRampToValueAtTime() {},
+      };
+      connect() {}
+    }
+
+    class MockOscillator {
+      type: OscillatorType = 'sine';
+      frequency = {
+        setValueAtTime() {},
+      };
+      onended: (() => void) | null = null;
+      connect() {}
+      start() {}
+      stop() {
+        setTimeout(() => {
+          this.onended?.();
+        }, 0);
+      }
+    }
+
+    class MockAudioContext {
+      state: AudioContextState = 'running';
+      currentTime = 0;
+      destination = {};
+      createMediaStreamSource() {
+        return new MockMediaStreamSource() as unknown as MediaStreamAudioSourceNode;
+      }
+      createAnalyser() {
+        return new MockAnalyser() as unknown as AnalyserNode;
+      }
+      createGain() {
+        return new MockGain() as unknown as GainNode;
+      }
+      createOscillator() {
+        return new MockOscillator() as unknown as OscillatorNode;
+      }
+      async resume() {}
+      async close() {}
+    }
+
+    (window as Window & { AudioContext: typeof AudioContext }).AudioContext =
+      MockAudioContext as unknown as typeof AudioContext;
+    (
+      window as Window & { webkitAudioContext?: typeof AudioContext }
+    ).webkitAudioContext = MockAudioContext as unknown as typeof AudioContext;
+  });
+}
+
+async function completeAudioSettingsCheck(page: Page) {
+  await expect(page.getByTestId('audio-settings-check-dialog')).toBeVisible();
+  const startExamButton = page.getByTestId('audio-settings-check-start');
+  await expect(startExamButton).toBeDisabled();
+  await page.getByTestId('audio-settings-check-mic').click();
+  await expect(page.getByTestId('audio-settings-check-mic')).toContainText(
+    'Re-check',
+  );
+  await page.getByTestId('audio-settings-check-speaker').click();
+  await page.getByTestId('audio-settings-check-heard').click();
+  await expect(startExamButton).toBeEnabled();
+  await startExamButton.click();
+}
+
 async function installMockSpeechRecognition(page: Page) {
   await page.addInitScript(() => {
     class PlaywrightSpeechRecognition {
@@ -160,6 +280,8 @@ test.describe('TEA Demo E2E', () => {
   test('starts the exam and delivers the first examiner question', async ({
     page,
   }) => {
+    await installMockAudioSettingsCheck(page);
+
     const email = createTestEmail();
 
     await registerUser(page, email);
@@ -196,6 +318,7 @@ test.describe('TEA Demo E2E', () => {
     });
 
     await page.getByRole('button', { name: 'Start Exam' }).click();
+    await completeAudioSettingsCheck(page);
 
     const firstChatResponse = await firstChatResponsePromise;
     const firstChatPayload = await firstChatResponse.text();
@@ -226,6 +349,7 @@ test.describe('TEA Demo E2E', () => {
   test('captures candidate response and validates examiner follow-up', async ({
     page,
   }) => {
+    await installMockAudioSettingsCheck(page);
     await installMockSpeechRecognition(page);
 
     const email = createTestEmail();
@@ -239,6 +363,7 @@ test.describe('TEA Demo E2E', () => {
     await page.getByTestId('model-selector-item-tea-demo').click();
     await page.getByRole('button', { name: 'Start Demo' }).click();
     await page.getByRole('button', { name: 'Start Exam' }).click();
+    await completeAudioSettingsCheck(page);
 
     await page.waitForResponse((response) => {
       if (

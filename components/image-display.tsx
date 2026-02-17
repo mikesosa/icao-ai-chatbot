@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import Image from 'next/image';
 
@@ -27,13 +27,29 @@ interface ImageDisplayProps {
 }
 
 // Utility function to add cache-busting parameters to image URLs
-const addCacheBusting = (url: string): string => {
-  const urlObj = new URL(url);
-  // Add timestamp-based cache busting
-  urlObj.searchParams.set('t', Date.now().toString());
-  // Force no-cache for exam images
-  urlObj.searchParams.set('nc', '1');
-  return urlObj.toString();
+const addCacheBusting = (url: string, cacheBustToken: string): string => {
+  try {
+    const baseOrigin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'http://localhost';
+    const urlObj = new URL(url, baseOrigin);
+
+    // Add cache-busting token and no-cache hint for exam images.
+    urlObj.searchParams.set('t', cacheBustToken);
+    urlObj.searchParams.set('nc', '1');
+
+    // Preserve relative/local paths so Next/Image continues to treat them as local.
+    const isAbsoluteUrl = /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(url);
+    if (!isAbsoluteUrl && !url.startsWith('//')) {
+      return `${urlObj.pathname}${urlObj.search}${urlObj.hash}`;
+    }
+
+    return urlObj.toString();
+  } catch {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}t=${encodeURIComponent(cacheBustToken)}&nc=1`;
+  }
 };
 
 export function ImageDisplay({
@@ -49,6 +65,11 @@ export function ImageDisplay({
   const [errorStates, setErrorStates] = useState<Record<string, boolean>>({});
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [hasViewed, setHasViewed] = useState(false);
+  const [cacheBustToken, setCacheBustToken] = useState('initial');
+
+  useEffect(() => {
+    setCacheBustToken(Date.now().toString());
+  }, []);
 
   const handleImageLoad = (index: number) => {
     setLoadingStates((prev) => ({ ...prev, [index]: false }));
@@ -149,7 +170,9 @@ export function ImageDisplay({
       <div className={getLayoutClasses()}>
         {images.map((image, index) => {
           // Add cache-busting for exam images or when explicitly needed
-          const imageUrl = isExamImage ? addCacheBusting(image.url) : image.url;
+          const imageUrl = isExamImage
+            ? addCacheBusting(image.url, cacheBustToken)
+            : image.url;
 
           return (
             <div key={`image-${index}-${image.url}`} className="space-y-2">
