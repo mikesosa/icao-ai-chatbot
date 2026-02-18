@@ -16,7 +16,6 @@ import {
 
 import { type UserType, auth } from '@/app/(auth)/auth';
 import type { SerializedCompleteExamConfig } from '@/components/exam-interface/exam';
-import { entitlementsByUserType } from '@/lib/ai/entitlements';
 import {
   type RequestHints,
   isExamEvaluator,
@@ -58,8 +57,9 @@ export const maxDuration = 60;
 
 let globalStreamContext: ResumableStreamContext | null = null;
 
-const DEFAULT_EXAM_ATTEMPTS_PER_DAY = 2;
-const DEFAULT_EXAM_ATTEMPTS_PER_30_DAYS = 24;
+// Temporary: disable exam attempt caps while validating prod exam flows.
+const DEFAULT_EXAM_ATTEMPTS_PER_DAY = -1;
+const DEFAULT_EXAM_ATTEMPTS_PER_30_DAYS = -1;
 
 function parseRateLimitEnv(name: string, defaultValue: number): number {
   const value = process.env[name];
@@ -172,9 +172,8 @@ export async function POST(request: Request) {
       differenceInHours: 24,
     });
 
-    const maxMessages = isDevelopment
-      ? -1
-      : entitlementsByUserType[userType].maxMessagesPerDay;
+    // Temporary: disable daily message caps while validating prod exam flows.
+    const maxMessages = -1;
     console.log(
       `🚦 [RATE LIMIT] User ${session.user.id} (${userType}): ${messageCount}/${maxMessages === -1 ? '∞' : maxMessages} messages in last 24h`,
     );

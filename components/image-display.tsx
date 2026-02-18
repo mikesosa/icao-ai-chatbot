@@ -117,8 +117,10 @@ export function ImageDisplay({
   return (
     <div
       className={cn(
-        'bg-card rounded-lg p-4 space-y-4',
+        'bg-card rounded-lg space-y-3',
         {
+          'p-1.5 md:p-2': isExamImage,
+          'p-4 space-y-4': !isExamImage,
           'ring-2 ring-primary/20': !isExamImage && selectedImage !== null,
           'ring-2 ring-green-500/20': !isExamImage && isCompleted,
         },
@@ -216,14 +218,24 @@ export function ImageDisplay({
                 )} */}
 
                 {errorStates[index] ? (
-                  <div className="aspect-[4/3] bg-muted flex items-center justify-center">
+                  <div
+                    className={cn('bg-muted flex items-center justify-center', {
+                      'h-[180px] md:h-[220px]': isExamImage,
+                      'aspect-[4/3]': !isExamImage,
+                    })}
+                  >
                     <div className="text-center text-muted-foreground">
                       <ImageIcon className="size-8 mx-auto mb-2" />
                       <p className="text-xs">Failed to load image</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="relative aspect-[4/3]">
+                  <div
+                    className={cn('relative', {
+                      'h-[180px] md:h-[220px]': isExamImage,
+                      'aspect-[4/3]': !isExamImage,
+                    })}
+                  >
                     <Image
                       src={imageUrl}
                       alt={image.alt}

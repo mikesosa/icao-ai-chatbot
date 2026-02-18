@@ -87,6 +87,42 @@ const EXAM_START_TRIGGER_MESSAGE =
 const EXAM_FINISH_TRIGGER_MESSAGE =
   '[System] The candidate has ended the exam. Immediately call examSectionControl(action: "complete_exam", reason: "candidate requested completion"), then provide the final evaluation and clearly confirm the exam is complete.';
 
+function getMessagePlainText(message: UIMessage | null | undefined): string {
+  if (!message?.parts) return '';
+
+  return message.parts
+    .filter((part) => part.type === 'text')
+    .map((part) => part.text)
+    .join('\n')
+    .trim();
+}
+
+function normalizeTaskOneRolePlayText(
+  text: string,
+  subsection?: string | null,
+): string {
+  if (!text || subsection !== '2I') return text;
+
+  const hasControllerLine = /(^|\n)\s*controller:/i.test(text);
+  if (!hasControllerLine) return text;
+
+  const blocks = text.split(/\n\s*\n/).map((block) => block.trim());
+  const keptBlocks = blocks.filter(
+    (block) => block.length > 0 && !/^controller:/i.test(block),
+  );
+  const merged = keptBlocks.join('\n\n').trim();
+
+  if (!merged) {
+    return 'Pilot: Please respond as the controller.';
+  }
+
+  if (!/please respond as the controller/i.test(merged)) {
+    return `${merged}\n\nPlease respond as the controller.`;
+  }
+
+  return merged;
+}
+
 function extractSentences(text: string): {
   sentences: string[];
   consumed: number;
@@ -123,14 +159,13 @@ function extractSentences(text: string): {
   return { sentences, consumed };
 }
 
-function getAssistantVoiceText(message: UIMessage | null | undefined): string {
+function getAssistantVoiceText(
+  message: UIMessage | null | undefined,
+  currentSubsection?: string | null,
+): string {
   if (!message?.parts) return '';
 
-  const rawText = message.parts
-    .filter((part) => part.type === 'text')
-    .map((part) => part.text)
-    .join('\n')
-    .trim();
+  const rawText = getMessagePlainText(message);
 
   let examAudioInstruction: string | null = null;
   let examImageInstruction: string | null = null;
@@ -219,7 +254,7 @@ function getAssistantVoiceText(message: UIMessage | null | undefined): string {
     return examImageInstruction;
   }
 
-  return rawText;
+  return normalizeTaskOneRolePlayText(rawText, currentSubsection);
 }
 
 // ─── Speech Recognition types ───────────────────────────────────────────────
@@ -566,6 +601,7 @@ export function ExamVoiceSession({
   const hasStartedRef = useRef(false);
   const examStartMarkerKeyRef = useRef<string | null>(null);
   const subsectionRecoverySentRef = useRef<Set<string>>(new Set());
+  const rolePlayCorrectionSentRef = useRef<Set<string>>(new Set());
   const lastAutoTTSId = useRef<string | null>(null);
   // Track the first AI response (welcome/description) so we skip TTS for it
   const firstAssistantSeen = useRef(false);
@@ -640,6 +676,14 @@ export function ExamVoiceSession({
       [...messages].reverse().find((m) => m.role === 'assistant')?.id ?? null
     );
   }, [messages]);
+  const latestAssistantMessage = useMemo(
+    () => [...messages].reverse().find((m) => m.role === 'assistant') ?? null,
+    [messages],
+  );
+  const latestAssistantRawText = useMemo(
+    () => getMessagePlainText(latestAssistantMessage),
+    [latestAssistantMessage],
+  );
 
   const assistantMessages = useMemo(
     () => messages.filter((message) => message.role === 'assistant'),
@@ -687,8 +731,8 @@ export function ExamVoiceSession({
     const lastAssistant = [...messages]
       .reverse()
       .find((message) => message.role === 'assistant');
-    return getAssistantVoiceText(lastAssistant);
-  }, [messages]);
+    return getAssistantVoiceText(lastAssistant, currentSubsection);
+  }, [messages, currentSubsection]);
 
   const fallback3AImageDisplay = useMemo((): ExamImageCard | null => {
     if (currentSection !== '3' || currentSubsection !== '3A') return null;
@@ -938,6 +982,7 @@ export function ExamVoiceSession({
 
     hasStartedRef.current = false;
     subsectionRecoverySentRef.current.clear();
+    rolePlayCorrectionSentRef.current.clear();
     if (typeof window !== 'undefined') {
       if (examStartMarkerKeyRef.current) {
         sessionStorage.removeItem(examStartMarkerKeyRef.current);
@@ -947,6 +992,40 @@ export function ExamVoiceSession({
     }
     examStartMarkerKeyRef.current = null;
   }, [examStarted, id]);
+
+  useEffect(() => {
+    if (!examStarted || examCompletionPhase !== 'active') return;
+    if (currentSubsection !== '2I') return;
+    if (!latestAssistantMessage?.id) return;
+    if (status !== 'ready' || aiSpeaking || ttsLoading || isPaused) return;
+
+    const messageId = latestAssistantMessage.id;
+    if (rolePlayCorrectionSentRef.current.has(messageId)) return;
+
+    const hasControllerLine = /(^|\n)\s*controller:/i.test(
+      latestAssistantRawText,
+    );
+    const hasPilotLine = /(^|\n)\s*pilot:/i.test(latestAssistantRawText);
+    if (!hasControllerLine || !hasPilotLine) return;
+
+    rolePlayCorrectionSentRef.current.add(messageId);
+    append({
+      role: 'user',
+      content:
+        '[System] Task One role-play protocol reminder: speak ONLY as pilot/interlocutor. Do NOT provide controller lines, model controller answers, or readbacks for the candidate. End each turn with one pilot prompt and wait for the candidate response as controller.',
+    });
+  }, [
+    examStarted,
+    examCompletionPhase,
+    currentSubsection,
+    latestAssistantMessage,
+    latestAssistantRawText,
+    status,
+    aiSpeaking,
+    ttsLoading,
+    isPaused,
+    append,
+  ]);
 
   useEffect(() => {
     if (!examStarted || !examType) return;
@@ -1016,7 +1095,7 @@ export function ExamVoiceSession({
     const last = [...messages].reverse().find((m) => m.role === 'assistant');
     if (!last) return;
 
-    const text = getAssistantVoiceText(last);
+    const text = getAssistantVoiceText(last, currentSubsection);
     if (!text) return;
 
     // Skip the very first assistant message (welcome/description)
@@ -1070,7 +1149,14 @@ export function ExamVoiceSession({
       setTeleprompterText(text);
       setTranscriptTurns((prev) => [...prev, { speaker: 'EXAMINER', text }]);
     }
-  }, [status, messages, ttsEnabled, enqueueSentence, resetStreamingTTS]);
+  }, [
+    status,
+    messages,
+    ttsEnabled,
+    enqueueSentence,
+    resetStreamingTTS,
+    currentSubsection,
+  ]);
 
   // ── Speech Recognition helpers ──
   const stopListening = useCallback(() => {
@@ -1322,9 +1408,9 @@ export function ExamVoiceSession({
       .reverse()
       .find((m) => m.role === 'assistant');
     if (!lastExaminer) return;
-    const text = getAssistantVoiceText(lastExaminer);
+    const text = getAssistantVoiceText(lastExaminer, currentSubsection);
     if (text) speakTTSSingle(text, { messageId: lastExaminer.id });
-  }, [messages, speakTTSSingle]);
+  }, [messages, speakTTSSingle, currentSubsection]);
 
   const stopAllTTS = useCallback(() => {
     stopStreamingTTS();
@@ -1635,58 +1721,62 @@ export function ExamVoiceSession({
             </AnimatePresence>
           </div>
 
-          {/* ─── Audio Player (when exam audio is played) ─── */}
-          {showAudioPlayer && pinnedAudioPlayer && (
-            <div className="w-full max-w-lg mb-4">
-              <AudioPlayer
-                src={pinnedAudioPlayer.src}
-                title={pinnedAudioPlayer.title}
-                description={pinnedAudioPlayer.description}
-                recordingId={pinnedAudioPlayer.recordingId}
-                isExamRecording={pinnedAudioPlayer.isExamRecording}
-                isCompleted={currentAudioIsCompleted}
-                subsection={pinnedAudioPlayer.subsection}
-                audioFile={pinnedAudioPlayer.audioFile}
-                maxReplays={pinnedAudioPlayer.maxReplays}
-                allowSeek={pinnedAudioPlayer.allowSeek}
-                autoPlay={shouldAutoPlayCurrentAudio}
-                onPlaybackStateChange={setIsExamAudioPlaying}
-                onComplete={() => {
-                  const recordingId = pinnedAudioPlayer.recordingId;
-                  if (!recordingId) return;
+          <div className="w-full max-w-3xl mb-4 min-h-[220px] md:min-h-[260px] flex items-center justify-center">
+            {/* ─── Audio Player (when exam audio is played) ─── */}
+            {showAudioPlayer && pinnedAudioPlayer && (
+              <div className="w-full max-w-lg">
+                <AudioPlayer
+                  src={pinnedAudioPlayer.src}
+                  title={pinnedAudioPlayer.title}
+                  description={pinnedAudioPlayer.description}
+                  recordingId={pinnedAudioPlayer.recordingId}
+                  isExamRecording={pinnedAudioPlayer.isExamRecording}
+                  isCompleted={currentAudioIsCompleted}
+                  subsection={pinnedAudioPlayer.subsection}
+                  audioFile={pinnedAudioPlayer.audioFile}
+                  maxReplays={pinnedAudioPlayer.maxReplays}
+                  allowSeek={pinnedAudioPlayer.allowSeek}
+                  autoPlay={shouldAutoPlayCurrentAudio}
+                  onPlaybackStateChange={setIsExamAudioPlaying}
+                  onComplete={() => {
+                    const recordingId = pinnedAudioPlayer.recordingId;
+                    if (!recordingId) return;
 
-                  setCompletedExamAudioIds((prev) =>
-                    prev.includes(recordingId) ? prev : [...prev, recordingId],
-                  );
+                    setCompletedExamAudioIds((prev) =>
+                      prev.includes(recordingId)
+                        ? prev
+                        : [...prev, recordingId],
+                    );
 
-                  if (handledAudioCompletionRef.current.has(recordingId))
-                    return;
-                  handledAudioCompletionRef.current.add(recordingId);
+                    if (handledAudioCompletionRef.current.has(recordingId))
+                      return;
+                    handledAudioCompletionRef.current.add(recordingId);
 
-                  append({
-                    role: 'user',
-                    content:
-                      '[System] The exam audio playback has finished. Continue with the next step in this subsection.',
-                  });
-                }}
-              />
-            </div>
-          )}
+                    append({
+                      role: 'user',
+                      content:
+                        '[System] The exam audio playback has finished. Continue with the next step in this subsection.',
+                    });
+                  }}
+                />
+              </div>
+            )}
 
-          {showImageDisplay && pinnedImageDisplay && (
-            <div className="w-full max-w-3xl mb-4">
-              <ImageDisplay
-                title={pinnedImageDisplay.title}
-                description={pinnedImageDisplay.description}
-                images={pinnedImageDisplay.images}
-                imageSetId={pinnedImageDisplay.imageSetId}
-                isExamImage={pinnedImageDisplay.isExamImage}
-                subsection={pinnedImageDisplay.subsection}
-                layout={pinnedImageDisplay.layout || 'single'}
-                instructions={pinnedImageDisplay.instructions || []}
-              />
-            </div>
-          )}
+            {showImageDisplay && pinnedImageDisplay && (
+              <div className="w-full max-w-2xl">
+                <ImageDisplay
+                  title={pinnedImageDisplay.title}
+                  description={pinnedImageDisplay.description}
+                  images={pinnedImageDisplay.images}
+                  imageSetId={pinnedImageDisplay.imageSetId}
+                  isExamImage={pinnedImageDisplay.isExamImage}
+                  subsection={pinnedImageDisplay.subsection}
+                  layout={pinnedImageDisplay.layout || 'single'}
+                  instructions={pinnedImageDisplay.instructions || []}
+                />
+              </div>
+            )}
+          </div>
 
           {/* ─── Push-to-Talk button ─── */}
           {examCompletionPhase === 'active' ? (
