@@ -4,6 +4,18 @@ import type { SerializedCompleteExamConfig } from '@/components/exam-interface/e
 
 import examConfigsData from './exam-configs.json';
 
+const DEMO_ONLY = true;
+
+const filterExamConfigs = (
+  configs: Record<string, SerializedCompleteExamConfig>,
+): Record<string, SerializedCompleteExamConfig> => {
+  if (!DEMO_ONLY) return configs;
+
+  return Object.fromEntries(
+    Object.entries(configs).filter(([id]) => id.endsWith('-demo')),
+  );
+};
+
 // TODO: Replace this with actual CMS integration
 // For now, we load from JSON file but structure it like a CMS response
 const loadExamConfigurationsFromCMS = async (): Promise<
@@ -13,7 +25,9 @@ const loadExamConfigurationsFromCMS = async (): Promise<
     // In a real implementation, this would call your CMS API
     // Example: const response = await fetch(`${process.env.CMS_API_URL}/exam-configs`);
     // For now, we simulate it with the JSON file
-    return examConfigsData as Record<string, SerializedCompleteExamConfig>;
+    return filterExamConfigs(
+      examConfigsData as Record<string, SerializedCompleteExamConfig>,
+    );
   } catch (error) {
     console.error('Error loading exam configurations from CMS:', error);
     throw new Error('Failed to load exam configurations');

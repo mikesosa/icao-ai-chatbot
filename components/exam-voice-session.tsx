@@ -1405,6 +1405,71 @@ export function ExamVoiceSession({
   // Track how much text we've already sent to TTS for the current streaming message
   const sentCharsRef = useRef(0);
   const currentStreamMsgId = useRef<string | null>(null);
+  const finalizeAssistantTimerRef = useRef<number | null>(null);
+  const pendingAssistantFinalizeRef = useRef<{
+    messageId: string;
+    text: string;
+  } | null>(null);
+
+  const finalizeAssistantMessage = useCallback(
+    (messageId: string, text: string, eventStatus: string) => {
+      const finalizedText =
+        finalizedAssistantTextByIdRef.current.get(messageId);
+      if (finalizedText === text) return;
+
+      if (sentCharsRef.current > text.length) {
+        sentCharsRef.current = text.length;
+      }
+
+      const remaining = text.slice(sentCharsRef.current).trim();
+      if (remaining) {
+        enqueueSentence(remaining, { messageId });
+        appendVoiceAlignmentEvent({
+          channel: 'tts_queue',
+          messageId,
+          text: remaining,
+          status: eventStatus,
+        });
+        sentCharsRef.current = text.length;
+      }
+
+      setTeleprompterText(text);
+      appendVoiceAlignmentEvent({
+        channel: 'teleprompter',
+        messageId,
+        text,
+        status: eventStatus,
+      });
+      setTranscriptTurns((prev) => {
+        const turn: TranscriptTurn = {
+          speaker: 'EXAMINER',
+          text,
+          messageId,
+        };
+        const existingIndex = prev.findIndex(
+          (candidate) =>
+            candidate.speaker === 'EXAMINER' &&
+            candidate.messageId === messageId,
+        );
+        const nextTurns =
+          existingIndex >= 0
+            ? prev.map((candidate, index) =>
+                index === existingIndex ? turn : candidate,
+              )
+            : [...prev, turn];
+        appendVoiceAlignmentEvent({
+          channel: 'transcript_turn',
+          speaker: 'EXAMINER',
+          messageId,
+          text,
+          status: eventStatus,
+        });
+        return nextTurns;
+      });
+      finalizedAssistantTextByIdRef.current.set(messageId, text);
+    },
+    [enqueueSentence, appendVoiceAlignmentEvent],
+  );
 
   // ── Extract sentences while streaming and enqueue TTS immediately ──
   useEffect(() => {
@@ -1467,55 +1532,39 @@ export function ExamVoiceSession({
       sentCharsRef.current += consumed;
     }
 
-    // When ready, flush remaining text and upsert transcript/captions for this exact message text.
+    // When ready, debounce finalization to avoid locking-in a partial chunk that
+    // may still grow for the same assistant message id a few milliseconds later.
     if (status === 'ready') {
       const finalizedText = finalizedAssistantTextByIdRef.current.get(last.id);
       if (finalizedText === text) return;
 
-      const remaining = text.slice(sentCharsRef.current).trim();
-      if (remaining) {
-        enqueueSentence(remaining, { messageId: last.id });
-        appendVoiceAlignmentEvent({
-          channel: 'tts_queue',
-          messageId: last.id,
-          text: remaining,
-          status,
-        });
-        sentCharsRef.current = text.length;
+      const pending = pendingAssistantFinalizeRef.current;
+      if (pending?.messageId === last.id && pending.text === text) return;
+
+      if (finalizeAssistantTimerRef.current) {
+        window.clearTimeout(finalizeAssistantTimerRef.current);
       }
-      setTeleprompterText(text);
-      appendVoiceAlignmentEvent({
-        channel: 'teleprompter',
-        messageId: last.id,
-        text,
-        status,
-      });
-      setTranscriptTurns((prev) => {
-        const turn: TranscriptTurn = {
-          speaker: 'EXAMINER',
-          text,
-          messageId: last.id,
-        };
-        const existingIndex = prev.findIndex(
-          (candidate) =>
-            candidate.speaker === 'EXAMINER' && candidate.messageId === last.id,
-        );
-        const nextTurns =
-          existingIndex >= 0
-            ? prev.map((candidate, index) =>
-                index === existingIndex ? turn : candidate,
-              )
-            : [...prev, turn];
-        appendVoiceAlignmentEvent({
-          channel: 'transcript_turn',
-          speaker: 'EXAMINER',
-          messageId: last.id,
-          text,
+
+      pendingAssistantFinalizeRef.current = { messageId: last.id, text };
+      finalizeAssistantTimerRef.current = window.setTimeout(() => {
+        const currentPending = pendingAssistantFinalizeRef.current;
+        if (!currentPending || currentPending.messageId !== last.id) return;
+
+        finalizeAssistantMessage(
+          currentPending.messageId,
+          currentPending.text,
           status,
-        });
-        return nextTurns;
-      });
-      finalizedAssistantTextByIdRef.current.set(last.id, text);
+        );
+        pendingAssistantFinalizeRef.current = null;
+        finalizeAssistantTimerRef.current = null;
+      }, 150);
+      return;
+    }
+
+    if (finalizeAssistantTimerRef.current) {
+      window.clearTimeout(finalizeAssistantTimerRef.current);
+      finalizeAssistantTimerRef.current = null;
+      pendingAssistantFinalizeRef.current = null;
     }
   }, [
     status,
@@ -1525,7 +1574,16 @@ export function ExamVoiceSession({
     resetStreamingTTS,
     assistantVoiceContext,
     appendVoiceAlignmentEvent,
+    finalizeAssistantMessage,
   ]);
+
+  useEffect(() => {
+    return () => {
+      if (finalizeAssistantTimerRef.current) {
+        window.clearTimeout(finalizeAssistantTimerRef.current);
+      }
+    };
+  }, []);
 
   // ── Speech Recognition helpers ──
   const stopListening = useCallback(() => {
