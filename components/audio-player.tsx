@@ -24,6 +24,7 @@ interface AudioPlayerProps {
   onPlaybackEnded?: () => void; // Notify parent when playback ends
   maxReplays?: number; // Maximum number of replay attempts allowed
   allowSeek?: boolean; // Whether timeline seeking is allowed
+  playbackLocked?: boolean; // Prevent playback while examiner audio is active
 }
 
 export function AudioPlayer({
@@ -42,6 +43,7 @@ export function AudioPlayer({
   onPlaybackEnded,
   maxReplays = 99,
   allowSeek = true,
+  playbackLocked = false,
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -122,6 +124,8 @@ export function AudioPlayer({
   ]);
 
   const startPlayback = useCallback(async () => {
+    if (playbackLocked) return;
+
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -139,9 +143,11 @@ export function AudioPlayer({
       setActiveAudioPlayerId?.(null);
       setError('Playback failed. Please press Play to try again.');
     }
-  }, [examContext, setActiveAudioPlayerId, recordingId]);
+  }, [examContext, setActiveAudioPlayerId, recordingId, playbackLocked]);
 
   const togglePlayPause = () => {
+    if (playbackLocked) return;
+
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -166,6 +172,7 @@ export function AudioPlayer({
   };
 
   const handleRestart = () => {
+    if (playbackLocked) return;
     if (replayCount >= maxReplays) return;
 
     const audio = audioRef.current;
@@ -208,6 +215,17 @@ export function AudioPlayer({
   }, [examContext, isActivePlayer, isPlaying]);
 
   useEffect(() => {
+    if (!playbackLocked || !isPlaying) return;
+
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.pause();
+    setIsPlaying(false);
+    setActiveAudioPlayerId?.(null);
+  }, [playbackLocked, isPlaying, setActiveAudioPlayerId]);
+
+  useEffect(() => {
     onPlaybackStateChange?.(isPlaying);
   }, [isPlaying, onPlaybackStateChange]);
 
@@ -222,17 +240,21 @@ export function AudioPlayer({
       hasAutoPlayedRef.current ||
       isPlaying ||
       isLoading ||
-      !!error
+      !!error ||
+      playbackLocked
     ) {
       return;
     }
 
     hasAutoPlayedRef.current = true;
     startPlayback();
-  }, [autoPlay, isPlaying, isLoading, error, startPlayback]);
+  }, [autoPlay, isPlaying, isLoading, error, playbackLocked, startPlayback]);
 
   const restartDisabled =
-    isLoading || !!error || (isExamRecording && replayCount >= maxReplays);
+    isLoading ||
+    !!error ||
+    playbackLocked ||
+    (isExamRecording && replayCount >= maxReplays);
 
   if (error) {
     return (
@@ -270,7 +292,7 @@ export function AudioPlayer({
           size="sm"
           variant="outline"
           onClick={togglePlayPause}
-          disabled={isLoading || !!error}
+          disabled={isLoading || !!error || playbackLocked}
           className="rounded-full size-8 p-0"
         >
           {isLoading ? (
@@ -299,7 +321,7 @@ export function AudioPlayer({
             max={duration || 0}
             value={currentTime}
             onChange={handleSeek}
-            disabled={isLoading || !!error || !allowSeek}
+            disabled={isLoading || !!error || !allowSeek || playbackLocked}
             className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer
                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-3
                      [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
@@ -321,7 +343,7 @@ export function AudioPlayer({
             step="0.1"
             value={volume}
             onChange={handleVolumeChange}
-            disabled={isLoading || !!error}
+            disabled={isLoading || !!error || playbackLocked}
             className="w-16 h-1 bg-muted rounded-lg appearance-none cursor-pointer
                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-2
                      [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer

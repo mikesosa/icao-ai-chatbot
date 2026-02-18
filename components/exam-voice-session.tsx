@@ -97,11 +97,11 @@ function getMessagePlainText(message: UIMessage | null | undefined): string {
     .trim();
 }
 
-function normalizeTaskOneRolePlayText(
+function normalizeControllerRolePlayText(
   text: string,
-  subsection?: string | null,
+  isControllerRolePlaySubsection: boolean,
 ): string {
-  if (!text || subsection !== '2I') return text;
+  if (!text || !isControllerRolePlaySubsection) return text;
 
   const hasControllerLine = /(^|\n)\s*controller:/i.test(text);
   if (!hasControllerLine) return text;
@@ -161,54 +161,79 @@ function extractSentences(text: string): {
 
 function getAssistantVoiceText(
   message: UIMessage | null | undefined,
-  currentSubsection?: string | null,
+  context?: {
+    isControllerRolePlaySubsection?: boolean;
+    currentSubsectionHasImages?: boolean;
+    currentSubsectionLabel?: string;
+  },
 ): string {
   if (!message?.parts) return '';
 
   const rawText = getMessagePlainText(message);
+  const isControllerRolePlaySubsection =
+    context?.isControllerRolePlaySubsection === true;
+  const currentSubsectionHasImages =
+    context?.currentSubsectionHasImages === true;
+  const currentSubsectionLabel = context?.currentSubsectionLabel;
 
   let examAudioInstruction: string | null = null;
   let examImageInstruction: string | null = null;
 
   for (const part of message.parts) {
-    if (
-      part.type !== 'tool-invocation' ||
-      part.toolInvocation?.state !== 'result'
-    ) {
+    if (part.type !== 'tool-invocation' || !part.toolInvocation) {
       continue;
     }
 
     const invocation = part.toolInvocation;
-    const result = invocation.result as any;
-    const details = result?.details;
+    const details =
+      invocation.state === 'result'
+        ? (invocation.result as any)?.details
+        : invocation.args;
 
-    if (invocation.toolName === 'playAudio' && details?.isExamRecording) {
+    if (
+      invocation.toolName === 'playAudio' &&
+      (details?.isExamRecording || typeof details?.subsection === 'string')
+    ) {
       const description =
         typeof details.description === 'string'
           ? details.description.trim()
           : '';
-      examAudioInstruction = description || 'Press Play to listen.';
+      const isRolePlayBriefingDescription =
+        isControllerRolePlaySubsection &&
+        /role-?play briefing prompt|task\s*(i|one)\s*prompt|briefing prompt/i.test(
+          description,
+        );
+      examAudioInstruction =
+        isRolePlayBriefingDescription || !description
+          ? 'Press Play to listen.'
+          : description;
       continue;
     }
 
-    if (invocation.toolName === 'displayImage' && details?.isExamImage) {
+    if (
+      invocation.toolName === 'displayImage' &&
+      (details?.isExamImage || typeof details?.subsection === 'string')
+    ) {
       const description =
         typeof details.description === 'string'
           ? details.description.trim()
           : '';
 
-      if (details.subsection === '2II') {
+      if (currentSubsectionHasImages) {
         const isGenericExamDescription =
           description.length === 0 ||
-          /visual stimulus|operational communication scenario|image set/i.test(
+          /visual stimulus|operational communication scenario|image set|task\s*(ii|two)\b/i.test(
             description,
           );
+        const transitionText = currentSubsectionLabel
+          ? `Now we are moving to ${currentSubsectionLabel}. Now I will show you an operational image. Please describe what you see.`
+          : 'Now I will show you an operational image. Please describe what you see.';
 
         examImageInstruction = description
           ? isGenericExamDescription
-            ? 'Task One is complete. We are now moving to Task Two. Now I will show you an operational image. Please describe what you see.'
-            : `Task One is complete. We are now moving to Task Two. ${description}`
-          : 'Task One is complete. We are now moving to Task Two. Now I will show you an operational image. Please describe what you see.';
+            ? transitionText
+            : description
+          : transitionText;
       } else {
         examImageInstruction =
           description || 'Please review the image and continue the task.';
@@ -254,7 +279,10 @@ function getAssistantVoiceText(
     return examImageInstruction;
   }
 
-  return normalizeTaskOneRolePlayText(rawText, currentSubsection);
+  return normalizeControllerRolePlayText(
+    rawText,
+    isControllerRolePlaySubsection,
+  );
 }
 
 // ─── Speech Recognition types ───────────────────────────────────────────────
@@ -381,6 +409,63 @@ type ExamImageCard = {
   layout?: 'single' | 'side-by-side' | 'stacked';
   instructions?: string[];
 };
+
+type RuntimeImageSet = {
+  setId?: string | number;
+  title?: string;
+  description?: string;
+  layout?: 'single' | 'side-by-side' | 'stacked';
+  images?: Array<{
+    url: string;
+    alt?: string;
+    caption?: string;
+  }>;
+  tasks?: string[];
+};
+
+type RuntimeSubsectionConfig = {
+  name?: string;
+  description?: string;
+  instructions?: string[];
+  audioFiles?: Array<unknown>;
+  imageSets?: RuntimeImageSet[];
+};
+
+function getSubsectionMetadataText(
+  subsection: RuntimeSubsectionConfig,
+): string {
+  const parts: string[] = [];
+  if (typeof subsection.name === 'string') parts.push(subsection.name);
+  if (typeof subsection.description === 'string')
+    parts.push(subsection.description);
+  if (Array.isArray(subsection.instructions)) {
+    parts.push(
+      ...subsection.instructions.filter(
+        (instruction): instruction is string => typeof instruction === 'string',
+      ),
+    );
+  }
+
+  return parts.join('\n').toLowerCase();
+}
+
+function subsectionHasMedia(subsection: RuntimeSubsectionConfig): boolean {
+  const hasAudio =
+    Array.isArray(subsection.audioFiles) && subsection.audioFiles.length > 0;
+  const hasImages =
+    Array.isArray(subsection.imageSets) && subsection.imageSets.length > 0;
+  return hasAudio || hasImages;
+}
+
+function subsectionIsControllerRolePlay(
+  subsection: RuntimeSubsectionConfig,
+): boolean {
+  const text = getSubsectionMetadataText(subsection);
+  return (
+    /\brole[- ]?play\b/.test(text) &&
+    /candidate[^.\n]*controller|controller[^.\n]*candidate/.test(text)
+  );
+}
 
 function TranscriptPanel({
   turns,
@@ -606,6 +691,100 @@ export function ExamVoiceSession({
   // Track the first AI response (welcome/description) so we skip TTS for it
   const firstAssistantSeen = useRef(false);
 
+  const subsectionConfigsByLocation = useMemo(() => {
+    const locations = new Map<string, RuntimeSubsectionConfig>();
+    const sections =
+      (examConfig.examConfig.sections as Record<
+        string,
+        { subsections?: Record<string, RuntimeSubsectionConfig> }
+      >) || {};
+
+    for (const [sectionKey, sectionConfig] of Object.entries(sections)) {
+      for (const [subsectionKey, subsectionConfig] of Object.entries(
+        sectionConfig?.subsections || {},
+      )) {
+        locations.set(`${sectionKey}:${subsectionKey}`, subsectionConfig);
+      }
+    }
+
+    return locations;
+  }, [examConfig]);
+
+  const currentSubsectionLocationKey =
+    currentSection && currentSubsection
+      ? `${currentSection}:${currentSubsection}`
+      : null;
+
+  const currentSubsectionConfig = useMemo(() => {
+    if (!currentSubsectionLocationKey) return null;
+    return (
+      subsectionConfigsByLocation.get(currentSubsectionLocationKey) ?? null
+    );
+  }, [currentSubsectionLocationKey, subsectionConfigsByLocation]);
+
+  const currentSubsectionHasImages = useMemo(
+    () =>
+      !!(
+        currentSubsectionConfig &&
+        Array.isArray(currentSubsectionConfig.imageSets) &&
+        currentSubsectionConfig.imageSets.length > 0
+      ),
+    [currentSubsectionConfig],
+  );
+
+  const currentSubsectionLabel = useMemo(() => {
+    if (currentSubsectionConfig?.name) return currentSubsectionConfig.name;
+    if (currentSubsection) return `Subsection ${currentSubsection}`;
+    return 'this subsection';
+  }, [currentSubsectionConfig, currentSubsection]);
+
+  const rolePlaySubsectionLocations = useMemo(() => {
+    const locations = new Set<string>();
+
+    for (const [locationKey, subsectionConfig] of subsectionConfigsByLocation) {
+      if (subsectionIsControllerRolePlay(subsectionConfig)) {
+        locations.add(locationKey);
+      }
+    }
+
+    return locations;
+  }, [subsectionConfigsByLocation]);
+
+  const mediaRequiredSubsectionLocations = useMemo(() => {
+    const locations = new Set<string>();
+
+    for (const [locationKey, subsectionConfig] of subsectionConfigsByLocation) {
+      if (subsectionHasMedia(subsectionConfig)) {
+        locations.add(locationKey);
+      }
+    }
+
+    return locations;
+  }, [subsectionConfigsByLocation]);
+
+  const isControllerRolePlaySubsection = useMemo(() => {
+    if (!currentSubsectionLocationKey) return false;
+    return rolePlaySubsectionLocations.has(currentSubsectionLocationKey);
+  }, [currentSubsectionLocationKey, rolePlaySubsectionLocations]);
+
+  const currentSubsectionRequiresMedia = useMemo(() => {
+    if (!currentSubsectionLocationKey) return false;
+    return mediaRequiredSubsectionLocations.has(currentSubsectionLocationKey);
+  }, [currentSubsectionLocationKey, mediaRequiredSubsectionLocations]);
+
+  const assistantVoiceContext = useMemo(
+    () => ({
+      isControllerRolePlaySubsection,
+      currentSubsectionHasImages,
+      currentSubsectionLabel,
+    }),
+    [
+      isControllerRolePlaySubsection,
+      currentSubsectionHasImages,
+      currentSubsectionLabel,
+    ],
+  );
+
   // ── Extract audio player from latest assistant message ──
   const currentAudioPlayer = useMemo((): ExamAudioCard | null => {
     const lastAssistant = [...messages]
@@ -706,6 +885,12 @@ export function ExamVoiceSession({
   const hasMediaForCurrentSubsection = useMemo(() => {
     if (!currentSubsection) return false;
 
+    const pinnedAudioForSubsection =
+      pinnedAudioPlayer?.subsection === currentSubsection;
+    const pinnedImageForSubsection =
+      pinnedImageDisplay?.subsection === currentSubsection;
+    if (pinnedAudioForSubsection || pinnedImageForSubsection) return true;
+
     return messages.some((message) => {
       if (message.role !== 'assistant' || !message.parts) return false;
 
@@ -725,21 +910,44 @@ export function ExamVoiceSession({
         return subsection === currentSubsection;
       });
     });
+  }, [messages, currentSubsection, pinnedAudioPlayer, pinnedImageDisplay]);
+
+  const hasPendingMediaCallForCurrentSubsection = useMemo(() => {
+    if (!currentSubsection) return false;
+
+    return messages.some((message) => {
+      if (message.role !== 'assistant' || !message.parts) return false;
+
+      return message.parts.some((part) => {
+        if (part.type !== 'tool-invocation') return false;
+        const invocation = part.toolInvocation;
+        if (invocation?.state !== 'call') return false;
+        if (
+          invocation.toolName !== 'playAudio' &&
+          invocation.toolName !== 'displayImage'
+        ) {
+          return false;
+        }
+
+        const args = invocation.args as any;
+        return args?.subsection === currentSubsection;
+      });
+    });
   }, [messages, currentSubsection]);
 
   const lastAssistantText = useMemo(() => {
     const lastAssistant = [...messages]
       .reverse()
       .find((message) => message.role === 'assistant');
-    return getAssistantVoiceText(lastAssistant, currentSubsection);
-  }, [messages, currentSubsection]);
+    return getAssistantVoiceText(lastAssistant, assistantVoiceContext);
+  }, [messages, assistantVoiceContext]);
 
-  const fallback3AImageDisplay = useMemo((): ExamImageCard | null => {
-    if (currentSection !== '3' || currentSubsection !== '3A') return null;
+  const fallbackSubsectionImageDisplay = useMemo((): ExamImageCard | null => {
+    if (!currentSubsection || !currentSubsectionConfig) return null;
 
-    const sectionThree = (examConfig.examConfig.sections as any)?.[3];
-    const subsection3A = sectionThree?.subsections?.['3A'];
-    const imageSet = subsection3A?.imageSets?.[0];
+    const imageSet = Array.isArray(currentSubsectionConfig.imageSets)
+      ? currentSubsectionConfig.imageSets[0]
+      : null;
 
     if (
       !imageSet ||
@@ -752,14 +960,19 @@ export function ExamVoiceSession({
     return {
       title: imageSet.title || 'Image Description',
       description: imageSet.description || '',
-      images: imageSet.images,
-      imageSetId: `fallback-3A-${String(imageSet.setId ?? '1')}`,
+      images: imageSet.images.map((image) => ({
+        url: image.url,
+        alt: image.alt || 'Exam image',
+        caption: image.caption,
+      })),
+      imageSetId: `fallback-${currentSubsection}-${String(imageSet.setId ?? '1')}`,
       isExamImage: true,
-      subsection: '3A',
+      subsection: currentSubsection,
       layout: imageSet.layout || 'side-by-side',
-      instructions: imageSet.tasks || subsection3A?.instructions || [],
+      instructions:
+        imageSet.tasks || currentSubsectionConfig.instructions || [],
     };
-  }, [examConfig, currentSection, currentSubsection]);
+  }, [currentSubsection, currentSubsectionConfig]);
 
   useEffect(() => {
     if (!currentAudioPlayer?.recordingId) return;
@@ -793,16 +1006,18 @@ export function ExamVoiceSession({
   ]);
 
   useEffect(() => {
-    if (!fallback3AImageDisplay?.imageSetId) return;
+    if (!fallbackSubsectionImageDisplay?.imageSetId) return;
     if (pinnedImageDisplay) return;
     if (suppressImageUntilNextAssistant) return;
-    if (dismissedImageSetIds.includes(fallback3AImageDisplay.imageSetId))
+    if (
+      dismissedImageSetIds.includes(fallbackSubsectionImageDisplay.imageSetId)
+    )
       return;
-    setPinnedImageDisplay(fallback3AImageDisplay);
+    setPinnedImageDisplay(fallbackSubsectionImageDisplay);
     setImageDisplayReadyToShow(false);
   }, [
-    fallback3AImageDisplay?.imageSetId,
-    fallback3AImageDisplay,
+    fallbackSubsectionImageDisplay?.imageSetId,
+    fallbackSubsectionImageDisplay,
     pinnedImageDisplay,
     suppressImageUntilNextAssistant,
     dismissedImageSetIds,
@@ -995,7 +1210,7 @@ export function ExamVoiceSession({
 
   useEffect(() => {
     if (!examStarted || examCompletionPhase !== 'active') return;
-    if (currentSubsection !== '2I') return;
+    if (!isControllerRolePlaySubsection) return;
     if (!latestAssistantMessage?.id) return;
     if (status !== 'ready' || aiSpeaking || ttsLoading || isPaused) return;
 
@@ -1012,12 +1227,12 @@ export function ExamVoiceSession({
     append({
       role: 'user',
       content:
-        '[System] Task One role-play protocol reminder: speak ONLY as pilot/interlocutor. Do NOT provide controller lines, model controller answers, or readbacks for the candidate. End each turn with one pilot prompt and wait for the candidate response as controller.',
+        '[System] Role-play protocol reminder: speak ONLY as interlocutor. Do NOT provide candidate-side sample answers, model readbacks, or lines for both roles in the same turn. End each turn with one interlocutor prompt and wait for the candidate response.',
     });
   }, [
     examStarted,
     examCompletionPhase,
-    currentSubsection,
+    isControllerRolePlaySubsection,
     latestAssistantMessage,
     latestAssistantRawText,
     status,
@@ -1030,12 +1245,16 @@ export function ExamVoiceSession({
   useEffect(() => {
     if (!examStarted || !examType) return;
     if (examCompletionPhase !== 'active') return;
-    if (!currentSection || !currentSubsection) return;
+    if (!currentSection || !currentSubsection || !currentSubsectionLocationKey)
+      return;
     if (!hasExamRunStarted) return;
+    if (!currentSubsectionRequiresMedia) return;
 
-    const locationKey = `${currentSection}:${currentSubsection}`;
-    if (hasMediaForCurrentSubsection) {
-      subsectionRecoverySentRef.current.delete(locationKey);
+    const locationKey = currentSubsectionLocationKey;
+    if (
+      hasMediaForCurrentSubsection ||
+      hasPendingMediaCallForCurrentSubsection
+    ) {
       return;
     }
 
@@ -1062,8 +1281,11 @@ export function ExamVoiceSession({
     examCompletionPhase,
     currentSection,
     currentSubsection,
+    currentSubsectionLocationKey,
+    currentSubsectionRequiresMedia,
     hasExamRunStarted,
     hasMediaForCurrentSubsection,
+    hasPendingMediaCallForCurrentSubsection,
     status,
     aiSpeaking,
     ttsLoading,
@@ -1095,7 +1317,7 @@ export function ExamVoiceSession({
     const last = [...messages].reverse().find((m) => m.role === 'assistant');
     if (!last) return;
 
-    const text = getAssistantVoiceText(last, currentSubsection);
+    const text = getAssistantVoiceText(last, assistantVoiceContext);
     if (!text) return;
 
     // Skip the very first assistant message (welcome/description)
@@ -1155,7 +1377,7 @@ export function ExamVoiceSession({
     ttsEnabled,
     enqueueSentence,
     resetStreamingTTS,
-    currentSubsection,
+    assistantVoiceContext,
   ]);
 
   // ── Speech Recognition helpers ──
@@ -1408,9 +1630,9 @@ export function ExamVoiceSession({
       .reverse()
       .find((m) => m.role === 'assistant');
     if (!lastExaminer) return;
-    const text = getAssistantVoiceText(lastExaminer, currentSubsection);
+    const text = getAssistantVoiceText(lastExaminer, assistantVoiceContext);
     if (text) speakTTSSingle(text, { messageId: lastExaminer.id });
-  }, [messages, speakTTSSingle, currentSubsection]);
+  }, [messages, speakTTSSingle, assistantVoiceContext]);
 
   const stopAllTTS = useCallback(() => {
     stopStreamingTTS();
@@ -1736,6 +1958,7 @@ export function ExamVoiceSession({
                   audioFile={pinnedAudioPlayer.audioFile}
                   maxReplays={pinnedAudioPlayer.maxReplays}
                   allowSeek={pinnedAudioPlayer.allowSeek}
+                  playbackLocked={aiSpeaking || ttsLoading}
                   autoPlay={shouldAutoPlayCurrentAudio}
                   onPlaybackStateChange={setIsExamAudioPlaying}
                   onComplete={() => {
@@ -1752,10 +1975,20 @@ export function ExamVoiceSession({
                       return;
                     handledAudioCompletionRef.current.add(recordingId);
 
+                    const completionLocationKey =
+                      currentSection && pinnedAudioPlayer.subsection
+                        ? `${currentSection}:${pinnedAudioPlayer.subsection}`
+                        : null;
+                    const isRolePlayPromptSubsection = completionLocationKey
+                      ? rolePlaySubsectionLocations.has(completionLocationKey)
+                      : false;
+                    const completionInstruction = isRolePlayPromptSubsection
+                      ? '[System] The exam audio playback has finished. Continue this role-play subsection now: first give a brief role-play introduction, then provide one interlocutor prompt only, and wait for the candidate response.'
+                      : '[System] The exam audio playback has finished. Continue with the next step in this subsection.';
+
                     append({
                       role: 'user',
-                      content:
-                        '[System] The exam audio playback has finished. Continue with the next step in this subsection.',
+                      content: completionInstruction,
                     });
                   }}
                 />
