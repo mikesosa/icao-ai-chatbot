@@ -377,7 +377,11 @@ function ProgressHeader({
 }
 
 // ─── Transcript panel ───────────────────────────────────────────────────────
-type TranscriptTurn = { speaker: 'EXAMINER' | 'YOU'; text: string };
+type TranscriptTurn = {
+  speaker: 'EXAMINER' | 'YOU';
+  text: string;
+  messageId?: string;
+};
 type ExamCompletionPhase = 'active' | 'evaluating' | 'delivering' | 'complete';
 type ExamAudioCard = {
   src: string;
@@ -528,7 +532,7 @@ function TranscriptPanel({
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {turns.map((turn, i) => (
           <div
-            key={`turn-${turn.speaker}-${i}-${turn.text.slice(0, 20)}`}
+            key={`turn-${turn.messageId ?? 'nomsg'}-${turn.speaker}-${i}`}
             className="space-y-1"
             data-testid={`exam-transcript-turn-${i}`}
           >
@@ -701,7 +705,7 @@ export function ExamVoiceSession({
   const examStartMarkerKeyRef = useRef<string | null>(null);
   const subsectionRecoverySentRef = useRef<Set<string>>(new Set());
   const rolePlayCorrectionSentRef = useRef<Set<string>>(new Set());
-  const lastAutoTTSId = useRef<string | null>(null);
+  const finalizedAssistantTextByIdRef = useRef<Map<string, string>>(new Map());
   const voiceAlignmentEventIdRef = useRef(0);
   // Track the first AI response (welcome/description) so we skip TTS for it
   const firstAssistantSeen = useRef(false);
@@ -1286,6 +1290,7 @@ export function ExamVoiceSession({
     hasStartedRef.current = false;
     subsectionRecoverySentRef.current.clear();
     rolePlayCorrectionSentRef.current.clear();
+    finalizedAssistantTextByIdRef.current.clear();
     voiceAlignmentEventIdRef.current = 0;
     setVoiceAlignmentEvents([]);
     if (typeof window !== 'undefined') {
@@ -1412,9 +1417,8 @@ export function ExamVoiceSession({
 
     // Skip the very first assistant message (welcome/description)
     if (!firstAssistantSeen.current) {
-      if (status === 'ready' && last.id !== lastAutoTTSId.current) {
+      if (status === 'ready') {
         firstAssistantSeen.current = true;
-        lastAutoTTSId.current = last.id;
         setTeleprompterText(text);
         appendVoiceAlignmentEvent({
           channel: 'teleprompter',
@@ -1423,11 +1427,6 @@ export function ExamVoiceSession({
           status,
         });
       }
-      return;
-    }
-
-    // Guard: Skip if we've already processed this message (prevent duplicate TTS after re-renders)
-    if (last.id === lastAutoTTSId.current) {
       return;
     }
 
@@ -1468,9 +1467,11 @@ export function ExamVoiceSession({
       sentCharsRef.current += consumed;
     }
 
-    // When streaming finishes, flush any remaining text
-    if (status === 'ready' && last.id !== lastAutoTTSId.current) {
-      lastAutoTTSId.current = last.id;
+    // When ready, flush remaining text and upsert transcript/captions for this exact message text.
+    if (status === 'ready') {
+      const finalizedText = finalizedAssistantTextByIdRef.current.get(last.id);
+      if (finalizedText === text) return;
+
       const remaining = text.slice(sentCharsRef.current).trim();
       if (remaining) {
         enqueueSentence(remaining, { messageId: last.id });
@@ -1490,8 +1491,21 @@ export function ExamVoiceSession({
         status,
       });
       setTranscriptTurns((prev) => {
-        const turn: TranscriptTurn = { speaker: 'EXAMINER', text };
-        const nextTurns = [...prev, turn];
+        const turn: TranscriptTurn = {
+          speaker: 'EXAMINER',
+          text,
+          messageId: last.id,
+        };
+        const existingIndex = prev.findIndex(
+          (candidate) =>
+            candidate.speaker === 'EXAMINER' && candidate.messageId === last.id,
+        );
+        const nextTurns =
+          existingIndex >= 0
+            ? prev.map((candidate, index) =>
+                index === existingIndex ? turn : candidate,
+              )
+            : [...prev, turn];
         appendVoiceAlignmentEvent({
           channel: 'transcript_turn',
           speaker: 'EXAMINER',
@@ -1501,6 +1515,7 @@ export function ExamVoiceSession({
         });
         return nextTurns;
       });
+      finalizedAssistantTextByIdRef.current.set(last.id, text);
     }
   }, [
     status,
