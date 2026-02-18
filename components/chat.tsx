@@ -57,10 +57,13 @@ function ChatWithSearchParams({
   onAppendRef?: (append: UseChatHelpers['append']) => void;
   onDataStreamUpdate?: (data: any[]) => void;
 }) {
+  const EXAM_START_TRIGGER_MESSAGE =
+    'Start the evaluation. Begin with the first section.';
   const { mutate } = useSWRConfig();
   const {
     examType,
     examStarted,
+    examStartTime,
     currentSection,
     currentSubsection,
     readyToStartExam,
@@ -149,18 +152,21 @@ function ChatWithSearchParams({
     useState(false);
 
   // Use ref instead of state for hasStartedExam to survive Fast Refresh
-  const hasStartedExamRef = useRef(
-    typeof window !== 'undefined' &&
-      sessionStorage.getItem(`exam-started:${id}`) === '1',
-  );
+  const hasStartedExamRef = useRef(false);
+  const examStartMarkerKeyRef = useRef<string | null>(null);
 
   // Reset exam-started flag when exam ends
   useEffect(() => {
-    if (!examStarted && hasStartedExamRef.current) {
+    if (!examStarted) {
       hasStartedExamRef.current = false;
       if (typeof window !== 'undefined') {
+        if (examStartMarkerKeyRef.current) {
+          sessionStorage.removeItem(examStartMarkerKeyRef.current);
+        }
+        // Legacy key cleanup from older versions
         sessionStorage.removeItem(`exam-started:${id}`);
       }
+      examStartMarkerKeyRef.current = null;
       if (process.env.NODE_ENV === 'development') {
         console.debug('[chat] exam ended, reset hasStartedExamRef', {
           chatId: id,
@@ -206,14 +212,17 @@ function ChatWithSearchParams({
     }
 
     // Skip if not ready
-    if (!examStarted || !examType) {
+    if (!examStarted || !examType || !examStartTime) {
       return;
     }
+
+    const examStartMarkerKey = `exam-started:${id}:${examStartTime.getTime()}`;
+    examStartMarkerKeyRef.current = examStartMarkerKey;
 
     // Double-check sessionStorage
     const alreadyStartedInStorage =
       typeof window !== 'undefined' &&
-      sessionStorage.getItem(`exam-started:${id}`) === '1';
+      sessionStorage.getItem(examStartMarkerKey) === '1';
     if (alreadyStartedInStorage) {
       hasStartedExamRef.current = true;
       if (process.env.NODE_ENV === 'development') {
@@ -224,45 +233,25 @@ function ChatWithSearchParams({
       return;
     }
 
-    // Check if message already exists in current messages
-    const alreadyStartedMessage = messages.some(
-      (message) =>
-        message.role === 'user' &&
-        message.content ===
-          'Start the evaluation. Begin with the first section.',
-    );
-    if (alreadyStartedMessage) {
-      hasStartedExamRef.current = true;
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(`exam-started:${id}`, '1');
-      }
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('[chat] auto-start skipped (message exists)', {
-          chatId: id,
-          messageCount: messages.length,
-        });
-      }
-      return;
-    }
-
     // All checks passed - append the start message
     hasStartedExamRef.current = true;
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem(`exam-started:${id}`, '1');
+      sessionStorage.setItem(examStartMarkerKey, '1');
+      // Legacy key cleanup from older versions
+      sessionStorage.removeItem(`exam-started:${id}`);
     }
 
     if (process.env.NODE_ENV === 'development') {
       console.debug('[chat] auto-start exam APPENDING', {
         chatId: id,
-        messageCount: messages.length,
       });
     }
 
     append({
       role: 'user',
-      content: 'Start the evaluation. Begin with the first section.',
+      content: EXAM_START_TRIGGER_MESSAGE,
     });
-  }, [examStarted, examType, append, messages, id]);
+  }, [examStarted, examType, examStartTime, append, id]);
 
   // Set up callback for admin section changes
   useEffect(() => {

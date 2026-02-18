@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
@@ -25,6 +25,28 @@ interface MessagesProps {
   isArtifactVisible: boolean;
   hideControls?: boolean;
   selectedModel?: string;
+}
+
+function getMessageText(message: UIMessage): string {
+  if (message.parts && message.parts.length > 0) {
+    return message.parts
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text)
+      .join('\n')
+      .trim();
+  }
+
+  if (typeof message.content === 'string') {
+    return message.content.trim();
+  }
+
+  return '';
+}
+
+function isInternalExamSystemMessage(message: UIMessage): boolean {
+  if (message.role !== 'user') return false;
+  const text = getMessageText(message);
+  return text.startsWith('[System]');
 }
 
 function PureMessages({
@@ -58,6 +80,10 @@ function PureMessages({
     chatId,
     status,
   });
+  const visibleMessages = useMemo(() => {
+    if (!examStarted && !examType) return messages;
+    return messages.filter((message) => !isInternalExamSystemMessage(message));
+  }, [messages, examStarted, examType]);
 
   // Seed the ref when messages first arrive from DB (handles async loading).
   // This MUST be declared BEFORE the auto-TTS effect so it runs first.
@@ -117,16 +143,18 @@ function PureMessages({
       ref={messagesContainerRef}
       className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4 relative"
     >
-      {messages.length === 0 && !examStarted && (
+      {visibleMessages.length === 0 && !examStarted && (
         <Greeting selectedModel={selectedModel} />
       )}
 
-      {messages.map((message, index) => (
+      {visibleMessages.map((message, index) => (
         <PreviewMessage
           key={message.id}
           chatId={chatId}
           message={message}
-          isLoading={status === 'streaming' && messages.length - 1 === index}
+          isLoading={
+            status === 'streaming' && visibleMessages.length - 1 === index
+          }
           vote={
             votes
               ? votes.find((vote) => vote.messageId === message.id)
@@ -137,14 +165,16 @@ function PureMessages({
           isReadonly={isReadonly}
           hideControls={hideControls}
           requiresScrollPadding={
-            hasSentMessage && index === messages.length - 1
+            hasSentMessage && index === visibleMessages.length - 1
           }
         />
       ))}
 
       {status === 'submitted' &&
-        messages.length > 0 &&
-        messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
+        visibleMessages.length > 0 &&
+        visibleMessages[visibleMessages.length - 1].role === 'user' && (
+          <ThinkingMessage />
+        )}
 
       <motion.div
         ref={messagesEndRef}

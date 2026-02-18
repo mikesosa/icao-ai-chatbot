@@ -82,6 +82,10 @@ const ABBREVIATIONS = new Set([
   'sec',
 ]);
 const AUTO_CLOSE_SECONDS = 5;
+const EXAM_START_TRIGGER_MESSAGE =
+  'Start the evaluation. Begin with the first section.';
+const EXAM_FINISH_TRIGGER_MESSAGE =
+  '[System] The candidate has ended the exam. Immediately call examSectionControl(action: "complete_exam", reason: "candidate requested completion"), then provide the final evaluation and clearly confirm the exam is complete.';
 
 function extractSentences(text: string): {
   sentences: string[];
@@ -117,6 +121,57 @@ function extractSentences(text: string): {
   }
 
   return { sentences, consumed };
+}
+
+function getAssistantVoiceText(message: UIMessage | null | undefined): string {
+  if (!message?.parts) return '';
+
+  const rawText = message.parts
+    .filter((part) => part.type === 'text')
+    .map((part) => part.text)
+    .join('\n')
+    .trim();
+
+  let examAudioInstruction: string | null = null;
+
+  for (const part of message.parts) {
+    if (
+      part.type !== 'tool-invocation' ||
+      part.toolInvocation?.toolName !== 'playAudio' ||
+      part.toolInvocation?.state !== 'result'
+    ) {
+      continue;
+    }
+
+    const result = part.toolInvocation.result as any;
+    const details = result?.details;
+    if (!details?.isExamRecording) continue;
+
+    const description =
+      typeof details.description === 'string' ? details.description.trim() : '';
+    examAudioInstruction = description || 'Press Play to listen.';
+    break;
+  }
+
+  if (!examAudioInstruction) return rawText;
+  if (!rawText) return examAudioInstruction;
+
+  const normalizedRawText = rawText.replace(/\s+/g, ' ').trim().toLowerCase();
+  const normalizedInstruction = examAudioInstruction
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (
+    normalizedRawText === normalizedInstruction ||
+    normalizedRawText === 'press play to listen.' ||
+    normalizedRawText === 'press play to listen'
+  ) {
+    return rawText;
+  }
+
+  // Runtime guard: keep audio turns as instruction-only for realistic exam flow.
+  return examAudioInstruction;
 }
 
 // ─── Speech Recognition types ───────────────────────────────────────────────
@@ -336,6 +391,7 @@ export function ExamVoiceSession({
   const {
     examType,
     examStarted,
+    examStartTime,
     currentSection,
     currentSubsection,
     completedSections,
@@ -460,6 +516,7 @@ export function ExamVoiceSession({
   const interimRef = useRef(''); // mirror of interimText for use in callbacks
   const isRecordingRef = useRef(false); // mirror for global key handler
   const hasStartedRef = useRef(false);
+  const examStartMarkerKeyRef = useRef<string | null>(null);
   const lastAutoTTSId = useRef<string | null>(null);
   // Track the first AI response (welcome/description) so we skip TTS for it
   const firstAssistantSeen = useRef(false);
@@ -544,13 +601,7 @@ export function ExamVoiceSession({
     const lastAssistant = [...messages]
       .reverse()
       .find((message) => message.role === 'assistant');
-    if (!lastAssistant?.parts) return '';
-
-    return lastAssistant.parts
-      .filter((part) => part.type === 'text')
-      .map((part) => part.text)
-      .join('\n')
-      .trim();
+    return getAssistantVoiceText(lastAssistant);
   }, [messages]);
 
   const fallback3AImageDisplay = useMemo((): ExamImageCard | null => {
@@ -772,22 +823,11 @@ export function ExamVoiceSession({
 
   // ── Auto-start exam ──
   useEffect(() => {
-    if (hasStartedRef.current || !examStarted || !examType) return;
-
-    // Check if the start message was already appended (e.g. by chat.tsx before unmount)
-    const alreadyStarted = messages.some(
-      (m) =>
-        m.role === 'user' &&
-        typeof m.content === 'string' &&
-        m.content.includes('Start the evaluation'),
-    );
-    if (alreadyStarted) {
-      hasStartedRef.current = true;
+    if (hasStartedRef.current || !examStarted || !examType || !examStartTime)
       return;
-    }
 
-    // Also check sessionStorage (set by chat.tsx)
-    const ssKey = `exam-started:${id}`;
+    const ssKey = `exam-started:${id}:${examStartTime.getTime()}`;
+    examStartMarkerKeyRef.current = ssKey;
     const alreadyInStorage =
       typeof window !== 'undefined' && sessionStorage.getItem(ssKey) === '1';
     if (alreadyInStorage) {
@@ -798,12 +838,28 @@ export function ExamVoiceSession({
     hasStartedRef.current = true;
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(ssKey, '1');
+      // Legacy key cleanup from older versions
+      sessionStorage.removeItem(`exam-started:${id}`);
     }
     append({
       role: 'user',
-      content: 'Start the evaluation. Begin with the first section.',
+      content: EXAM_START_TRIGGER_MESSAGE,
     });
-  }, [examStarted, examType, append, messages, id]);
+  }, [examStarted, examType, examStartTime, append, id]);
+
+  useEffect(() => {
+    if (examStarted) return;
+
+    hasStartedRef.current = false;
+    if (typeof window !== 'undefined') {
+      if (examStartMarkerKeyRef.current) {
+        sessionStorage.removeItem(examStartMarkerKeyRef.current);
+      }
+      // Legacy key cleanup from older versions
+      sessionStorage.removeItem(`exam-started:${id}`);
+    }
+    examStartMarkerKeyRef.current = null;
+  }, [examStarted, id]);
 
   // ── Section change callback for admin jump ──
   useEffect(() => {
@@ -828,11 +884,7 @@ export function ExamVoiceSession({
     const last = [...messages].reverse().find((m) => m.role === 'assistant');
     if (!last) return;
 
-    const text = last.parts
-      ?.filter((p) => p.type === 'text')
-      .map((p) => p.text)
-      .join('\n')
-      .trim();
+    const text = getAssistantVoiceText(last);
     if (!text) return;
 
     // Skip the very first assistant message (welcome/description)
@@ -1138,11 +1190,7 @@ export function ExamVoiceSession({
       .reverse()
       .find((m) => m.role === 'assistant');
     if (!lastExaminer) return;
-    const text = lastExaminer.parts
-      ?.filter((p) => p.type === 'text')
-      .map((p) => p.text)
-      .join('\n')
-      .trim();
+    const text = getAssistantVoiceText(lastExaminer);
     if (text) speakTTSSingle(text, { messageId: lastExaminer.id });
   }, [messages, speakTTSSingle]);
 
@@ -1192,8 +1240,7 @@ export function ExamVoiceSession({
     beginCompletionFlow(assistantMessages.length);
     append({
       role: 'user',
-      content:
-        'I want to finish the exam now. Please provide the final evaluation and clearly confirm that the exam is complete.',
+      content: EXAM_FINISH_TRIGGER_MESSAGE,
     });
   }, [
     examCompletionPhase,

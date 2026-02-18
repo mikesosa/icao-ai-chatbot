@@ -507,8 +507,8 @@ export function ExamSidebar({ examConfig, append }: ExamSidebarProps) {
     if (opts.generateReport) {
       const examName = examConfig.name || 'exam';
       const evaluatorInstruction = endedEarly
-        ? `I want to stop the ${examName} test now. I am ending the test early (not all parts are complete). Please provide a PARTIAL evaluation based ONLY on what you've observed so far. Clearly label it as INCOMPLETE / ENDED EARLY, and do not assume completion of missing parts.`
-        : `I want to finish the ${examName} test now. Please provide the final evaluation based on my performance.`;
+        ? `[System] The candidate has ended the ${examName} early, before all parts were completed. Provide a PARTIAL evaluation based only on observed performance so far. Clearly label it as INCOMPLETE / ENDED EARLY and do not assume completion of missing parts.`
+        : `[System] The candidate has finished the ${examName}. If exam completion has not yet been triggered, call examSectionControl(action: "complete_exam"), then provide the final evaluation based on observed performance.`;
 
       // Use the chat append function if available (passed down from ChatPageLayout)
       if (append) {
