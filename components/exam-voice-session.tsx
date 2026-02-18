@@ -165,6 +165,7 @@ function getAssistantVoiceText(
     isControllerRolePlaySubsection?: boolean;
     currentSubsectionHasImages?: boolean;
     currentSubsectionLabel?: string;
+    awaitingInitialMediaForSubsection?: boolean;
   },
 ): string {
   if (!message?.parts) return '';
@@ -194,19 +195,8 @@ function getAssistantVoiceText(
       invocation.toolName === 'playAudio' &&
       (details?.isExamRecording || typeof details?.subsection === 'string')
     ) {
-      const description =
-        typeof details.description === 'string'
-          ? details.description.trim()
-          : '';
-      const isRolePlayBriefingDescription =
-        isControllerRolePlaySubsection &&
-        /role-?play briefing prompt|task\s*(i|one)\s*prompt|briefing prompt/i.test(
-          description,
-        );
-      examAudioInstruction =
-        isRolePlayBriefingDescription || !description
-          ? 'Press Play to listen.'
-          : description;
+      // Keep audio turns deterministic in voice mode: present one neutral playback instruction.
+      examAudioInstruction = 'Press Play to listen.';
       continue;
     }
 
@@ -277,6 +267,11 @@ function getAssistantVoiceText(
 
     // For image-tool turns, ensure a clear spoken transition exists.
     return examImageInstruction;
+  }
+
+  if (context?.awaitingInitialMediaForSubsection) {
+    // Do not surface assistant text until the required media tool call appears for this subsection.
+    return '';
   }
 
   return normalizeControllerRolePlayText(
@@ -408,6 +403,22 @@ type ExamImageCard = {
   subsection?: string;
   layout?: 'single' | 'side-by-side' | 'stacked';
   instructions?: string[];
+};
+
+type VoiceAlignmentEvent = {
+  id: number;
+  timestamp: string;
+  channel:
+    | 'assistant_raw'
+    | 'teleprompter'
+    | 'tts_queue'
+    | 'tts_stream_sentence'
+    | 'user_caption'
+    | 'transcript_turn';
+  text: string;
+  messageId?: string | null;
+  speaker?: 'EXAMINER' | 'YOU';
+  status?: string;
 };
 
 type RuntimeImageSet = {
@@ -645,6 +656,9 @@ export function ExamVoiceSession({
   // ── Local state ──
   const [showTranscript, setShowTranscript] = useState(false);
   const [transcriptTurns, setTranscriptTurns] = useState<TranscriptTurn[]>([]);
+  const [voiceAlignmentEvents, setVoiceAlignmentEvents] = useState<
+    VoiceAlignmentEvent[]
+  >([]);
   const [isCopyingDebugLog, setIsCopyingDebugLog] = useState(false);
   const [teleprompterText, setTeleprompterText] = useState('');
   const [userCaptionText, setUserCaptionText] = useState('');
@@ -688,8 +702,24 @@ export function ExamVoiceSession({
   const subsectionRecoverySentRef = useRef<Set<string>>(new Set());
   const rolePlayCorrectionSentRef = useRef<Set<string>>(new Set());
   const lastAutoTTSId = useRef<string | null>(null);
+  const voiceAlignmentEventIdRef = useRef(0);
   // Track the first AI response (welcome/description) so we skip TTS for it
   const firstAssistantSeen = useRef(false);
+
+  const appendVoiceAlignmentEvent = useCallback(
+    (event: Omit<VoiceAlignmentEvent, 'id' | 'timestamp'>) => {
+      const nextEvent: VoiceAlignmentEvent = {
+        ...event,
+        id: ++voiceAlignmentEventIdRef.current,
+        timestamp: new Date().toISOString(),
+      };
+      setVoiceAlignmentEvents((previous) => {
+        const merged = [...previous, nextEvent];
+        return merged.length > 250 ? merged.slice(-250) : merged;
+      });
+    },
+    [],
+  );
 
   const subsectionConfigsByLocation = useMemo(() => {
     const locations = new Map<string, RuntimeSubsectionConfig>();
@@ -772,19 +802,6 @@ export function ExamVoiceSession({
     return mediaRequiredSubsectionLocations.has(currentSubsectionLocationKey);
   }, [currentSubsectionLocationKey, mediaRequiredSubsectionLocations]);
 
-  const assistantVoiceContext = useMemo(
-    () => ({
-      isControllerRolePlaySubsection,
-      currentSubsectionHasImages,
-      currentSubsectionLabel,
-    }),
-    [
-      isControllerRolePlaySubsection,
-      currentSubsectionHasImages,
-      currentSubsectionLabel,
-    ],
-  );
-
   // ── Extract audio player from latest assistant message ──
   const currentAudioPlayer = useMemo((): ExamAudioCard | null => {
     const lastAssistant = [...messages]
@@ -864,6 +881,21 @@ export function ExamVoiceSession({
     [latestAssistantMessage],
   );
 
+  useEffect(() => {
+    if (!latestAssistantMessage?.id || !latestAssistantRawText) return;
+    appendVoiceAlignmentEvent({
+      channel: 'assistant_raw',
+      messageId: latestAssistantMessage.id,
+      text: latestAssistantRawText,
+      status,
+    });
+  }, [
+    latestAssistantMessage?.id,
+    latestAssistantRawText,
+    status,
+    appendVoiceAlignmentEvent,
+  ]);
+
   const assistantMessages = useMemo(
     () => messages.filter((message) => message.role === 'assistant'),
     [messages],
@@ -934,6 +966,26 @@ export function ExamVoiceSession({
       });
     });
   }, [messages, currentSubsection]);
+
+  const assistantVoiceContext = useMemo(
+    () => ({
+      isControllerRolePlaySubsection,
+      currentSubsectionHasImages,
+      currentSubsectionLabel,
+      awaitingInitialMediaForSubsection:
+        currentSubsectionRequiresMedia &&
+        !hasMediaForCurrentSubsection &&
+        !hasPendingMediaCallForCurrentSubsection,
+    }),
+    [
+      isControllerRolePlaySubsection,
+      currentSubsectionHasImages,
+      currentSubsectionLabel,
+      currentSubsectionRequiresMedia,
+      hasMediaForCurrentSubsection,
+      hasPendingMediaCallForCurrentSubsection,
+    ],
+  );
 
   const lastAssistantText = useMemo(() => {
     const lastAssistant = [...messages]
@@ -1118,6 +1170,21 @@ export function ExamVoiceSession({
       streamEvents: dataStream,
       pinnedAudioPlayer,
       pinnedImageDisplay,
+      voiceAlignment: {
+        snapshot: {
+          latestAssistantMessageId: latestAssistantMessage?.id ?? null,
+          latestAssistantRawText,
+          lastAssistantText,
+          teleprompterText,
+          currentSentence,
+          userCaptionText,
+          interimText,
+          aiSpeaking,
+          ttsLoading,
+          ttsEnabled,
+        },
+        events: voiceAlignmentEvents,
+      },
     };
   }, [
     messages,
@@ -1132,6 +1199,17 @@ export function ExamVoiceSession({
     dataStream,
     pinnedAudioPlayer,
     pinnedImageDisplay,
+    latestAssistantMessage?.id,
+    latestAssistantRawText,
+    lastAssistantText,
+    teleprompterText,
+    currentSentence,
+    userCaptionText,
+    interimText,
+    aiSpeaking,
+    ttsLoading,
+    ttsEnabled,
+    voiceAlignmentEvents,
   ]);
 
   const handleCopyDebugLog = useCallback(async () => {
@@ -1166,6 +1244,16 @@ export function ExamVoiceSession({
     return 'idle';
   }, [aiSpeaking, isRecording, ttsLoading, status]);
 
+  useEffect(() => {
+    if (!currentSentence) return;
+    appendVoiceAlignmentEvent({
+      channel: 'tts_stream_sentence',
+      messageId: currentStreamMsgId.current,
+      text: currentSentence,
+      status,
+    });
+  }, [currentSentence, status, appendVoiceAlignmentEvent]);
+
   // ── Auto-start exam ──
   useEffect(() => {
     if (hasStartedRef.current || !examStarted || !examType || !examStartTime)
@@ -1198,6 +1286,8 @@ export function ExamVoiceSession({
     hasStartedRef.current = false;
     subsectionRecoverySentRef.current.clear();
     rolePlayCorrectionSentRef.current.clear();
+    voiceAlignmentEventIdRef.current = 0;
+    setVoiceAlignmentEvents([]);
     if (typeof window !== 'undefined') {
       if (examStartMarkerKeyRef.current) {
         sessionStorage.removeItem(examStartMarkerKeyRef.current);
@@ -1326,6 +1416,12 @@ export function ExamVoiceSession({
         firstAssistantSeen.current = true;
         lastAutoTTSId.current = last.id;
         setTeleprompterText(text);
+        appendVoiceAlignmentEvent({
+          channel: 'teleprompter',
+          messageId: last.id,
+          text,
+          status,
+        });
       }
       return;
     }
@@ -1345,6 +1441,12 @@ export function ExamVoiceSession({
 
     if (!ttsEnabled) {
       setTeleprompterText(text);
+      appendVoiceAlignmentEvent({
+        channel: 'teleprompter',
+        messageId: last.id,
+        text,
+        status,
+      });
       return;
     }
 
@@ -1354,6 +1456,12 @@ export function ExamVoiceSession({
 
     for (const sentence of sentences) {
       enqueueSentence(sentence, { messageId: last.id });
+      appendVoiceAlignmentEvent({
+        channel: 'tts_queue',
+        messageId: last.id,
+        text: sentence,
+        status,
+      });
     }
 
     if (consumed > 0) {
@@ -1366,10 +1474,33 @@ export function ExamVoiceSession({
       const remaining = text.slice(sentCharsRef.current).trim();
       if (remaining) {
         enqueueSentence(remaining, { messageId: last.id });
+        appendVoiceAlignmentEvent({
+          channel: 'tts_queue',
+          messageId: last.id,
+          text: remaining,
+          status,
+        });
         sentCharsRef.current = text.length;
       }
       setTeleprompterText(text);
-      setTranscriptTurns((prev) => [...prev, { speaker: 'EXAMINER', text }]);
+      appendVoiceAlignmentEvent({
+        channel: 'teleprompter',
+        messageId: last.id,
+        text,
+        status,
+      });
+      setTranscriptTurns((prev) => {
+        const turn: TranscriptTurn = { speaker: 'EXAMINER', text };
+        const nextTurns = [...prev, turn];
+        appendVoiceAlignmentEvent({
+          channel: 'transcript_turn',
+          speaker: 'EXAMINER',
+          messageId: last.id,
+          text,
+          status,
+        });
+        return nextTurns;
+      });
     }
   }, [
     status,
@@ -1378,6 +1509,7 @@ export function ExamVoiceSession({
     enqueueSentence,
     resetStreamingTTS,
     assistantVoiceContext,
+    appendVoiceAlignmentEvent,
   ]);
 
   // ── Speech Recognition helpers ──
@@ -1607,7 +1739,22 @@ export function ExamVoiceSession({
       if (!text && interimSnapshot) text = interimSnapshot;
       if (!text) return;
       setUserCaptionText(text);
-      setTranscriptTurns((prev) => [...prev, { speaker: 'YOU', text }]);
+      appendVoiceAlignmentEvent({
+        channel: 'user_caption',
+        text,
+        status,
+      });
+      setTranscriptTurns((prev) => {
+        const turn: TranscriptTurn = { speaker: 'YOU', text };
+        const nextTurns = [...prev, turn];
+        appendVoiceAlignmentEvent({
+          channel: 'transcript_turn',
+          speaker: 'YOU',
+          text,
+          status,
+        });
+        return nextTurns;
+      });
       setPinnedAudioPlayer(null);
       setAudioPlayerReadyToShow(false);
       setIsExamAudioPlaying(false);
@@ -1622,7 +1769,13 @@ export function ExamVoiceSession({
       setSuppressImageUntilNextAssistant(true);
       append({ role: 'user', content: text });
     }, 200);
-  }, [stopListening, append, pinnedImageDisplay]);
+  }, [
+    stopListening,
+    append,
+    pinnedImageDisplay,
+    appendVoiceAlignmentEvent,
+    status,
+  ]);
 
   // ── Repeat last examiner message ──
   const handleRepeat = useCallback(() => {
