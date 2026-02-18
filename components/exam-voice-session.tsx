@@ -133,45 +133,93 @@ function getAssistantVoiceText(message: UIMessage | null | undefined): string {
     .trim();
 
   let examAudioInstruction: string | null = null;
+  let examImageInstruction: string | null = null;
 
   for (const part of message.parts) {
     if (
       part.type !== 'tool-invocation' ||
-      part.toolInvocation?.toolName !== 'playAudio' ||
       part.toolInvocation?.state !== 'result'
     ) {
       continue;
     }
 
-    const result = part.toolInvocation.result as any;
+    const invocation = part.toolInvocation;
+    const result = invocation.result as any;
     const details = result?.details;
-    if (!details?.isExamRecording) continue;
 
-    const description =
-      typeof details.description === 'string' ? details.description.trim() : '';
-    examAudioInstruction = description || 'Press Play to listen.';
-    break;
+    if (invocation.toolName === 'playAudio' && details?.isExamRecording) {
+      const description =
+        typeof details.description === 'string'
+          ? details.description.trim()
+          : '';
+      examAudioInstruction = description || 'Press Play to listen.';
+      continue;
+    }
+
+    if (invocation.toolName === 'displayImage' && details?.isExamImage) {
+      const description =
+        typeof details.description === 'string'
+          ? details.description.trim()
+          : '';
+
+      if (details.subsection === '2II') {
+        const isGenericExamDescription =
+          description.length === 0 ||
+          /visual stimulus|operational communication scenario|image set/i.test(
+            description,
+          );
+
+        examImageInstruction = description
+          ? isGenericExamDescription
+            ? 'Task One is complete. We are now moving to Task Two. Now I will show you an operational image. Please describe what you see.'
+            : `Task One is complete. We are now moving to Task Two. ${description}`
+          : 'Task One is complete. We are now moving to Task Two. Now I will show you an operational image. Please describe what you see.';
+      } else {
+        examImageInstruction =
+          description || 'Please review the image and continue the task.';
+      }
+    }
   }
 
-  if (!examAudioInstruction) return rawText;
-  if (!rawText) return examAudioInstruction;
+  if (examAudioInstruction) {
+    if (!rawText) return examAudioInstruction;
 
-  const normalizedRawText = rawText.replace(/\s+/g, ' ').trim().toLowerCase();
-  const normalizedInstruction = examAudioInstruction
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+    const normalizedRawText = rawText.replace(/\s+/g, ' ').trim().toLowerCase();
+    const normalizedInstruction = examAudioInstruction
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
 
-  if (
-    normalizedRawText === normalizedInstruction ||
-    normalizedRawText === 'press play to listen.' ||
-    normalizedRawText === 'press play to listen'
-  ) {
-    return rawText;
+    if (
+      normalizedRawText === normalizedInstruction ||
+      normalizedRawText === 'press play to listen.' ||
+      normalizedRawText === 'press play to listen'
+    ) {
+      return rawText;
+    }
+
+    // Runtime guard: keep audio turns as instruction-only for realistic exam flow.
+    return examAudioInstruction;
   }
 
-  // Runtime guard: keep audio turns as instruction-only for realistic exam flow.
-  return examAudioInstruction;
+  if (examImageInstruction) {
+    if (!rawText) return examImageInstruction;
+
+    const normalizedRawText = rawText.replace(/\s+/g, ' ').trim().toLowerCase();
+    const normalizedInstruction = examImageInstruction
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+
+    if (normalizedRawText === normalizedInstruction) {
+      return rawText;
+    }
+
+    // For image-tool turns, ensure a clear spoken transition exists.
+    return examImageInstruction;
+  }
+
+  return rawText;
 }
 
 // ─── Speech Recognition types ───────────────────────────────────────────────
@@ -517,6 +565,7 @@ export function ExamVoiceSession({
   const isRecordingRef = useRef(false); // mirror for global key handler
   const hasStartedRef = useRef(false);
   const examStartMarkerKeyRef = useRef<string | null>(null);
+  const subsectionRecoverySentRef = useRef<Set<string>>(new Set());
   const lastAutoTTSId = useRef<string | null>(null);
   // Track the first AI response (welcome/description) so we skip TTS for it
   const firstAssistantSeen = useRef(false);
@@ -596,6 +645,43 @@ export function ExamVoiceSession({
     () => messages.filter((message) => message.role === 'assistant'),
     [messages],
   );
+
+  const hasExamRunStarted = useMemo(
+    () =>
+      messages.some((message) => {
+        if (message.role !== 'user') return false;
+        if (typeof message.content !== 'string') return false;
+        return (
+          message.content === EXAM_START_TRIGGER_MESSAGE ||
+          message.content.startsWith('[Admin]')
+        );
+      }),
+    [messages],
+  );
+
+  const hasMediaForCurrentSubsection = useMemo(() => {
+    if (!currentSubsection) return false;
+
+    return messages.some((message) => {
+      if (message.role !== 'assistant' || !message.parts) return false;
+
+      return message.parts.some((part) => {
+        if (part.type !== 'tool-invocation') return false;
+        const invocation = part.toolInvocation;
+        if (invocation?.state !== 'result') return false;
+        if (
+          invocation.toolName !== 'playAudio' &&
+          invocation.toolName !== 'displayImage'
+        ) {
+          return false;
+        }
+
+        const result = invocation.result as any;
+        const subsection = result?.details?.subsection;
+        return subsection === currentSubsection;
+      });
+    });
+  }, [messages, currentSubsection]);
 
   const lastAssistantText = useMemo(() => {
     const lastAssistant = [...messages]
@@ -851,6 +937,7 @@ export function ExamVoiceSession({
     if (examStarted) return;
 
     hasStartedRef.current = false;
+    subsectionRecoverySentRef.current.clear();
     if (typeof window !== 'undefined') {
       if (examStartMarkerKeyRef.current) {
         sessionStorage.removeItem(examStartMarkerKeyRef.current);
@@ -860,6 +947,51 @@ export function ExamVoiceSession({
     }
     examStartMarkerKeyRef.current = null;
   }, [examStarted, id]);
+
+  useEffect(() => {
+    if (!examStarted || !examType) return;
+    if (examCompletionPhase !== 'active') return;
+    if (!currentSection || !currentSubsection) return;
+    if (!hasExamRunStarted) return;
+
+    const locationKey = `${currentSection}:${currentSubsection}`;
+    if (hasMediaForCurrentSubsection) {
+      subsectionRecoverySentRef.current.delete(locationKey);
+      return;
+    }
+
+    if (
+      status !== 'ready' ||
+      aiSpeaking ||
+      ttsLoading ||
+      isPaused ||
+      isExamAudioPlaying
+    ) {
+      return;
+    }
+
+    if (subsectionRecoverySentRef.current.has(locationKey)) return;
+    subsectionRecoverySentRef.current.add(locationKey);
+
+    append({
+      role: 'user',
+      content: `[System] Continue the exam at Section ${currentSection}, Subsection ${currentSubsection}. Do NOT complete the exam now. Provide the correct examiner prompt for this subsection and call the required media tool for this subsection before asking for the candidate response.`,
+    });
+  }, [
+    examStarted,
+    examType,
+    examCompletionPhase,
+    currentSection,
+    currentSubsection,
+    hasExamRunStarted,
+    hasMediaForCurrentSubsection,
+    status,
+    aiSpeaking,
+    ttsLoading,
+    isPaused,
+    isExamAudioPlaying,
+    append,
+  ]);
 
   // ── Section change callback for admin jump ──
   useEffect(() => {

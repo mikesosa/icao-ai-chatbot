@@ -119,64 +119,70 @@ export function ImageDisplay({
       className={cn(
         'bg-card rounded-lg p-4 space-y-4',
         {
-          'ring-2 ring-primary/20': isExamImage && selectedImage !== null,
-          'ring-2 ring-green-500/20': isExamImage && isCompleted,
+          'ring-2 ring-primary/20': !isExamImage && selectedImage !== null,
+          'ring-2 ring-green-500/20': !isExamImage && isCompleted,
         },
         className,
       )}
       data-image-set-id={imageSetId}
     >
-      <div className="space-y-1">
-        {title && (
-          <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-            <ImageIcon className="size-4" />
-            {title}
-          </h4>
-        )}
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
-        {subsection && (
-          <p className="text-xs text-muted-foreground">
-            Subsection: {subsection}
-          </p>
-        )}
-      </div>
-
-      {instructions.length > 0 && (
-        <div className="rounded-md border bg-muted/30 p-2 space-y-1">
-          <p className="text-xs font-medium text-foreground">What to do</p>
-          <p className="text-xs text-muted-foreground">
-            {instructions.join(' ')}
-          </p>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          {imageSetId && (
-            <p className="text-xs text-muted-foreground">ID: {imageSetId}</p>
-          )}
-        </div>
-
-        {isExamImage && (
-          <div className="flex items-center gap-1">
-            {isCompleted ? (
-              <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                Viewed
-              </span>
-            ) : hasViewed ? (
-              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                Displayed
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                Not viewed
-              </span>
+      {!isExamImage && (
+        <>
+          <div className="space-y-1">
+            {title && (
+              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                <ImageIcon className="size-4" />
+                {title}
+              </h4>
+            )}
+            {description && (
+              <p className="text-xs text-muted-foreground">{description}</p>
+            )}
+            {subsection && (
+              <p className="text-xs text-muted-foreground">
+                Subsection: {subsection}
+              </p>
             )}
           </div>
-        )}
-      </div>
+
+          {instructions.length > 0 && (
+            <div className="rounded-md border bg-muted/30 p-2 space-y-1">
+              <p className="text-xs font-medium text-foreground">What to do</p>
+              <p className="text-xs text-muted-foreground">
+                {instructions.join(' ')}
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              {imageSetId && (
+                <p className="text-xs text-muted-foreground">
+                  ID: {imageSetId}
+                </p>
+              )}
+            </div>
+
+            {isExamImage && (
+              <div className="flex items-center gap-1">
+                {isCompleted ? (
+                  <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                    Viewed
+                  </span>
+                ) : hasViewed ? (
+                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                    Displayed
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                    Not viewed
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Images */}
       <div className={getLayoutClasses()}>
@@ -193,10 +199,15 @@ export function ImageDisplay({
                 className={cn(
                   'relative group cursor-pointer overflow-hidden rounded-md border w-full',
                   {
-                    'ring-2 ring-primary': selectedImage === index,
+                    'ring-2 ring-primary':
+                      !isExamImage && selectedImage === index,
+                    'cursor-default': isExamImage,
                   },
                 )}
-                onClick={() => handleImageClick(index)}
+                onClick={() => {
+                  if (isExamImage) return;
+                  handleImageClick(index);
+                }}
               >
                 {/* {loadingStates[index] && (
                   <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
@@ -220,7 +231,7 @@ export function ImageDisplay({
                       className={cn(
                         'object-contain transition-transform duration-200',
                         {
-                          'scale-105': selectedImage === index,
+                          'scale-105': !isExamImage && selectedImage === index,
                         },
                       )}
                       onLoad={() => handleImageLoad(index)}
@@ -231,21 +242,23 @@ export function ImageDisplay({
                     />
 
                     {/* Overlay with zoom icon */}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        {selectedImage === index ? (
-                          <div className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
-                            <Eye className="size-4 mr-1" />
-                            Viewing
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
-                            <ZoomIn className="size-4 mr-1" />
-                            Click to view
-                          </div>
-                        )}
+                    {!isExamImage && (
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          {selectedImage === index ? (
+                            <div className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
+                              <Eye className="size-4 mr-1" />
+                              Viewing
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
+                              <ZoomIn className="size-4 mr-1" />
+                              Click to view
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </button>
@@ -254,18 +267,19 @@ export function ImageDisplay({
         })}
       </div>
 
-      {/* Image count and layout info */}
-      <div className="text-center items-center text-xs text-muted-foreground">
-        <span>
-          {images.length} image{images.length > 1 ? 's' : ''}
-          {layout !== 'single' && ` • ${layout} layout`}
-        </span>
-        {selectedImage !== null && (
+      {!isExamImage && (
+        <div className="text-center items-center text-xs text-muted-foreground">
           <span>
-            Viewing image {selectedImage + 1} of {images.length}
+            {images.length} image{images.length > 1 ? 's' : ''}
+            {layout !== 'single' && ` • ${layout} layout`}
           </span>
-        )}
-      </div>
+          {selectedImage !== null && (
+            <span>
+              Viewing image {selectedImage + 1} of {images.length}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
