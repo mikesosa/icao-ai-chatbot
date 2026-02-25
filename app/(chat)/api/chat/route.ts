@@ -2,6 +2,9 @@ import { after } from 'next/server';
 
 import { geolocation } from '@vercel/functions';
 import {
+  type StreamTextTransform,
+  type TextStreamPart,
+  type ToolSet,
   appendClientMessage,
   appendResponseMessages,
   createDataStream,
@@ -125,6 +128,137 @@ function buildAssistantTextMessage(messageId: string, text: string) {
     ],
     createdAt: new Date().toISOString(),
   };
+}
+
+function shouldStripElpacTwoIRoleLabels({
+  selectedChatModel,
+  currentSection,
+  currentSubsection,
+}: {
+  selectedChatModel: string;
+  currentSection?: string;
+  currentSubsection?: string;
+}): boolean {
+  return (
+    selectedChatModel === 'elpac-demo' &&
+    currentSection === '2' &&
+    currentSubsection === '2I'
+  );
+}
+
+function stripRoleLabelsFromTextDelta(textDelta: string): string {
+  return textDelta.replace(/\b(?:Pilot|Controller)\s*:\s*/gi, '');
+}
+
+function stripRoleLabelsFromText(text: string): string {
+  const withoutLabels = stripRoleLabelsFromTextDelta(text);
+  const withoutWrappedQuotes = withoutLabels
+    .replace(/^["“](.*)["”]$/s, '$1')
+    .trim();
+
+  return withoutWrappedQuotes.replace(/\s{2,}/g, ' ').trim();
+}
+
+function sanitizeExamAssistantText({
+  selectedChatModel,
+  currentSection,
+  currentSubsection,
+  text,
+}: {
+  selectedChatModel: string;
+  currentSection?: string;
+  currentSubsection?: string;
+  text: string;
+}): string {
+  if (
+    shouldStripElpacTwoIRoleLabels({
+      selectedChatModel,
+      currentSection,
+      currentSubsection,
+    })
+  ) {
+    return stripRoleLabelsFromText(text);
+  }
+
+  return text;
+}
+
+function sanitizeExamAssistantParts({
+  selectedChatModel,
+  currentSection,
+  currentSubsection,
+  parts,
+}: {
+  selectedChatModel: string;
+  currentSection?: string;
+  currentSubsection?: string;
+  parts: any[];
+}): any[] {
+  return parts.map((part) => {
+    if (
+      part &&
+      typeof part === 'object' &&
+      part.type === 'text' &&
+      typeof part.text === 'string'
+    ) {
+      return {
+        ...part,
+        text: sanitizeExamAssistantText({
+          selectedChatModel,
+          currentSection,
+          currentSubsection,
+          text: part.text,
+        }),
+      };
+    }
+
+    return part;
+  });
+}
+
+function createElpacRoleLabelSanitizerTransform<
+  TOOLS extends ToolSet,
+>(): StreamTextTransform<TOOLS> {
+  return () =>
+    new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
+      transform: (chunk, controller) => {
+        if (chunk.type === 'text-delta') {
+          const sanitizedDelta = stripRoleLabelsFromTextDelta(chunk.textDelta);
+          if (sanitizedDelta.length > 0) {
+            controller.enqueue({ ...chunk, textDelta: sanitizedDelta });
+          }
+          return;
+        }
+
+        controller.enqueue(chunk);
+      },
+    });
+}
+
+function buildExamOutputTransforms<TOOLS extends ToolSet>({
+  selectedChatModel,
+  currentSection,
+  currentSubsection,
+}: {
+  selectedChatModel: string;
+  currentSection?: string;
+  currentSubsection?: string;
+}): StreamTextTransform<TOOLS>[] {
+  const transforms: StreamTextTransform<TOOLS>[] = [
+    smoothStream<TOOLS>({ chunking: 'word' }),
+  ];
+
+  if (
+    shouldStripElpacTwoIRoleLabels({
+      selectedChatModel,
+      currentSection,
+      currentSubsection,
+    })
+  ) {
+    transforms.push(createElpacRoleLabelSanitizerTransform<TOOLS>());
+  }
+
+  return transforms;
 }
 
 function buildElpacFallbackText({
@@ -594,6 +728,30 @@ export async function POST(request: Request) {
               : 3
             : 2;
 
+        const streamTools = {
+          getWeather,
+          createDocument: createDocument({ session, dataStream }),
+          updateDocument: updateDocument({ session, dataStream }),
+          requestSuggestions: requestSuggestions({
+            session,
+            dataStream,
+          }),
+          examSectionControl: examSectionControl({ dataStream }),
+          playAudio: playAudioTool({
+            session,
+            dataStream,
+            examConfig,
+            requestState,
+          }),
+          getAudioTranscript: getAudioTranscript({ examConfig }),
+          displayImage: displayImageTool({ session, dataStream }),
+        };
+        const outputTransforms = buildExamOutputTransforms<typeof streamTools>({
+          selectedChatModel,
+          currentSection,
+          currentSubsection,
+        });
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: systemPromptContent,
@@ -622,26 +780,9 @@ export async function POST(request: Request) {
                     'updateDocument',
                     'requestSuggestions',
                   ],
-          experimental_transform: smoothStream({ chunking: 'word' }),
+          experimental_transform: outputTransforms,
           experimental_generateMessageId: generateUUID,
-          tools: {
-            getWeather,
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
-            requestSuggestions: requestSuggestions({
-              session,
-              dataStream,
-            }),
-            examSectionControl: examSectionControl({ dataStream }),
-            playAudio: playAudioTool({
-              session,
-              dataStream,
-              examConfig,
-              requestState,
-            }),
-            getAudioTranscript: getAudioTranscript({ examConfig }),
-            displayImage: displayImageTool({ session, dataStream }),
-          },
+          tools: streamTools,
           onFinish: async ({ response }) => {
             if (session.user?.id) {
               try {
@@ -694,7 +835,13 @@ export async function POST(request: Request) {
                   responseMessages: response.messages,
                 });
 
-                const assistantText = getAssistantText(assistantMessage.parts);
+                const sanitizedAssistantParts = sanitizeExamAssistantParts({
+                  selectedChatModel,
+                  currentSection,
+                  currentSubsection,
+                  parts: assistantMessage.parts as any[],
+                });
+                const assistantText = getAssistantText(sanitizedAssistantParts);
                 const shouldUseElpacEmptyTurnFallback =
                   isElpacDemoTurn && assistantText.length === 0;
 
@@ -722,7 +869,7 @@ export async function POST(request: Request) {
                         id: assistantId,
                         chatId: id,
                         role: assistantMessage.role,
-                        parts: assistantMessage.parts,
+                        parts: sanitizedAssistantParts,
                         attachments:
                           assistantMessage.experimental_attachments ?? [],
                         createdAt: new Date(),
@@ -746,7 +893,7 @@ export async function POST(request: Request) {
                       id: assistantId,
                       chatId: id,
                       role: assistantMessage.role,
-                      parts: assistantMessage.parts,
+                      parts: sanitizedAssistantParts,
                       attachments:
                         assistantMessage.experimental_attachments ?? [],
                       createdAt: new Date(),

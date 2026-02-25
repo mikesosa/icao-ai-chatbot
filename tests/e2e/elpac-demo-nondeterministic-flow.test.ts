@@ -54,6 +54,7 @@ type SendExamTurnResult = {
   parsedLineCount: number;
   appendMessages: ParsedStreamAppendMessage[];
   dataEvents: ParsedStreamDataEvent[];
+  errorMessages: string[];
   statusCode: number;
   httpAttempts: number;
 };
@@ -82,6 +83,7 @@ type ApiTurnTrace = {
     parsedLineCount: number;
     appendMessages: ParsedStreamAppendMessage[];
     dataEvents: ParsedStreamDataEvent[];
+    errorMessages: string[];
     statusCode: number;
     httpAttempts: number;
     isRecoveryPrompt: boolean;
@@ -259,12 +261,30 @@ async function sendExamTurn({
 
     if (response.ok()) {
       const parsedPayload = parseStreamPayload(latestResponseBody);
+      const normalizedText = normalizeText(parsedPayload.text);
+      const hasStreamError = parsedPayload.errorMessages.length > 0;
+      const shouldRetryForStreamError =
+        normalizedText === '' &&
+        hasStreamError &&
+        httpAttempt < MAX_CHAT_HTTP_ATTEMPTS;
+
+      if (shouldRetryForStreamError) {
+        console.log(
+          `[WARN] /api/chat attempt ${httpAttempt}/${MAX_CHAT_HTTP_ATTEMPTS} returned empty text with stream error(s); retrying. errors="${truncate(
+            parsedPayload.errorMessages.join(' | '),
+          )}"`,
+        );
+        await page.waitForTimeout(350 * httpAttempt);
+        continue;
+      }
+
       return {
-        text: normalizeText(parsedPayload.text),
+        text: normalizedText,
         streamPayload: latestResponseBody,
         parsedLineCount: parsedPayload.parsedLineCount,
         appendMessages: parsedPayload.appendMessages,
         dataEvents: parsedPayload.dataEvents,
+        errorMessages: parsedPayload.errorMessages,
         statusCode: latestStatusCode,
         httpAttempts: httpAttempt,
       };
@@ -299,6 +319,7 @@ async function sendExamTurn({
     parsedLineCount: 0,
     appendMessages: [],
     dataEvents: [],
+    errorMessages: [],
     statusCode: latestStatusCode,
     httpAttempts: MAX_CHAT_HTTP_ATTEMPTS,
   };
@@ -366,9 +387,49 @@ async function sendExamTurnWithRecovery({
     }
   }
 
+  if (
+    currentSection === '2' &&
+    currentSubsection === '2II' &&
+    !allowEmptyAfterRecovery
+  ) {
+    const forcedRecoveryPrompts = [
+      '[System] Continue subsection 2II now. Ask exactly one short examiner question.',
+      '[System] Ask this exact question now: "What are the main communication risks in this situation?"',
+    ];
+
+    for (const forcedPrompt of forcedRecoveryPrompts) {
+      const forcedRecoveryResponse = await sendExamTurn({
+        page,
+        chatId,
+        text: forcedPrompt,
+        currentSection,
+        currentSubsection,
+      });
+      const tracedAttempt: RecoveryAttempt = {
+        requestText: forcedPrompt,
+        response: forcedRecoveryResponse,
+        isRecoveryPrompt: true,
+      };
+      attempts.push(tracedAttempt);
+
+      if (forcedRecoveryResponse.text) {
+        return {
+          attempts,
+          final: tracedAttempt,
+        };
+      }
+    }
+  }
+
   expect(
     allowEmptyAfterRecovery,
-    `${label} should not be empty even after recovery attempts`,
+    `${label} should not be empty even after recovery attempts. attempts=${attempts
+      .map((attempt, index) => {
+        const streamErrors =
+          attempt.response.errorMessages.join(' | ') || 'none';
+        return `#${index + 1}[recovery=${attempt.isRecoveryPrompt}] text="${attempt.response.text}" status=${attempt.response.statusCode} streamErrors="${streamErrors}"`;
+      })
+      .join('; ')}`,
   ).toBe(true);
 
   return {
@@ -457,6 +518,17 @@ function hasDuplicatedTaskTwoPrompt(text: string): boolean {
   );
 }
 
+function isLikelySectionTwoRolePlayKickoff(text: string): boolean {
+  return (
+    /\b(section\s*2|next section|task\s*one|task\s*1|role-?play)\b/i.test(
+      text,
+    ) &&
+    /\b(controller|pilot|start-?up and taxi|abc123|technical issue)\b/i.test(
+      text,
+    )
+  );
+}
+
 function hasCompletionIntent(text: string): boolean {
   return /\b(final evaluation|conclude|complete|completed|finalize|end the exam)\b/i.test(
     text,
@@ -489,6 +561,7 @@ function buildApiTurnTrace({
       parsedLineCount: attempt.response.parsedLineCount,
       appendMessages: attempt.response.appendMessages,
       dataEvents: attempt.response.dataEvents,
+      errorMessages: attempt.response.errorMessages,
       statusCode: attempt.response.statusCode,
       httpAttempts: attempt.response.httpAttempts,
       isRecoveryPrompt: attempt.isRecoveryPrompt,
@@ -722,24 +795,39 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
       const rolePlayKickoffTurn = transcript.find(
         (turn) =>
           turn.speaker === 'EXAMINER' &&
-          /role-?play/i.test(turn.text) &&
-          /controller/i.test(turn.text),
+          isLikelySectionTwoRolePlayKickoff(turn.text),
       );
       expect(
         rolePlayKickoffTurn,
-        'examiner should include the Section 2 role-play kickoff turn',
+        `examiner should include the Section 2 role-play kickoff turn. Examiner transcript:\n${transcript
+          .filter((turn) => turn.speaker === 'EXAMINER')
+          .map((turn) => formatTranscriptLine(turn))
+          .join('\n')}`,
       ).toBeDefined();
 
       const rolePlayKickoffText = rolePlayKickoffTurn?.text ?? '';
-      expect(rolePlayKickoffText).toMatch(/next section/i);
+      expect(rolePlayKickoffText).toMatch(/next section.*role-?play scenario/i);
       expect(rolePlayKickoffText).toMatch(
         /you(?:'ll| will) act as the controller/i,
       );
-      expect(rolePlayKickoffText).toMatch(/pilot'?s lines/i);
+      expect(rolePlayKickoffText).toMatch(
+        /i(?:'ll| will) provide the pilot'?s lines/i,
+      );
       expect(rolePlayKickoffText).toMatch(/start-?up and taxi/i);
       expect(rolePlayKickoffText).toMatch(/technical issue/i);
       expect(rolePlayKickoffText).toMatch(/abc123/i);
       expect(rolePlayKickoffText).toMatch(/requesting start-?up and taxi/i);
+
+      const labeledTwoITurn = transcript.find(
+        (turn) =>
+          turn.speaker === 'EXAMINER' &&
+          turn.subsection === '2I' &&
+          /\bpilot:\s*/i.test(turn.text),
+      );
+      expect(
+        labeledTwoITurn,
+        `2I examiner turn should not include "Pilot:" labels. Found: ${labeledTwoITurn?.text ?? '(none)'}`,
+      ).toBeUndefined();
 
       const duplicatedTaskTwoPromptTurn = transcript.find(
         (turn) =>

@@ -83,6 +83,10 @@ test('buildExamRuntimeDirective adds role-play and visual-flow guardrails for el
     rolePlayDirective ?? '',
     /Do not prefix any utterance with "Pilot:"/i,
   );
+  assert.match(
+    rolePlayDirective ?? '',
+    /Never include the literal token "Pilot:" anywhere in a 2I examiner turn/i,
+  );
 
   const visualDirective = buildExamRuntimeDirective({
     selectedChatModel: 'elpac-demo',
@@ -98,5 +102,28 @@ test('buildExamRuntimeDirective adds role-play and visual-flow guardrails for el
   assert.match(
     visualDirective ?? '',
     /Never output both "Please describe what you see\." and "Describe the operational situation you see\."/i,
+  );
+});
+
+test('buildExamRuntimeDirective enforces exact section-transition kickoff for elpac demo', () => {
+  const transitionDirective = buildExamRuntimeDirective({
+    selectedChatModel: 'elpac-demo',
+    currentSection: '1',
+    currentSubsection: '1P3',
+    latestUserText:
+      'ATC gave heading 270, climb to 5000 feet, vectors for ILS runway 24, and emergency services on standby.',
+  });
+
+  assert.match(
+    transitionDirective ?? '',
+    /MANDATORY OUTPUT FORMAT FOR THIS TURN/i,
+  );
+  assert.match(
+    transitionDirective ?? '',
+    /I will provide the pilot's lines\./i,
+  );
+  assert.match(
+    transitionDirective ?? '',
+    /ABC123 requesting start-up and taxi/i,
   );
 });

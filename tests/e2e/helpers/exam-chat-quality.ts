@@ -22,6 +22,7 @@ export type ParsedStreamPayload = {
   text: string;
   appendMessages: ParsedStreamAppendMessage[];
   dataEvents: ParsedStreamDataEvent[];
+  errorMessages: string[];
   parsedLineCount: number;
 };
 
@@ -71,6 +72,7 @@ export function parseStreamPayload(streamPayload: string): ParsedStreamPayload {
   const chunks: string[] = [];
   const appendMessages: ParsedStreamAppendMessage[] = [];
   const dataEvents: ParsedStreamDataEvent[] = [];
+  const errorMessages: string[] = [];
   let parsedLineCount = 0;
 
   for (const line of lines) {
@@ -88,6 +90,10 @@ export function parseStreamPayload(streamPayload: string): ParsedStreamPayload {
 
       if (channel === '0' && typeof parsed === 'string') {
         chunks.push(parsed);
+      }
+
+      if (channel === '3' && typeof parsed === 'string') {
+        errorMessages.push(parsed);
       }
 
       const streamObjects: unknown[] = [];
@@ -147,6 +153,7 @@ export function parseStreamPayload(streamPayload: string): ParsedStreamPayload {
     text: chunks.join(''),
     appendMessages,
     dataEvents,
+    errorMessages,
     parsedLineCount,
   };
 }
