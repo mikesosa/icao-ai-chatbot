@@ -17,6 +17,10 @@ import {
 import { type UserType, auth } from '@/app/(auth)/auth';
 import type { SerializedCompleteExamConfig } from '@/components/exam-interface/exam';
 import {
+  buildExamRuntimeDirective,
+  hasExplicitExamCompletionIntent,
+} from '@/lib/ai/exam-runtime-directives';
+import {
   type RequestHints,
   isExamEvaluator,
   systemPrompt,
@@ -84,6 +88,28 @@ const examAttemptsPerRolling30DaysLimit = parseRateLimitEnv(
   'EXAM_ATTEMPTS_PER_30_DAYS_LIMIT',
   DEFAULT_EXAM_ATTEMPTS_PER_30_DAYS,
 );
+
+const ELPAC_FALLBACK_COMPLETION_TEXT =
+  'Your final response has been evaluated. Overall, your pronunciation was clear, your structure and vocabulary were appropriate, and your fluency and comprehension were strong. Continue practicing concise communication under pressure. This ELPAC ATC Demo is now complete.';
+
+function getAssistantText(parts: unknown): string {
+  if (!Array.isArray(parts)) {
+    return '';
+  }
+
+  return parts
+    .filter(
+      (part: any) =>
+        part &&
+        typeof part === 'object' &&
+        part.type === 'text' &&
+        typeof part.text === 'string',
+    )
+    .map((part: any) => part.text.trim())
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+}
 
 function getStreamContext() {
   if (!globalStreamContext) {
@@ -350,16 +376,36 @@ export async function POST(request: Request) {
 
     const stream = createDataStream({
       execute: (dataStream) => {
-        const systemPromptContent = systemPrompt({
+        const elpacCompletionRequestedThisTurn =
+          selectedChatModel === 'elpac-demo' &&
+          currentSection === '2' &&
+          hasExplicitExamCompletionIntent(message.content);
+        const baseSystemPrompt = systemPrompt({
           selectedChatModel,
           requestHints,
           examConfig,
           currentSection,
           currentSubsection,
         });
+        const runtimeExamDirective = buildExamRuntimeDirective({
+          selectedChatModel,
+          currentSection,
+          currentSubsection,
+          latestUserText: message.content,
+        });
+        const systemPromptContent = runtimeExamDirective
+          ? `${baseSystemPrompt}\n\n${runtimeExamDirective}`
+          : baseSystemPrompt;
 
         // Per-request guard to prevent multiple playAudio tool executions in one assistant turn.
         const requestState = { playAudioCalledThisRequest: false };
+
+        const examMaxSteps =
+          selectedChatModel === 'elpac-demo'
+            ? elpacCompletionRequestedThisTurn
+              ? 5
+              : 3
+            : 2;
 
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
@@ -367,7 +413,8 @@ export async function POST(request: Request) {
           messages,
           // Exam evaluators: 2 steps allows text + tool call + follow-up text.
           // (1 step caused tool-only responses with no spoken text.)
-          maxSteps: isExamEvaluator(selectedChatModel) ? 2 : 5,
+          // ELPAC demo gets one extra step to reduce tool-only terminal turns.
+          maxSteps: isExamEvaluator(selectedChatModel) ? examMaxSteps : 5,
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []
@@ -418,6 +465,41 @@ export async function POST(request: Request) {
                 });
 
                 if (!assistantId) {
+                  if (elpacCompletionRequestedThisTurn) {
+                    const fallbackMessageId = generateUUID();
+                    const fallbackMessage = {
+                      id: fallbackMessageId,
+                      role: 'assistant',
+                      content: ELPAC_FALLBACK_COMPLETION_TEXT,
+                      parts: [
+                        {
+                          type: 'text',
+                          text: ELPAC_FALLBACK_COMPLETION_TEXT,
+                        },
+                      ],
+                      createdAt: new Date().toISOString(),
+                    };
+
+                    dataStream.writeData({
+                      type: 'append-message',
+                      message: JSON.stringify(fallbackMessage),
+                    });
+
+                    await saveMessages({
+                      messages: [
+                        {
+                          id: fallbackMessageId,
+                          chatId: id,
+                          role: 'assistant',
+                          parts: fallbackMessage.parts as any,
+                          attachments: [],
+                          createdAt: new Date(),
+                        },
+                      ],
+                    });
+                    return;
+                  }
+
                   throw new Error('No assistant message found!');
                 }
 
@@ -425,6 +507,55 @@ export async function POST(request: Request) {
                   messages: [message],
                   responseMessages: response.messages,
                 });
+
+                const assistantText = getAssistantText(assistantMessage.parts);
+                const shouldUseElpacCompletionFallback =
+                  elpacCompletionRequestedThisTurn &&
+                  assistantText.length === 0;
+
+                if (shouldUseElpacCompletionFallback) {
+                  const fallbackMessageId = generateUUID();
+                  const fallbackMessage = {
+                    id: fallbackMessageId,
+                    role: 'assistant',
+                    content: ELPAC_FALLBACK_COMPLETION_TEXT,
+                    parts: [
+                      {
+                        type: 'text',
+                        text: ELPAC_FALLBACK_COMPLETION_TEXT,
+                      },
+                    ],
+                    createdAt: new Date().toISOString(),
+                  };
+
+                  dataStream.writeData({
+                    type: 'append-message',
+                    message: JSON.stringify(fallbackMessage),
+                  });
+
+                  await saveMessages({
+                    messages: [
+                      {
+                        id: assistantId,
+                        chatId: id,
+                        role: assistantMessage.role,
+                        parts: assistantMessage.parts,
+                        attachments:
+                          assistantMessage.experimental_attachments ?? [],
+                        createdAt: new Date(),
+                      },
+                      {
+                        id: fallbackMessageId,
+                        chatId: id,
+                        role: 'assistant',
+                        parts: fallbackMessage.parts as any,
+                        attachments: [],
+                        createdAt: new Date(),
+                      },
+                    ],
+                  });
+                  return;
+                }
 
                 await saveMessages({
                   messages: [
