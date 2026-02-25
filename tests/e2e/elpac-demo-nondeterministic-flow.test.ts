@@ -1,10 +1,15 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import { type Page, expect, test } from '@playwright/test';
 import postgres from 'postgres';
 
 import {
+  type ParsedStreamAppendMessage,
+  type ParsedStreamDataEvent,
   assertHumanLikeExamResponse,
-  extractStreamedText,
   normalizeText,
+  parseStreamPayload,
 } from './helpers/exam-chat-quality';
 
 const TEST_PASSWORD = 'Playwright!12345';
@@ -13,6 +18,10 @@ const EXAM_START_TRIGGER_MESSAGE =
 const ELPAC_MODEL_ID = 'elpac-demo';
 const EXAM_EVALUATOR_MODEL_TYPE = 'exam-evaluator';
 const MAX_EMPTY_RESPONSE_RECOVERY_ATTEMPTS = 2;
+const MAX_CHAT_HTTP_ATTEMPTS = 3;
+const OFF_TOPIC_PROBE_TEXT = 'Can you tell me a joke about cats?';
+const OFF_TOPIC_REDIRECT_SNIPPET =
+  'keep your response focused on the exam task';
 const RUN_NON_DETERMINISTIC_E2E = process.env.RUN_NON_DETERMINISTIC_E2E === '1';
 const USES_DETERMINISTIC_TEST_MODEL =
   process.env.PLAYWRIGHT === 'True' ||
@@ -29,6 +38,67 @@ type TranscriptTurn = {
   text: string;
   section?: string;
   subsection?: string;
+};
+
+type SendExamTurnOptions = {
+  page: Page;
+  chatId: string;
+  text: string;
+  currentSection?: string;
+  currentSubsection?: string;
+};
+
+type SendExamTurnResult = {
+  text: string;
+  streamPayload: string;
+  parsedLineCount: number;
+  appendMessages: ParsedStreamAppendMessage[];
+  dataEvents: ParsedStreamDataEvent[];
+  statusCode: number;
+  httpAttempts: number;
+};
+
+type RecoveryAttempt = {
+  requestText: string;
+  response: SendExamTurnResult;
+  isRecoveryPrompt: boolean;
+};
+
+type SendExamTurnWithRecoveryResult = {
+  attempts: RecoveryAttempt[];
+  final: RecoveryAttempt;
+};
+
+type ApiTurnTrace = {
+  label: string;
+  section?: string;
+  subsection?: string;
+  candidateText: string;
+  finalResponseText: string;
+  attempts: Array<{
+    requestText: string;
+    responseText: string;
+    streamPayload: string;
+    parsedLineCount: number;
+    appendMessages: ParsedStreamAppendMessage[];
+    dataEvents: ParsedStreamDataEvent[];
+    statusCode: number;
+    httpAttempts: number;
+    isRecoveryPrompt: boolean;
+  }>;
+};
+
+type StreamEventTrace = {
+  turnIndex: number;
+  turnLabel: string;
+  section?: string;
+  subsection?: string;
+  requestText: string;
+  responseText: string;
+  isRecoveryPrompt: boolean;
+  type: string;
+  content?: unknown;
+  channel: string;
 };
 
 function createTestEmail(): string {
@@ -116,45 +186,122 @@ async function activateExamSubscription(email: string) {
   await sql.end();
 }
 
-type SendExamTurnOptions = {
-  page: Page;
-  chatId: string;
-  text: string;
-  currentSection?: string;
-  currentSubsection?: string;
-};
-
 async function sendExamTurn({
   page,
   chatId,
   text,
   currentSection,
   currentSubsection,
-}: SendExamTurnOptions): Promise<string> {
-  const response = await page.request.post('/api/chat', {
-    data: {
-      id: chatId,
-      message: {
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        role: 'user',
-        content: text,
-        parts: [{ type: 'text', text }],
+}: SendExamTurnOptions): Promise<SendExamTurnResult> {
+  const truncate = (value: string, max = 500) => {
+    if (value.length <= max) {
+      return value;
+    }
+    return `${value.slice(0, max)}…`;
+  };
+
+  const isRetryableChatFailure = (statusCode: number, responseBody: string) => {
+    if (statusCode >= 500) {
+      return true;
+    }
+
+    if (statusCode === 408 || statusCode === 409 || statusCode === 429) {
+      return true;
+    }
+
+    if (
+      statusCode === 400 &&
+      /bad_request:database|database|Failed to get subscription/i.test(
+        responseBody,
+      )
+    ) {
+      return true;
+    }
+
+    if (
+      statusCode === 402 &&
+      /payment_required|subscription|billing/i.test(responseBody)
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  let latestStatusCode = 0;
+  let latestResponseBody = '';
+
+  for (
+    let httpAttempt = 1;
+    httpAttempt <= MAX_CHAT_HTTP_ATTEMPTS;
+    httpAttempt++
+  ) {
+    const response = await page.request.post('/api/chat', {
+      data: {
+        id: chatId,
+        message: {
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          role: 'user',
+          content: text,
+          parts: [{ type: 'text', text }],
+        },
+        selectedChatModel: ELPAC_MODEL_ID,
+        selectedVisibilityType: 'private',
+        modelType: EXAM_EVALUATOR_MODEL_TYPE,
+        currentSection: currentSection ?? null,
+        currentSubsection: currentSubsection ?? null,
       },
-      selectedChatModel: ELPAC_MODEL_ID,
-      selectedVisibilityType: 'private',
-      modelType: EXAM_EVALUATOR_MODEL_TYPE,
-      currentSection: currentSection ?? null,
-      currentSubsection: currentSubsection ?? null,
-    },
-  });
+    });
 
-  expect(response.ok(), `chat request should succeed for turn: "${text}"`).toBe(
-    true,
-  );
+    latestStatusCode = response.status();
+    latestResponseBody = await response.text();
 
-  const streamPayload = await response.text();
-  return normalizeText(extractStreamedText(streamPayload));
+    if (response.ok()) {
+      const parsedPayload = parseStreamPayload(latestResponseBody);
+      return {
+        text: normalizeText(parsedPayload.text),
+        streamPayload: latestResponseBody,
+        parsedLineCount: parsedPayload.parsedLineCount,
+        appendMessages: parsedPayload.appendMessages,
+        dataEvents: parsedPayload.dataEvents,
+        statusCode: latestStatusCode,
+        httpAttempts: httpAttempt,
+      };
+    }
+
+    const shouldRetry =
+      httpAttempt < MAX_CHAT_HTTP_ATTEMPTS &&
+      isRetryableChatFailure(latestStatusCode, latestResponseBody);
+
+    if (!shouldRetry) {
+      break;
+    }
+
+    console.log(
+      `[WARN] /api/chat attempt ${httpAttempt}/${MAX_CHAT_HTTP_ATTEMPTS} failed with status ${latestStatusCode}; retrying. body="${truncate(
+        latestResponseBody,
+      )}"`,
+    );
+    await page.waitForTimeout(350 * httpAttempt);
+  }
+
+  expect(
+    false,
+    `chat request should succeed for turn: "${text}". status=${latestStatusCode}, body="${truncate(
+      latestResponseBody,
+    )}"`,
+  ).toBe(true);
+
+  return {
+    text: '',
+    streamPayload: latestResponseBody,
+    parsedLineCount: 0,
+    appendMessages: [],
+    dataEvents: [],
+    statusCode: latestStatusCode,
+    httpAttempts: MAX_CHAT_HTTP_ATTEMPTS,
+  };
 }
 
 async function sendExamTurnWithRecovery({
@@ -168,17 +315,27 @@ async function sendExamTurnWithRecovery({
 }: SendExamTurnOptions & {
   label: string;
   allowEmptyAfterRecovery?: boolean;
-}): Promise<string> {
-  let examinerResponse = await sendExamTurn({
+}): Promise<SendExamTurnWithRecoveryResult> {
+  const attempts: RecoveryAttempt[] = [];
+
+  const primaryResponse = await sendExamTurn({
     page,
     chatId,
     text,
     currentSection,
     currentSubsection,
   });
+  attempts.push({
+    requestText: text,
+    response: primaryResponse,
+    isRecoveryPrompt: false,
+  });
 
-  if (examinerResponse) {
-    return examinerResponse;
+  if (primaryResponse.text) {
+    return {
+      attempts,
+      final: attempts[0],
+    };
   }
 
   for (
@@ -186,16 +343,26 @@ async function sendExamTurnWithRecovery({
     attempt <= MAX_EMPTY_RESPONSE_RECOVERY_ATTEMPTS;
     attempt++
   ) {
-    examinerResponse = await sendExamTurn({
+    const recoveryPrompt = `[System] Continue the exam in Section ${currentSection ?? 'unknown'}${currentSubsection ? ` Subsection ${currentSubsection}` : ''}. Provide one brief spoken examiner prompt before proceeding.`;
+    const recoveryResponse = await sendExamTurn({
       page,
       chatId,
-      text: `[System] Continue the exam in Section ${currentSection ?? 'unknown'}${currentSubsection ? ` Subsection ${currentSubsection}` : ''}. Provide one brief spoken examiner prompt before proceeding.`,
+      text: recoveryPrompt,
       currentSection,
       currentSubsection,
     });
+    const tracedAttempt: RecoveryAttempt = {
+      requestText: recoveryPrompt,
+      response: recoveryResponse,
+      isRecoveryPrompt: true,
+    };
+    attempts.push(tracedAttempt);
 
-    if (examinerResponse) {
-      return examinerResponse;
+    if (recoveryResponse.text) {
+      return {
+        attempts,
+        final: tracedAttempt,
+      };
     }
   }
 
@@ -204,7 +371,10 @@ async function sendExamTurnWithRecovery({
     `${label} should not be empty even after recovery attempts`,
   ).toBe(true);
 
-  return examinerResponse;
+  return {
+    attempts,
+    final: attempts[attempts.length - 1],
+  };
 }
 
 function buildExamRoutes(config: any): ExamRoute[] {
@@ -281,6 +451,76 @@ function isFinalElpacCompletionResponse(text: string): boolean {
   );
 }
 
+function hasDuplicatedTaskTwoPrompt(text: string): boolean {
+  return /Please describe what you see\.\s*Describe the operational situation you see\./i.test(
+    text,
+  );
+}
+
+function hasCompletionIntent(text: string): boolean {
+  return /\b(final evaluation|conclude|complete|completed|finalize|end the exam)\b/i.test(
+    text,
+  );
+}
+
+function buildApiTurnTrace({
+  label,
+  section,
+  subsection,
+  candidateText,
+  turnResult,
+}: {
+  label: string;
+  section?: string;
+  subsection?: string;
+  candidateText: string;
+  turnResult: SendExamTurnWithRecoveryResult;
+}): ApiTurnTrace {
+  return {
+    label,
+    section,
+    subsection,
+    candidateText,
+    finalResponseText: turnResult.final.response.text,
+    attempts: turnResult.attempts.map((attempt) => ({
+      requestText: attempt.requestText,
+      responseText: attempt.response.text,
+      streamPayload: attempt.response.streamPayload,
+      parsedLineCount: attempt.response.parsedLineCount,
+      appendMessages: attempt.response.appendMessages,
+      dataEvents: attempt.response.dataEvents,
+      statusCode: attempt.response.statusCode,
+      httpAttempts: attempt.response.httpAttempts,
+      isRecoveryPrompt: attempt.isRecoveryPrompt,
+    })),
+  };
+}
+
+function flattenStreamEvents(turnTraces: ApiTurnTrace[]): StreamEventTrace[] {
+  const streamEvents: StreamEventTrace[] = [];
+
+  turnTraces.forEach((turnTrace, turnIndex) => {
+    turnTrace.attempts.forEach((attempt) => {
+      attempt.dataEvents.forEach((event) => {
+        streamEvents.push({
+          turnIndex,
+          turnLabel: turnTrace.label,
+          section: turnTrace.section,
+          subsection: turnTrace.subsection,
+          requestText: attempt.requestText,
+          responseText: attempt.responseText,
+          isRecoveryPrompt: attempt.isRecoveryPrompt,
+          type: event.type,
+          content: event.content,
+          channel: event.channel,
+        });
+      });
+    });
+  });
+
+  return streamEvents;
+}
+
 test.describe('ELPAC Demo Non-Deterministic E2E', () => {
   test.skip(
     !RUN_NON_DETERMINISTIC_E2E,
@@ -300,6 +540,11 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
   }, testInfo) => {
     test.setTimeout(6 * 60 * 1000);
     const transcript: TranscriptTurn[] = [];
+    const apiTurnTraces: ApiTurnTrace[] = [];
+    const chatId = crypto.randomUUID();
+    let examName = 'ELPAC ATC Demo';
+    let completionResponse = '';
+    let completionEmptyRetryCount = 0;
 
     try {
       const email = createTestEmail();
@@ -312,6 +557,8 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
       );
       expect(configResponse.ok()).toBe(true);
       const elpacConfig = await configResponse.json();
+      examName =
+        typeof elpacConfig?.name === 'string' ? elpacConfig.name : examName;
 
       const routes = buildExamRoutes(elpacConfig);
       expect(routes.length).toBeGreaterThan(0);
@@ -324,7 +571,6 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
       expect(firstRoute).toBeDefined();
       expect(lastRoute).toBeDefined();
 
-      const chatId = crypto.randomUUID();
       const examinerResponses: string[] = [];
 
       transcript.push({
@@ -333,7 +579,7 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
         section: firstRoute?.section,
         subsection: firstRoute?.subsection,
       });
-      const firstExaminerResponse = await sendExamTurnWithRecovery({
+      const firstExaminerTurn = await sendExamTurnWithRecovery({
         page,
         chatId,
         text: EXAM_START_TRIGGER_MESSAGE,
@@ -341,6 +587,16 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
         currentSubsection: firstRoute?.subsection,
         label: 'first examiner response',
       });
+      apiTurnTraces.push(
+        buildApiTurnTrace({
+          label: 'first examiner response',
+          section: firstRoute?.section,
+          subsection: firstRoute?.subsection,
+          candidateText: EXAM_START_TRIGGER_MESSAGE,
+          turnResult: firstExaminerTurn,
+        }),
+      );
+      const firstExaminerResponse = firstExaminerTurn.final.response.text;
       assertHumanLikeExamResponse(
         firstExaminerResponse,
         'first examiner response',
@@ -352,6 +608,48 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
         subsection: firstRoute?.subsection,
       });
       examinerResponses.push(firstExaminerResponse);
+
+      transcript.push({
+        speaker: 'CANDIDATE',
+        text: OFF_TOPIC_PROBE_TEXT,
+        section: firstRoute?.section,
+        subsection: firstRoute?.subsection,
+      });
+      const offTopicTurn = await sendExamTurnWithRecovery({
+        page,
+        chatId,
+        text: OFF_TOPIC_PROBE_TEXT,
+        currentSection: firstRoute?.section,
+        currentSubsection: firstRoute?.subsection,
+        label: 'off-topic guard response',
+      });
+      const offTopicTrace = buildApiTurnTrace({
+        label: 'off-topic guard response',
+        section: firstRoute?.section,
+        subsection: firstRoute?.subsection,
+        candidateText: OFF_TOPIC_PROBE_TEXT,
+        turnResult: offTopicTurn,
+      });
+      apiTurnTraces.push(offTopicTrace);
+      const offTopicResponse = offTopicTurn.final.response.text;
+      assertHumanLikeExamResponse(offTopicResponse, 'off-topic guard response');
+      expect(offTopicResponse.toLowerCase()).toContain(
+        OFF_TOPIC_REDIRECT_SNIPPET,
+      );
+      transcript.push({
+        speaker: 'EXAMINER',
+        text: offTopicResponse,
+        section: firstRoute?.section,
+        subsection: firstRoute?.subsection,
+      });
+
+      const offTopicExamControlEvents = offTopicTrace.attempts
+        .flatMap((attempt) => attempt.dataEvents)
+        .filter((event) => event.type === 'exam-section-control');
+      expect(
+        offTopicExamControlEvents.length,
+        'off-topic guard response should not emit exam-section-control actions',
+      ).toBe(0);
 
       for (const route of routes) {
         const candidateTurns = buildCandidateTurns(route);
@@ -368,7 +666,7 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
             section: route.section,
             subsection: route.subsection,
           });
-          const routeExaminerResponse = await sendExamTurnWithRecovery({
+          const routeExaminerTurn = await sendExamTurnWithRecovery({
             page,
             chatId,
             text: candidateText,
@@ -377,6 +675,18 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
             label: `examiner response after ${route.subsection ?? `section-${route.section}`} candidate turn ${turnIndex + 1}`,
             allowEmptyAfterRecovery: isFinalScriptedTurn,
           });
+
+          apiTurnTraces.push(
+            buildApiTurnTrace({
+              label: `examiner response after ${route.subsection ?? `section-${route.section}`} candidate turn ${turnIndex + 1}`,
+              section: route.section,
+              subsection: route.subsection,
+              candidateText,
+              turnResult: routeExaminerTurn,
+            }),
+          );
+
+          const routeExaminerResponse = routeExaminerTurn.final.response.text;
 
           if (routeExaminerResponse) {
             assertHumanLikeExamResponse(
@@ -409,10 +719,41 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
         'examiner should provide at least one clear candidate instruction or prompt during the flow',
       ).toBe(true);
 
+      const rolePlayKickoffTurn = transcript.find(
+        (turn) =>
+          turn.speaker === 'EXAMINER' &&
+          /role-?play/i.test(turn.text) &&
+          /controller/i.test(turn.text),
+      );
+      expect(
+        rolePlayKickoffTurn,
+        'examiner should include the Section 2 role-play kickoff turn',
+      ).toBeDefined();
+
+      const rolePlayKickoffText = rolePlayKickoffTurn?.text ?? '';
+      expect(rolePlayKickoffText).toMatch(/next section/i);
+      expect(rolePlayKickoffText).toMatch(
+        /you(?:'ll| will) act as the controller/i,
+      );
+      expect(rolePlayKickoffText).toMatch(/pilot'?s lines/i);
+      expect(rolePlayKickoffText).toMatch(/start-?up and taxi/i);
+      expect(rolePlayKickoffText).toMatch(/technical issue/i);
+      expect(rolePlayKickoffText).toMatch(/abc123/i);
+      expect(rolePlayKickoffText).toMatch(/requesting start-?up and taxi/i);
+
+      const duplicatedTaskTwoPromptTurn = transcript.find(
+        (turn) =>
+          turn.speaker === 'EXAMINER' &&
+          turn.subsection === '2II' &&
+          hasDuplicatedTaskTwoPrompt(turn.text),
+      );
+      expect(
+        duplicatedTaskTwoPromptTurn,
+        `2II examiner turn should not concatenate setup and first question. Found: ${duplicatedTaskTwoPromptTurn?.text ?? '(none)'}`,
+      ).toBeUndefined();
+
       let completionPrompt =
         'I have completed all parts of this ELPAC demo. Please provide the final evaluation and conclude the exam now.';
-      let completionResponse = '';
-      let completionEmptyRetryCount = 0;
 
       for (let attempt = 0; attempt < 4; attempt++) {
         transcript.push({
@@ -421,7 +762,7 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
           section: lastRoute?.section,
           subsection: lastRoute?.subsection,
         });
-        completionResponse = await sendExamTurnWithRecovery({
+        const completionTurn = await sendExamTurnWithRecovery({
           page,
           chatId,
           text: completionPrompt,
@@ -430,6 +771,16 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
           label: `completion response attempt ${attempt + 1}`,
           allowEmptyAfterRecovery: true,
         });
+        apiTurnTraces.push(
+          buildApiTurnTrace({
+            label: `completion response attempt ${attempt + 1}`,
+            section: lastRoute?.section,
+            subsection: lastRoute?.subsection,
+            candidateText: completionPrompt,
+            turnResult: completionTurn,
+          }),
+        );
+        completionResponse = completionTurn.final.response.text;
 
         if (!completionResponse) {
           completionEmptyRetryCount += 1;
@@ -459,7 +810,6 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
           break;
         }
 
-        // If the model is still asking follow-up questions, answer once and ask to finalize again.
         const followUpAnswer =
           'I would prioritize immediate safety-critical instruction first, then sequencing and readback confirmation.';
         transcript.push({
@@ -468,7 +818,7 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
           section: lastRoute?.section,
           subsection: lastRoute?.subsection,
         });
-        const followUpExaminerResponse = await sendExamTurnWithRecovery({
+        const followUpTurn = await sendExamTurnWithRecovery({
           page,
           chatId,
           text: followUpAnswer,
@@ -477,6 +827,16 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
           label: `completion follow-up examiner response attempt ${attempt + 1}`,
           allowEmptyAfterRecovery: true,
         });
+        apiTurnTraces.push(
+          buildApiTurnTrace({
+            label: `completion follow-up examiner response attempt ${attempt + 1}`,
+            section: lastRoute?.section,
+            subsection: lastRoute?.subsection,
+            candidateText: followUpAnswer,
+            turnResult: followUpTurn,
+          }),
+        );
+        const followUpExaminerResponse = followUpTurn.final.response.text;
         if (followUpExaminerResponse) {
           transcript.push({
             speaker: 'EXAMINER',
@@ -494,6 +854,34 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
           '[System] Finalize the ELPAC ATC Demo now. Provide the final evaluation and clearly state that the demo is complete.';
       }
 
+      const streamEvents = flattenStreamEvents(apiTurnTraces);
+      const examControlEvents = streamEvents.filter(
+        (event) => event.type === 'exam-section-control',
+      );
+
+      const firstCompletionPromptTurnIndex = apiTurnTraces.findIndex((trace) =>
+        hasCompletionIntent(trace.candidateText),
+      );
+      expect(
+        firstCompletionPromptTurnIndex,
+        'test should include at least one explicit completion request turn',
+      ).toBeGreaterThanOrEqual(0);
+
+      const prematureCompletionEvent = examControlEvents.find((event) => {
+        const action = (event.content as any)?.action;
+        return (
+          action === 'complete_exam' &&
+          event.turnIndex < firstCompletionPromptTurnIndex
+        );
+      });
+
+      expect(
+        prematureCompletionEvent,
+        `exam should not emit complete_exam before explicit completion request. Event: ${JSON.stringify(
+          prematureCompletionEvent ?? null,
+        )}`,
+      ).toBeUndefined();
+
       expect(
         isFinalElpacCompletionResponse(completionResponse),
         `completion response should explicitly state the demo is complete; got: "${completionResponse}"`,
@@ -505,16 +893,133 @@ test.describe('ELPAC Demo Non-Deterministic E2E', () => {
       expect(completionResponse.toLowerCase()).toContain('elpac');
     } finally {
       const transcriptText = transcript.map(formatTranscriptLine).join('\n');
+      const streamEvents = flattenStreamEvents(apiTurnTraces);
+      const examControlEvents = streamEvents
+        .filter((event) => event.type === 'exam-section-control')
+        .map((event) => ({
+          turnIndex: event.turnIndex,
+          turnLabel: event.turnLabel,
+          action: (event.content as any)?.action ?? null,
+          reason: (event.content as any)?.reason ?? null,
+          section: event.section,
+          subsection: event.subsection,
+          requestText: event.requestText,
+          isRecoveryPrompt: event.isRecoveryPrompt,
+        }));
+
+      const simplifiedMessages = transcript.map((turn, index) => ({
+        id: `turn-${index}`,
+        role:
+          turn.speaker === 'EXAMINER'
+            ? 'assistant'
+            : turn.speaker === 'CANDIDATE'
+              ? 'user'
+              : 'system',
+        text: turn.text,
+      }));
+
+      const lastTurnWithRoute = [...transcript]
+        .reverse()
+        .find((turn) => turn.section || turn.subsection);
+
+      const conversationExport = {
+        exportedAt: new Date().toISOString(),
+        chatId,
+        examModel: ELPAC_MODEL_ID,
+        examName,
+        currentSection: lastTurnWithRoute?.section ?? null,
+        currentSubsection: lastTurnWithRoute?.subsection ?? null,
+        status: isFinalElpacCompletionResponse(completionResponse)
+          ? 'complete'
+          : 'incomplete',
+        transcriptTurns: transcript,
+        messages: simplifiedMessages,
+        turnTraces: apiTurnTraces,
+        streamEvents,
+        examControlEvents,
+        metrics: {
+          transcriptTurnCount: transcript.length,
+          apiTurnCount: apiTurnTraces.length,
+          apiAttemptCount: apiTurnTraces.reduce(
+            (sum, turn) => sum + turn.attempts.length,
+            0,
+          ),
+          streamEventCount: streamEvents.length,
+        },
+      };
+
       console.log('\n=== Non-Deterministic ELPAC API Transcript ===');
       console.log(transcriptText || '(no transcript turns captured)');
       console.log('=== End Transcript ===\n');
 
+      const transcriptTxtArtifactPath = testInfo.outputPath(
+        'elpac-api-transcript.txt',
+      );
+      const transcriptJsonArtifactPath = testInfo.outputPath(
+        'elpac-api-transcript.json',
+      );
+      const conversationExportArtifactPath = testInfo.outputPath(
+        'elpac-api-conversation-export.json',
+      );
+
+      await writeFile(transcriptTxtArtifactPath, transcriptText, 'utf8');
+      await writeFile(
+        transcriptJsonArtifactPath,
+        JSON.stringify(transcript, null, 2),
+        'utf8',
+      );
+      await writeFile(
+        conversationExportArtifactPath,
+        JSON.stringify(conversationExport, null, 2),
+        'utf8',
+      );
+
+      const latestArtifactsDir = path.join(
+        process.cwd(),
+        'test-results',
+        'non-deterministic-latest',
+      );
+      await mkdir(latestArtifactsDir, { recursive: true });
+      await writeFile(
+        path.join(latestArtifactsDir, 'elpac-api-transcript.txt'),
+        transcriptText,
+        'utf8',
+      );
+      await writeFile(
+        path.join(latestArtifactsDir, 'elpac-api-transcript.json'),
+        JSON.stringify(transcript, null, 2),
+        'utf8',
+      );
+      await writeFile(
+        path.join(latestArtifactsDir, 'elpac-api-conversation-export.json'),
+        JSON.stringify(conversationExport, null, 2),
+        'utf8',
+      );
+
+      console.log(
+        '[ARTIFACT] ELPAC transcript txt:',
+        transcriptTxtArtifactPath,
+      );
+      console.log(
+        '[ARTIFACT] ELPAC transcript json:',
+        transcriptJsonArtifactPath,
+      );
+      console.log(
+        '[ARTIFACT] ELPAC conversation export:',
+        conversationExportArtifactPath,
+      );
+      console.log('[ARTIFACT] ELPAC latest folder:', latestArtifactsDir);
+
       await testInfo.attach('elpac-api-transcript.txt', {
-        body: Buffer.from(transcriptText, 'utf8'),
+        path: transcriptTxtArtifactPath,
         contentType: 'text/plain',
       });
       await testInfo.attach('elpac-api-transcript.json', {
-        body: Buffer.from(JSON.stringify(transcript, null, 2), 'utf8'),
+        path: transcriptJsonArtifactPath,
+        contentType: 'application/json',
+      });
+      await testInfo.attach('elpac-api-conversation-export.json', {
+        path: conversationExportArtifactPath,
         contentType: 'application/json',
       });
     }

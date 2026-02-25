@@ -20,6 +20,7 @@ import {
   buildExamRuntimeDirective,
   hasExplicitExamCompletionIntent,
 } from '@/lib/ai/exam-runtime-directives';
+import { evaluateExamTopicGuard } from '@/lib/ai/exam-topic-guard';
 import {
   type RequestHints,
   isExamEvaluator,
@@ -109,6 +110,71 @@ function getAssistantText(parts: unknown): string {
     .filter(Boolean)
     .join(' ')
     .trim();
+}
+
+function buildAssistantTextMessage(messageId: string, text: string) {
+  return {
+    id: messageId,
+    role: 'assistant' as const,
+    content: text,
+    parts: [
+      {
+        type: 'text' as const,
+        text,
+      },
+    ],
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function buildElpacFallbackText({
+  currentSection,
+  currentSubsection,
+  latestUserText,
+  completionRequested,
+}: {
+  currentSection?: string;
+  currentSubsection?: string;
+  latestUserText: string;
+  completionRequested: boolean;
+}): string {
+  if (completionRequested) {
+    return ELPAC_FALLBACK_COMPLETION_TEXT;
+  }
+
+  const normalizedUserText = latestUserText.toLowerCase();
+
+  if (currentSection === '2' && currentSubsection === '2II') {
+    if (
+      /\b(risk|risks|ambiguity|blocked|delay|clarification)\b/.test(
+        normalizedUserText,
+      )
+    ) {
+      return 'What would you prioritize communicating first, and why?';
+    }
+
+    return 'What are the main communication risks in this situation?';
+  }
+
+  if (currentSection === '2' && currentSubsection === '2I') {
+    return 'Falcon nine zero six, we have a potential technical issue. Requesting to return to stand.';
+  }
+
+  if (currentSection === '1' && currentSubsection === '1P1') {
+    return 'What was the main problem?';
+  }
+
+  if (currentSection === '1' && currentSubsection === '1P3') {
+    if (/\b(main problem|smoke|emergency|cabin)\b/.test(normalizedUserText)) {
+      return 'What did the crew request?';
+    }
+
+    if (/\b(request|requested|priority|return)\b/.test(normalizedUserText)) {
+      return 'What instruction or support did ATC provide?';
+    }
+  }
+
+  return 'Please continue with your answer.';
 }
 
 function getStreamContext() {
@@ -371,6 +437,127 @@ export async function POST(request: Request) {
       }
     }
 
+    const examTopicGuard = evaluateExamTopicGuard({
+      isExamModel,
+      selectedChatModel,
+      currentSection,
+      currentSubsection,
+      latestUserText: message.content,
+    });
+
+    if (examTopicGuard.blocked) {
+      const streamId = generateUUID();
+      await createStreamId({ streamId, chatId: id });
+
+      const redirectText =
+        examTopicGuard.redirectMessage ??
+        'Please continue with the current exam task.';
+      const redirectMessageId = generateUUID();
+      const redirectMessage = buildAssistantTextMessage(
+        redirectMessageId,
+        redirectText,
+      );
+
+      const stream = createDataStream({
+        execute: (dataStream) => {
+          dataStream.writeData({
+            type: 'append-message',
+            message: JSON.stringify(redirectMessage),
+          });
+        },
+        onError: () => {
+          return 'Oops, an error occurred!';
+        },
+      });
+
+      await saveMessages({
+        messages: [
+          {
+            id: redirectMessageId,
+            chatId: id,
+            role: 'assistant',
+            parts: redirectMessage.parts as any,
+            attachments: [],
+            createdAt: new Date(),
+          },
+        ],
+      });
+
+      const streamContext = getStreamContext();
+
+      if (streamContext) {
+        return new Response(
+          await streamContext.resumableStream(streamId, () => stream),
+        );
+      }
+
+      return new Response(stream);
+    }
+
+    const shouldShortCircuitElpacCompletion =
+      selectedChatModel === 'elpac-demo' &&
+      currentSection === '2' &&
+      hasExplicitExamCompletionIntent(message.content);
+
+    if (shouldShortCircuitElpacCompletion) {
+      const streamId = generateUUID();
+      await createStreamId({ streamId, chatId: id });
+
+      const fallbackMessageId = generateUUID();
+      const fallbackMessage = buildAssistantTextMessage(
+        fallbackMessageId,
+        ELPAC_FALLBACK_COMPLETION_TEXT,
+      );
+
+      const completionTimestamp = new Date().toISOString();
+
+      const stream = createDataStream({
+        execute: (dataStream) => {
+          dataStream.writeData({
+            type: 'exam-section-control',
+            content: {
+              type: 'exam-section-control',
+              action: 'complete_exam',
+              targetSection: null,
+              reason: 'candidate requested completion',
+              timestamp: completionTimestamp,
+            },
+          });
+
+          dataStream.writeData({
+            type: 'append-message',
+            message: JSON.stringify(fallbackMessage),
+          });
+        },
+        onError: () => {
+          return 'Oops, an error occurred!';
+        },
+      });
+
+      await saveMessages({
+        messages: [
+          {
+            id: fallbackMessageId,
+            chatId: id,
+            role: 'assistant',
+            parts: fallbackMessage.parts as any,
+            attachments: [],
+            createdAt: new Date(),
+          },
+        ],
+      });
+
+      const streamContext = getStreamContext();
+
+      if (streamContext) {
+        return new Response(
+          await streamContext.resumableStream(streamId, () => stream),
+        );
+      }
+
+      return new Response(stream);
+    }
+
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });
 
@@ -458,6 +645,7 @@ export async function POST(request: Request) {
           onFinish: async ({ response }) => {
             if (session.user?.id) {
               try {
+                const isElpacDemoTurn = selectedChatModel === 'elpac-demo';
                 const assistantId = getTrailingMessageId({
                   messages: response.messages.filter(
                     (message) => message.role === 'assistant',
@@ -465,20 +653,18 @@ export async function POST(request: Request) {
                 });
 
                 if (!assistantId) {
-                  if (elpacCompletionRequestedThisTurn) {
+                  if (isElpacDemoTurn) {
+                    const fallbackText = buildElpacFallbackText({
+                      currentSection,
+                      currentSubsection,
+                      latestUserText: message.content,
+                      completionRequested: elpacCompletionRequestedThisTurn,
+                    });
                     const fallbackMessageId = generateUUID();
-                    const fallbackMessage = {
-                      id: fallbackMessageId,
-                      role: 'assistant',
-                      content: ELPAC_FALLBACK_COMPLETION_TEXT,
-                      parts: [
-                        {
-                          type: 'text',
-                          text: ELPAC_FALLBACK_COMPLETION_TEXT,
-                        },
-                      ],
-                      createdAt: new Date().toISOString(),
-                    };
+                    const fallbackMessage = buildAssistantTextMessage(
+                      fallbackMessageId,
+                      fallbackText,
+                    );
 
                     dataStream.writeData({
                       type: 'append-message',
@@ -509,24 +695,21 @@ export async function POST(request: Request) {
                 });
 
                 const assistantText = getAssistantText(assistantMessage.parts);
-                const shouldUseElpacCompletionFallback =
-                  elpacCompletionRequestedThisTurn &&
-                  assistantText.length === 0;
+                const shouldUseElpacEmptyTurnFallback =
+                  isElpacDemoTurn && assistantText.length === 0;
 
-                if (shouldUseElpacCompletionFallback) {
+                if (shouldUseElpacEmptyTurnFallback) {
+                  const fallbackText = buildElpacFallbackText({
+                    currentSection,
+                    currentSubsection,
+                    latestUserText: message.content,
+                    completionRequested: elpacCompletionRequestedThisTurn,
+                  });
                   const fallbackMessageId = generateUUID();
-                  const fallbackMessage = {
-                    id: fallbackMessageId,
-                    role: 'assistant',
-                    content: ELPAC_FALLBACK_COMPLETION_TEXT,
-                    parts: [
-                      {
-                        type: 'text',
-                        text: ELPAC_FALLBACK_COMPLETION_TEXT,
-                      },
-                    ],
-                    createdAt: new Date().toISOString(),
-                  };
+                  const fallbackMessage = buildAssistantTextMessage(
+                    fallbackMessageId,
+                    fallbackText,
+                  );
 
                   dataStream.writeData({
                     type: 'append-message',

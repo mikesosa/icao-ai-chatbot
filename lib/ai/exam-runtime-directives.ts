@@ -82,6 +82,21 @@ export function buildExamRuntimeDirective({
     );
   }
 
+  if (currentSection === '2' && currentSubsection === '2I') {
+    directives.push(
+      'In subsection 2I, speak directly as the pilot/interlocutor without line labels.',
+      'Do not prefix any utterance with "Pilot:" or "Controller:".',
+    );
+  }
+
+  if (currentSection === '2' && currentSubsection === '2II') {
+    directives.push(
+      'In subsection 2II, ask exactly one prompt/question per examiner turn.',
+      'Do not combine setup text with the first question in the same sentence.',
+      'Never output both "Please describe what you see." and "Describe the operational situation you see." in the same turn.',
+    );
+  }
+
   if (directives.length === 0) {
     return null;
   }

@@ -71,3 +71,32 @@ test('buildExamRuntimeDirective adds completion and listening directives for elp
   });
   assert.equal(nonElpacDirective, null);
 });
+
+test('buildExamRuntimeDirective adds role-play and visual-flow guardrails for elpac section 2', () => {
+  const rolePlayDirective = buildExamRuntimeDirective({
+    selectedChatModel: 'elpac-demo',
+    currentSection: '2',
+    currentSubsection: '2I',
+    latestUserText: 'Falcon nine zero six, startup approved.',
+  });
+  assert.match(
+    rolePlayDirective ?? '',
+    /Do not prefix any utterance with "Pilot:"/i,
+  );
+
+  const visualDirective = buildExamRuntimeDirective({
+    selectedChatModel: 'elpac-demo',
+    currentSection: '2',
+    currentSubsection: '2II',
+    latestUserText:
+      'The image shows an operational airport communication environment.',
+  });
+  assert.match(
+    visualDirective ?? '',
+    /ask exactly one prompt\/question per examiner turn/i,
+  );
+  assert.match(
+    visualDirective ?? '',
+    /Never output both "Please describe what you see\." and "Describe the operational situation you see\."/i,
+  );
+});
