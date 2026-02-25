@@ -5,28 +5,61 @@ import { type DataStreamWriter, tool } from 'ai';
 import type { Session } from 'next-auth';
 import { z } from 'zod';
 
-const STRICT_EXAM_PLAYBACK_POLICY = {
-  allowSeek: false,
-  maxReplays: 1,
-} as const;
-
 const DEFAULT_PLAYBACK_POLICY = {
   allowSeek: true,
+  allowPause: true,
   maxReplays: 99,
 } as const;
 
-type ElpacRoutingResult =
+const DEFAULT_EXAM_PLAYBACK_POLICY = {
+  allowSeek: false,
+  allowPause: true,
+  maxReplays: 1,
+} as const;
+
+type PlaybackPolicy = {
+  allowSeek: boolean;
+  allowPause: boolean;
+  maxReplays: number;
+};
+
+type RoutingScope = 'section' | 'subsection';
+
+type RoutingSourceType =
+  | 'subsection-audio'
+  | 'section-audio'
+  | 'speaking-prompt';
+
+type ResolvedExamAudioRouting =
   | {
       success: true;
-      subsection: string;
-      examSection: '1' | '2';
-      mode: 'recording' | 'prompt';
+      sectionKey: string;
+      subsectionKey: string;
+      apiSection: string;
       recordingNumber: number;
+      sourceType: RoutingSourceType;
     }
   | {
       success: false;
       error: string;
     };
+
+type PlayAudioRoutingConfig = {
+  routeScope: RoutingScope;
+  defaultSection?: string;
+};
+
+type PlayAudioFileTemplates = {
+  recording?: string;
+  speakingPrompt?: string;
+};
+
+type CandidateRouting = {
+  sectionKey: string;
+  subsectionKey: string;
+  sourceType: RoutingSourceType;
+  recordings: number[];
+};
 
 // Function to get available audio files
 async function getAvailableAudioFiles(): Promise<string[]> {
@@ -39,28 +72,296 @@ async function getAvailableAudioFiles(): Promise<string[]> {
       (file) => file.endsWith('.mp3') && !file.startsWith('.'),
     );
 
-    return audioFiles.length > 0
-      ? audioFiles
-      : [
-          'audio1.mp3',
-          'audio2.mp3',
-          'audio3.mp3',
-          'audio4.mp3',
-          'audio5.mp3',
-          'audio6.mp3',
-        ];
+    return audioFiles;
   } catch (error) {
-    console.warn('Could not read audio directory, using fallback list:', error);
-    // Fallback to known files if directory read fails
-    return [
-      'audio1.mp3',
-      'audio2.mp3',
-      'audio3.mp3',
-      'audio4.mp3',
-      'audio5.mp3',
-      'audio6.mp3',
-    ];
+    console.warn('Could not read audio directory:', error);
+    return [];
   }
+}
+
+function normalizeKey(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return Number.isInteger(value) && Number(value) > 0;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return Number.isInteger(value) && Number(value) >= 0;
+}
+
+function getRecordingNumbersFromAudioFiles(audioFiles: unknown): number[] {
+  if (!Array.isArray(audioFiles)) {
+    return [];
+  }
+
+  return audioFiles
+    .map((item: any) => item?.recording)
+    .filter(isPositiveInteger)
+    .filter((value, index, all) => all.indexOf(value) === index);
+}
+
+function getPromptNumbersFromSection(sectionConfig: any): number[] {
+  if (!Array.isArray(sectionConfig?.speakingPrompts)) {
+    return [];
+  }
+
+  return sectionConfig.speakingPrompts
+    .map((prompt: any) => prompt?.prompt)
+    .filter(isPositiveInteger)
+    .filter((value: number, index: number, all: number[]) => {
+      return all.indexOf(value) === index;
+    });
+}
+
+function getExamSections(examConfig: any): Record<string, any> {
+  return examConfig?.examConfig?.sections ?? {};
+}
+
+function findSectionKey(
+  sections: Record<string, any>,
+  requestedKey: string,
+): string | null {
+  const normalized = normalizeKey(requestedKey);
+
+  for (const sectionKey of Object.keys(sections)) {
+    if (normalizeKey(sectionKey) === normalized) {
+      return sectionKey;
+    }
+  }
+
+  return null;
+}
+
+function findSubsection(
+  sections: Record<string, any>,
+  requestedSubsection: string,
+): {
+  sectionKey: string;
+  subsectionKey: string;
+  sectionConfig: any;
+  subsectionConfig: any;
+} | null {
+  const normalized = normalizeKey(requestedSubsection);
+
+  for (const [sectionKey, sectionConfig] of Object.entries(sections)) {
+    const subsections = sectionConfig?.subsections ?? {};
+
+    for (const [subsectionKey, subsectionConfig] of Object.entries(
+      subsections,
+    )) {
+      if (normalizeKey(subsectionKey) === normalized) {
+        return {
+          sectionKey,
+          subsectionKey,
+          sectionConfig,
+          subsectionConfig,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+function getConfiguredRouting(examConfig: any): PlayAudioRoutingConfig {
+  const config = examConfig?.toolingConfig?.playAudio?.routing ?? {};
+  const routeScope: RoutingScope =
+    config.routeScope === 'section' ? 'section' : 'subsection';
+
+  return {
+    routeScope,
+    defaultSection:
+      typeof config.defaultSection === 'string' && config.defaultSection.trim()
+        ? config.defaultSection
+        : undefined,
+  };
+}
+
+function getConfiguredFileTemplates(examConfig: any): PlayAudioFileTemplates {
+  const templates = examConfig?.toolingConfig?.playAudio?.fileTemplates ?? {};
+
+  return {
+    recording:
+      typeof templates.recording === 'string' && templates.recording.trim()
+        ? templates.recording
+        : undefined,
+    speakingPrompt:
+      typeof templates.speakingPrompt === 'string' &&
+      templates.speakingPrompt.trim()
+        ? templates.speakingPrompt
+        : undefined,
+  };
+}
+
+function resolveSectionCandidate(
+  sectionKey: string,
+  sectionConfig: any,
+): CandidateRouting | null {
+  const sectionPromptRecordings = getPromptNumbersFromSection(sectionConfig);
+  if (sectionPromptRecordings.length > 0) {
+    return {
+      sectionKey,
+      subsectionKey: sectionKey,
+      sourceType: 'speaking-prompt',
+      recordings: sectionPromptRecordings,
+    };
+  }
+
+  const sectionAudioRecordings = getRecordingNumbersFromAudioFiles(
+    sectionConfig?.audioFiles,
+  );
+  if (sectionAudioRecordings.length > 0) {
+    return {
+      sectionKey,
+      subsectionKey: sectionKey,
+      sourceType: 'section-audio',
+      recordings: sectionAudioRecordings,
+    };
+  }
+
+  return null;
+}
+
+function resolveSubsectionCandidate(
+  sectionKey: string,
+  subsectionKey: string,
+  sectionConfig: any,
+  subsectionConfig: any,
+): CandidateRouting | null {
+  const subsectionAudioRecordings = getRecordingNumbersFromAudioFiles(
+    subsectionConfig?.audioFiles,
+  );
+  if (subsectionAudioRecordings.length > 0) {
+    return {
+      sectionKey,
+      subsectionKey,
+      sourceType: 'subsection-audio',
+      recordings: subsectionAudioRecordings,
+    };
+  }
+
+  if (subsectionConfig?.audioSource === 'sectionSpeakingPrompts') {
+    const sectionPromptRecordings = getPromptNumbersFromSection(sectionConfig);
+    if (sectionPromptRecordings.length > 0) {
+      return {
+        sectionKey,
+        subsectionKey,
+        sourceType: 'speaking-prompt',
+        recordings: sectionPromptRecordings,
+      };
+    }
+  }
+
+  if (subsectionConfig?.audioSource === 'sectionAudio') {
+    const sectionAudioRecordings = getRecordingNumbersFromAudioFiles(
+      sectionConfig?.audioFiles,
+    );
+    if (sectionAudioRecordings.length > 0) {
+      return {
+        sectionKey,
+        subsectionKey,
+        sourceType: 'section-audio',
+        recordings: sectionAudioRecordings,
+      };
+    }
+  }
+
+  return null;
+}
+
+function pickDefaultCandidate(
+  sections: Record<string, any>,
+  defaultSection?: string,
+): CandidateRouting | null {
+  if (defaultSection) {
+    const defaultSubsection = findSubsection(sections, defaultSection);
+    if (defaultSubsection) {
+      return resolveSubsectionCandidate(
+        defaultSubsection.sectionKey,
+        defaultSubsection.subsectionKey,
+        defaultSubsection.sectionConfig,
+        defaultSubsection.subsectionConfig,
+      );
+    }
+
+    const sectionKey = findSectionKey(sections, defaultSection);
+    if (sectionKey) {
+      const sectionCandidate = resolveSectionCandidate(
+        sectionKey,
+        sections[sectionKey],
+      );
+      if (sectionCandidate) {
+        return sectionCandidate;
+      }
+    }
+  }
+
+  for (const [sectionKey, sectionConfig] of Object.entries(sections)) {
+    const sectionCandidate = resolveSectionCandidate(sectionKey, sectionConfig);
+    if (sectionCandidate) {
+      return sectionCandidate;
+    }
+
+    const subsections = sectionConfig?.subsections ?? {};
+    for (const [subsectionKey, subsectionConfig] of Object.entries(
+      subsections,
+    )) {
+      const subsectionCandidate = resolveSubsectionCandidate(
+        sectionKey,
+        subsectionKey,
+        sectionConfig,
+        subsectionConfig,
+      );
+      if (subsectionCandidate) {
+        return subsectionCandidate;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getConfiguredExamPlaybackPolicy(examConfig: any): PlaybackPolicy {
+  const configured = examConfig?.toolingConfig?.playAudio?.playbackPolicy ?? {};
+  const allowSeek =
+    typeof configured.allowSeek === 'boolean'
+      ? configured.allowSeek
+      : DEFAULT_EXAM_PLAYBACK_POLICY.allowSeek;
+  const allowPause =
+    typeof configured.allowPause === 'boolean'
+      ? configured.allowPause
+      : DEFAULT_EXAM_PLAYBACK_POLICY.allowPause;
+  const maxReplays = isNonNegativeInteger(configured.maxReplays)
+    ? configured.maxReplays
+    : DEFAULT_EXAM_PLAYBACK_POLICY.maxReplays;
+
+  return {
+    allowSeek,
+    allowPause,
+    maxReplays,
+  };
+}
+
+function applyAudioFileTemplate({
+  template,
+  examType,
+  section,
+  recording,
+}: {
+  template: string;
+  examType: string;
+  section: string;
+  recording: number;
+}): string {
+  const padded = recording.toString().padStart(2, '0');
+
+  return template
+    .replaceAll('{{exam}}', examType)
+    .replaceAll('{{section}}', section)
+    .replaceAll('{{recording}}', String(recording))
+    .replaceAll('{{num2}}', padded);
 }
 
 export function getExamTypeFromConfig(examConfig?: { id?: string }): string {
@@ -71,30 +372,21 @@ export function getExamTypeFromConfig(examConfig?: { id?: string }): string {
   return examConfig.id.replace('-evaluator', '').replace('-demo', '');
 }
 
-function getConfiguredSubsectionRecording(
-  examConfig: any,
-  subsection: string,
-): number | undefined {
-  const normalizedSubsection = subsection.toUpperCase();
+export function resolvePlaybackPolicy({
+  isExamRecording,
+  examConfig,
+}: {
+  isExamRecording: boolean;
+  examConfig?: any;
+}): PlaybackPolicy {
+  if (!isExamRecording) {
+    return DEFAULT_PLAYBACK_POLICY;
+  }
 
-  const sectionKey = normalizedSubsection.startsWith('1P')
-    ? '1'
-    : normalizedSubsection.startsWith('2')
-      ? '2'
-      : normalizedSubsection.charAt(0);
-
-  const subsectionConfig =
-    examConfig?.examConfig?.sections?.[sectionKey]?.subsections?.[
-      normalizedSubsection
-    ];
-  const configuredRecording = subsectionConfig?.audioFiles?.[0]?.recording;
-
-  return typeof configuredRecording === 'number'
-    ? configuredRecording
-    : undefined;
+  return getConfiguredExamPlaybackPolicy(examConfig);
 }
 
-export function resolveElpacExamRouting({
+export function resolveExamAudioRouting({
   subsection,
   recordingNumber,
   examConfig,
@@ -102,112 +394,88 @@ export function resolveElpacExamRouting({
   subsection?: string;
   recordingNumber?: number;
   examConfig?: any;
-}): ElpacRoutingResult {
-  if (!subsection) {
-    if (typeof recordingNumber === 'number') {
-      if (recordingNumber < 1 || recordingNumber > 6) {
+}): ResolvedExamAudioRouting {
+  const sections = getExamSections(examConfig);
+  const sectionKeys = Object.keys(sections);
+
+  if (sectionKeys.length === 0) {
+    return {
+      success: false,
+      error: 'Exam audio configuration is missing sections.',
+    };
+  }
+
+  const routing = getConfiguredRouting(examConfig);
+
+  let candidate: CandidateRouting | null = null;
+
+  if (subsection) {
+    const subsectionMatch = findSubsection(sections, subsection);
+
+    if (subsectionMatch) {
+      candidate = resolveSubsectionCandidate(
+        subsectionMatch.sectionKey,
+        subsectionMatch.subsectionKey,
+        subsectionMatch.sectionConfig,
+        subsectionMatch.subsectionConfig,
+      );
+
+      if (!candidate) {
         return {
           success: false,
-          error:
-            'Invalid ELPAC listening recording number. Expected a value between 1 and 6.',
+          error: `Subsection ${subsectionMatch.subsectionKey} does not define playable audio in exam configuration.`,
+        };
+      }
+    } else {
+      const sectionKey = findSectionKey(sections, subsection);
+
+      if (!sectionKey) {
+        return {
+          success: false,
+          error: `Subsection ${subsection} is not configured in this exam.`,
         };
       }
 
-      return {
-        success: true,
-        subsection: '1',
-        examSection: '1',
-        mode: 'recording',
-        recordingNumber,
-      };
+      candidate = resolveSectionCandidate(sectionKey, sections[sectionKey]);
+      if (!candidate) {
+        return {
+          success: false,
+          error: `Section ${sectionKey} does not define playable audio in exam configuration.`,
+        };
+      }
     }
-
-    return {
-      success: false,
-      error:
-        'ELPAC exam recordings require subsection or recordingNumber (supported subsections: 1P1-1P6, 2I).',
-    };
-  }
-
-  const normalized = subsection.toUpperCase();
-
-  if (/^1P[1-6]$/.test(normalized)) {
-    const configuredRecording =
-      getConfiguredSubsectionRecording(examConfig, normalized) ??
-      Number.parseInt(normalized.slice(2), 10);
-
-    const selectedRecording = recordingNumber ?? configuredRecording;
-
-    if (selectedRecording < 1 || selectedRecording > 6) {
+  } else {
+    candidate = pickDefaultCandidate(sections, routing.defaultSection);
+    if (!candidate) {
       return {
         success: false,
         error:
-          'Invalid ELPAC listening recording number. Expected a value between 1 and 6.',
+          'No playable audio configuration found. Provide subsection or update exam configuration.',
       };
     }
-
-    if (
-      typeof recordingNumber === 'number' &&
-      recordingNumber !== configuredRecording
-    ) {
-      return {
-        success: false,
-        error: `Invalid ELPAC subsection/recording combination: ${normalized} must use recording ${configuredRecording}.`,
-      };
-    }
-
-    return {
-      success: true,
-      subsection: normalized,
-      examSection: '1',
-      mode: 'recording',
-      recordingNumber: selectedRecording,
-    };
   }
 
-  if (normalized === '2I' || normalized === '2') {
-    const configuredRecording =
-      getConfiguredSubsectionRecording(examConfig, '2I') ?? 1;
-    const selectedRecording = recordingNumber ?? configuredRecording;
+  const selectedRecording = recordingNumber ?? candidate.recordings[0];
 
-    if (selectedRecording < 1 || selectedRecording > 3) {
-      return {
-        success: false,
-        error:
-          'Invalid ELPAC Task I prompt number. Expected a value between 1 and 3.',
-      };
-    }
-
-    if (
-      typeof recordingNumber === 'number' &&
-      recordingNumber !== configuredRecording
-    ) {
-      return {
-        success: false,
-        error: `Invalid ELPAC subsection/recording combination: 2I must use recording ${configuredRecording}.`,
-      };
-    }
-
-    return {
-      success: true,
-      subsection: '2I',
-      examSection: '2',
-      mode: 'prompt',
-      recordingNumber: selectedRecording,
-    };
-  }
-
-  if (normalized === '2II' || normalized === '2III') {
+  if (!candidate.recordings.includes(selectedRecording)) {
     return {
       success: false,
-      error:
-        'ELPAC visual tasks (2II/2III) do not support playAudio. Use displayImage instead.',
+      error: `Recording ${selectedRecording} is not configured for ${candidate.subsectionKey}. Allowed recordings: ${candidate.recordings.join(', ')}.`,
     };
   }
+
+  const apiSectionSource =
+    routing.routeScope === 'section'
+      ? candidate.sectionKey
+      : candidate.subsectionKey;
 
   return {
-    success: false,
-    error: `Unsupported ELPAC subsection "${subsection}". Supported values: 1P1-1P6 and 2I.`,
+    success: true,
+    sectionKey: candidate.sectionKey,
+    subsectionKey: candidate.subsectionKey,
+    apiSection: apiSectionSource.toLowerCase(),
+    recordingNumber: selectedRecording,
+    sourceType: candidate.sourceType,
   };
 }
 
@@ -248,10 +516,9 @@ export const playAudioTool = ({
       recordingNumber: z
         .number()
         .min(1)
-        .max(6)
         .optional()
         .describe(
-          'Specific recording number to play (1-6). If not provided, will select randomly.',
+          'Specific recording number to play. If not provided, the configured default for the location is used.',
         ),
       isExamRecording: z
         .boolean()
@@ -276,15 +543,14 @@ export const playAudioTool = ({
       recordingId,
     }) => {
       try {
-        // If an exam subsection is provided for a known exam type, force exam mode
+        // If an exam subsection is provided while a configured exam is active, force exam mode
         // even when the model forgets to include isExamRecording=true.
         const examType = getExamTypeFromConfig(examConfig);
         const effectiveIsExamRecording =
-          isExamRecording ||
-          (!!subsection && (examType === 'elpac' || examType === 'tea'));
+          isExamRecording || (!!subsection && Boolean(examConfig?.id));
 
         // Prevent the model from presenting multiple exam recordings in a single request/turn.
-        // This avoids skipping items (Item 3 -> Item 4) and premature advancement.
+        // This avoids skipping items and premature advancement.
         if (
           effectiveIsExamRecording &&
           requestState?.playAudioCalledThisRequest
@@ -303,29 +569,21 @@ export const playAudioTool = ({
           requestState.playAudioCalledThisRequest = true;
         }
 
-        // Dynamically get available audio files
-        const audioFiles = await getAvailableAudioFiles();
-
-        if (audioFiles.length === 0) {
-          console.warn('🎵 [PLAY AUDIO TOOL] No audio files available');
-          return {
-            success: false,
-            message: 'No audio files available',
-            error: 'No .mp3 files found in the audio directory',
-          };
-        }
-
         let finalSubsection = subsection;
         let finalRecordingNumber = recordingNumber;
-        const playbackPolicy = effectiveIsExamRecording
-          ? STRICT_EXAM_PLAYBACK_POLICY
-          : DEFAULT_PLAYBACK_POLICY;
+        const playbackPolicy = resolvePlaybackPolicy({
+          isExamRecording: effectiveIsExamRecording,
+          examConfig,
+        });
 
         let audioFile: string;
         let audioUrl: string;
+        let sourceType: RoutingSourceType | 'fallback-random' =
+          'fallback-random';
+        let availableFilesCount = 0;
 
-        if (effectiveIsExamRecording && examType === 'elpac') {
-          const routing = resolveElpacExamRouting({
+        if (effectiveIsExamRecording) {
+          const routing = resolveExamAudioRouting({
             subsection,
             recordingNumber,
             examConfig,
@@ -335,32 +593,48 @@ export const playAudioTool = ({
             return {
               success: false,
               message: routing.error,
-              error: 'invalid_elpac_audio_mapping',
+              error: 'invalid_exam_audio_mapping',
             };
           }
 
-          finalSubsection = routing.subsection;
+          finalSubsection = routing.subsectionKey;
           finalRecordingNumber = routing.recordingNumber;
-          const padded = routing.recordingNumber.toString().padStart(2, '0');
+          sourceType = routing.sourceType;
 
-          if (routing.mode === 'prompt') {
-            audioFile = `elpac-2-speaking-prompt-${padded}.mp3`;
-            audioUrl = `/api/audio?exam=elpac&section=2&prompt=${routing.recordingNumber}`;
+          audioUrl = `/api/audio?exam=${examType}&section=${routing.apiSection}&recording=${routing.recordingNumber}`;
+
+          const templates = getConfiguredFileTemplates(examConfig);
+          const fileTemplate =
+            routing.sourceType === 'speaking-prompt'
+              ? templates.speakingPrompt || templates.recording
+              : templates.recording;
+
+          if (fileTemplate) {
+            audioFile = applyAudioFileTemplate({
+              template: fileTemplate,
+              examType,
+              section: routing.apiSection,
+              recording: routing.recordingNumber,
+            });
           } else {
-            audioFile = `elpac-1-listening-${padded}.mp3`;
-            audioUrl = `/api/audio?exam=elpac&section=1&recording=${routing.recordingNumber}`;
+            const padded = routing.recordingNumber.toString().padStart(2, '0');
+            audioFile = `${examType}-${routing.apiSection}-recording-${padded}.mp3`;
           }
-        } else if (effectiveIsExamRecording && subsection) {
-          // For exam recordings with specific number, construct the filename.
-          const rawSection = subsection.toLowerCase();
-          const examSection = rawSection;
-          const recording = finalRecordingNumber || 1;
-          const padded = recording.toString().padStart(2, '0');
-
-          audioFile = `${examSection}-recording-${padded}.mp3`;
-          audioUrl = `/api/audio?exam=${examType}&section=${examSection}&recording=${recording}`;
-          finalRecordingNumber = recording;
         } else {
+          // Dynamically get available audio files (fallback mode)
+          const audioFiles = await getAvailableAudioFiles();
+
+          if (audioFiles.length === 0) {
+            console.warn('🎵 [PLAY AUDIO TOOL] No audio files available');
+            return {
+              success: false,
+              message: 'No audio files available',
+              error: 'No .mp3 files found in the audio directory',
+            };
+          }
+
+          availableFilesCount = audioFiles.length;
+
           // Randomly select an audio file (general fallback behavior)
           audioFile = audioFiles[Math.floor(Math.random() * audioFiles.length)];
           audioUrl = `/api/audio?file=${audioFile}`;
@@ -383,6 +657,7 @@ export const playAudioTool = ({
             recordingId: finalRecordingId,
             isExamRecording: effectiveIsExamRecording,
             allowSeek: playbackPolicy.allowSeek,
+            allowPause: playbackPolicy.allowPause,
             maxReplays: playbackPolicy.maxReplays,
           },
         };
@@ -392,8 +667,8 @@ export const playAudioTool = ({
 
         // Return success message with details for the AI
         const selectionMethod = finalRecordingNumber
-          ? `specific recording #${finalRecordingNumber}`
-          : `randomly selected from ${audioFiles.length} available files`;
+          ? `configured recording #${finalRecordingNumber}`
+          : `randomly selected from ${availableFilesCount} available files`;
         const result = {
           success: true,
           message: `Audio player created for ${audioFile} (${selectionMethod})`,
@@ -406,10 +681,12 @@ export const playAudioTool = ({
             recordingId: finalRecordingId,
             isExamRecording: effectiveIsExamRecording,
             url: audioUrl,
-            availableFiles: audioFiles.length,
+            availableFiles: availableFilesCount,
             selectionMethod,
             examType,
+            sourceType,
             allowSeek: playbackPolicy.allowSeek,
+            allowPause: playbackPolicy.allowPause,
             maxReplays: playbackPolicy.maxReplays,
           },
         };

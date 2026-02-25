@@ -24,6 +24,7 @@ interface AudioPlayerProps {
   onPlaybackEnded?: () => void; // Notify parent when playback ends
   maxReplays?: number; // Maximum number of replay attempts allowed
   allowSeek?: boolean; // Whether timeline seeking is allowed
+  allowPause?: boolean; // Whether pause control is allowed
   playbackLocked?: boolean; // Prevent playback while examiner audio is active
 }
 
@@ -43,6 +44,7 @@ export function AudioPlayer({
   onPlaybackEnded,
   maxReplays = 99,
   allowSeek = true,
+  allowPause = true,
   playbackLocked = false,
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -52,6 +54,7 @@ export function AudioPlayer({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replayCount, setReplayCount] = useState(0);
+  const [hasEndedPlayback, setHasEndedPlayback] = useState(false);
   const hasAutoPlayedRef = useRef(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -78,6 +81,7 @@ export function AudioPlayer({
     };
     const handleEnded = () => {
       setIsPlaying(false);
+      setHasEndedPlayback(true);
       setActiveAudioPlayerId?.(null);
       onPlaybackEnded?.();
       // Mark as completed if this is an exam recording
@@ -125,6 +129,7 @@ export function AudioPlayer({
 
   const startPlayback = useCallback(async () => {
     if (playbackLocked) return;
+    if (hasEndedPlayback && maxReplays === 0) return;
 
     const audio = audioRef.current;
     if (!audio) return;
@@ -143,7 +148,14 @@ export function AudioPlayer({
       setActiveAudioPlayerId?.(null);
       setError('Playback failed. Please press Play to try again.');
     }
-  }, [examContext, setActiveAudioPlayerId, recordingId, playbackLocked]);
+  }, [
+    examContext,
+    setActiveAudioPlayerId,
+    recordingId,
+    playbackLocked,
+    hasEndedPlayback,
+    maxReplays,
+  ]);
 
   const togglePlayPause = () => {
     if (playbackLocked) return;
@@ -152,6 +164,7 @@ export function AudioPlayer({
     if (!audio) return;
 
     if (isPlaying) {
+      if (!allowPause) return;
       audio.pause();
       setIsPlaying(false);
       setActiveAudioPlayerId?.(null);
@@ -232,6 +245,7 @@ export function AudioPlayer({
   useEffect(() => {
     hasAutoPlayedRef.current = false;
     setReplayCount(0);
+    setHasEndedPlayback(false);
   }, [src, recordingId]);
 
   useEffect(() => {
@@ -255,6 +269,12 @@ export function AudioPlayer({
     !!error ||
     playbackLocked ||
     (isExamRecording && replayCount >= maxReplays);
+  const playPauseDisabled =
+    isLoading ||
+    !!error ||
+    playbackLocked ||
+    (isPlaying && !allowPause) ||
+    (!isPlaying && hasEndedPlayback && maxReplays === 0);
 
   if (error) {
     return (
@@ -292,7 +312,7 @@ export function AudioPlayer({
           size="sm"
           variant="outline"
           onClick={togglePlayPause}
-          disabled={isLoading || !!error || playbackLocked}
+          disabled={playPauseDisabled}
           className="rounded-full size-8 p-0"
         >
           {isLoading ? (

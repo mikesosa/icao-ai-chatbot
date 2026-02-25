@@ -243,6 +243,9 @@ const PurePreviewMessage = ({
                               result.details?.isExamRecording || false,
                             subsection: result.details?.subsection,
                             audioFile: result.details?.audioFile,
+                            allowSeek: result.details?.allowSeek,
+                            allowPause: result.details?.allowPause,
+                            maxReplays: result.details?.maxReplays,
                           });
                           return (
                             <AudioPlayer
@@ -255,6 +258,9 @@ const PurePreviewMessage = ({
                               }
                               subsection={result.details?.subsection}
                               audioFile={result.details?.audioFile}
+                              allowSeek={result.details?.allowSeek}
+                              allowPause={result.details?.allowPause}
+                              maxReplays={result.details?.maxReplays}
                             />
                           );
                         })()

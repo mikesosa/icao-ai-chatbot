@@ -418,6 +418,21 @@
       "startButtonText": "Start TEA Exam",
       "finishButtonText": "Finish Exam"
     },
+    "toolingConfig": {
+      "playAudio": {
+        "routing": {
+          "routeScope": "subsection",
+          "defaultSection": "2A"
+        },
+        "playbackPolicy": {
+          "allowSeek": false,
+          "maxReplays": 1
+        },
+        "fileTemplates": {
+          "recording": "tea-{{section}}-recording-{{num2}}.mp3"
+        }
+      }
+    },
     "messagesConfig": {
       "welcomeMessage": "Welcome to the Aviation English Test (TEA)!\n\nI am your certified ICAO evaluator. This exam evaluates your English language proficiency for aeronautical operations according to ICAO standards.\n\n**EXAM INFORMATION:**\n- \u23f1\ufe0f Duration: 25-30 minutes\n- \ud83d\udccb 3 mandatory sections\n- \ud83c\udfaf Minimum required level: ICAO Level 4 (Operational)\n- \ud83d\udcdd Assessment of plain English in aeronautical context (NOT aeronautical phraseology)\n- \ud83d\udde3\ufe0f Evaluation of communication ability (NOT operational knowledge)\n\n**EXAM STRUCTURE:**\n- **Interview and Experience** (7-8 min)\n- **Interactive Comprehension** - 3 parts (8-12 min)\n- **Image Description and Discussion** (10 min)\n\n**ICAO EVALUATION CRITERIA:**\nPronunciation \u2022 Grammatical Structure \u2022 Vocabulary \u2022 Fluency \u2022 Comprehension \u2022 Interactions\n\nAre you ready to begin? Click \"Start TEA Exam\" when you're prepared.",
       "sectionStartMessages": {
@@ -846,11 +861,28 @@
       "startButtonText": "Start ELPAC Assessment",
       "finishButtonText": "Complete Assessment"
     },
+    "toolingConfig": {
+      "playAudio": {
+        "routing": {
+          "routeScope": "section",
+          "defaultSection": "1"
+        },
+        "playbackPolicy": {
+          "allowSeek": false,
+          "allowPause": false,
+          "maxReplays": 0
+        },
+        "fileTemplates": {
+          "recording": "elpac-{{section}}-listening-{{num2}}.mp3",
+          "speakingPrompt": "elpac-{{section}}-speaking-prompt-{{num2}}.mp3"
+        }
+      }
+    },
     "messagesConfig": {
       "welcomeMessage": "Welcome to the EUROCONTROL ELPAC ATC test (Aviation English).\n\nThe ELPAC test assesses English language proficiency for aeronautical communications. It does NOT assess operational knowledge.\n\n**STANDARD TEST PAPERS (HANDBOOK 2020):**\n- **Paper 1: Listening comprehension** (~45 minutes)\n- **Paper 2: Oral interaction** (~20 minutes)\n\nTo obtain a license endorsement, it is necessary to obtain a pass in BOTH papers. There is no cumulative score; the final assessment is the lowest level achieved in either paper.\n\nAre you ready to begin? Click \"Start ELPAC Assessment\" when you're prepared.",
       "sectionStartMessages": {
         "1": "**PAPER 1: LISTENING COMPREHENSION (ATC)** (~45 minutes)\n\nThis paper contains multiple parts (Parts 1\u20136). We will proceed step-by-step.\n\nLet's begin with Part 1.",
-        "2": "**PAPER 2: ORAL INTERACTION (ATC)** (~20 minutes)\n\nYou will complete Task I (non-visual role play) and Tasks II/III (visual discussion).\n\nWe will begin with Task I.\n\nEach prompt may be played once; you may request one repetition if needed.\n\nLet's begin with the first oral interaction prompt..."
+        "2": "**PAPER 2: ORAL INTERACTION (ATC)** (~20 minutes)\n\nYou will complete Task I (non-visual role play) and Tasks II/III (visual discussion).\n\nWe will begin with Task I.\n\nEach prompt is played once with no pause or replay.\n\nLet's begin with the first oral interaction prompt..."
       },
       "completionMessage": "\ud83c\udf89 ELPAC Assessment completed! Thank you for participating in the ELPAC Aviation English assessment.",
       "quickInstructions": [
@@ -1033,6 +1065,21 @@
       "startButtonText": "Start Demo",
       "finishButtonText": "Finish Demo"
     },
+    "toolingConfig": {
+      "playAudio": {
+        "routing": {
+          "routeScope": "subsection",
+          "defaultSection": "2A"
+        },
+        "playbackPolicy": {
+          "allowSeek": false,
+          "maxReplays": 1
+        },
+        "fileTemplates": {
+          "recording": "tea-{{section}}-recording-{{num2}}.mp3"
+        }
+      }
+    },
     "messagesConfig": {
       "welcomeMessage": "Welcome to the TEA Demo!\n\nThis is a SHORT DEMONSTRATION of the Aviation English Test. It includes one question from each section type.\n\n**DEMO STRUCTURE:**\n- **Interview** - One question (2-3 min)\n- **Comprehension** - Three short recordings (3-4 min)\n- **Description & Discussion** - One image + one question (4-5 min)\n\n**Total Duration:** ~10 minutes\n\nThis demo will give you a feel for the full TEA exam format.\n\nReady to begin? Click \"Start Demo\" when prepared.",
       "sectionStartMessages": {
@@ -1052,11 +1099,11 @@
     "id": "elpac-demo",
     "name": "ELPAC ATC Demo",
     "aiConfig": {
-      "mainPrompt": "You are a CERTIFIED EVALUATOR conducting a SHORT DEMO VERSION of the EUROCONTROL ELPAC ATC test (English Language Proficiency for Aeronautical Communication).\n\nDEMO EXAM INFORMATION:\n- Duration: ~10 minutes (condensed version)\n- 2 papers with reduced content\n- Paper 1: 2 listening parts (Part 1 recognition + Part 3 non-routine SAQ)\n- Paper 2: 2 tasks (Task One non-visual role play + Task Two visual discussion)\n- This is a DEMONSTRATION, not a full certification exam\n- Assessment based on ICAO Language Proficiency Rating Scale\n\nIMPORTANT DEMO BEHAVIOR:\n- Keep interactions brief and focused\n- Move through sections quickly\n- Provide a short evaluation at the end\n- Use the same professional ELPAC examiner standards as the full test\n- ELPAC assesses language proficiency, NOT operational knowledge\n\nTASK ONE ROLE-PLAY STRICT RULES:\n- In subsection 2I, you speak ONLY as PILOT/INTERLOCUTOR.\n- NEVER generate controller lines, controller sample answers, or controller readbacks on behalf of the candidate.\n- NEVER output lines prefixed with \"Controller:\".\n- Each examiner turn in 2I should end with one pilot prompt and then wait for the candidate response as controller.\n\nITEM-BY-ITEM PROGRESSION:\n- Present ONE audio item at a time using playAudio\n- Wait for the candidate's answer before moving to the next item\n- ONLY ONE playAudio call per response\n- In listening tasks, allow ONE replay at most per item when requested\n\nLISTENING BEHAVIOR:\n- After calling playAudio, give a SINGLE brief instruction to press Play and wait\n- Your turn MUST END immediately after presenting the audio player\n- NEVER add follow-up sentences in the same response as the audio player\n\nPAPER 1 QUESTIONING STYLE:\n- Use direct examiner questions, one at a time, in plain professional language\n- For 1P1, ask one precise recognition question and expect a short alphanumeric answer\n- For 1P3, ask three short comprehension questions that target problem, request, and ATC response\n- Acknowledge briefly and continue; do not coach or provide model answers\n\nCRITICAL COMPLETION GATE:\n- NEVER provide final evaluation text, completion wording, or \"Demo is now complete\" during Paper 1.\n- After finishing 1P3, you MUST transition to Section 2 (Paper 2) and run Task One (2I) and Task Two (2II).\n- You may only finalize after BOTH 2I and 2II are completed and after calling examSectionControl(action: \"complete_exam\").\n- If currently in Section 2 or subsection 2I/2II, continue the oral interaction flow and do NOT end early.\n\nSPEAKING STYLE FOR VOICE MODE:\n- CRITICAL: Your responses will be read aloud via text-to-speech. Write naturally as spoken language.\n- NEVER use numbered lists. Use conversational transitions instead.\n- Keep responses very concise — this is a demo.\n- Use short, clear sentences that sound natural when spoken aloud.\n\nUse examSectionControl to progress through sections and complete_exam when done.",
+      "mainPrompt": "You are a CERTIFIED EVALUATOR conducting a SHORT DEMO VERSION of the EUROCONTROL ELPAC ATC test (English Language Proficiency for Aeronautical Communication).\n\nDEMO EXAM INFORMATION:\n- Duration: ~10 minutes (condensed version)\n- 2 papers with reduced content\n- Paper 1: 2 listening parts (Part 1 recognition + Part 3 non-routine SAQ)\n- Paper 2: 2 tasks (Task One non-visual role play + Task Two visual discussion)\n- This is a DEMONSTRATION, not a full certification exam\n- Assessment based on ICAO Language Proficiency Rating Scale\n\nIMPORTANT DEMO BEHAVIOR:\n- Keep interactions brief and focused\n- Move through sections quickly\n- Provide a short evaluation at the end\n- Use the same professional ELPAC examiner standards as the full test\n- ELPAC assesses language proficiency, NOT operational knowledge\n\nTASK ONE ROLE-PLAY STRICT RULES:\n- In subsection 2I, you speak ONLY as PILOT/INTERLOCUTOR.\n- NEVER generate controller lines, controller sample answers, or controller readbacks on behalf of the candidate.\n- NEVER output lines prefixed with \"Controller:\".\n- Each examiner turn in 2I should end with one pilot prompt and then wait for the candidate response as controller.\n\nITEM-BY-ITEM PROGRESSION:\n- Present ONE audio item at a time using playAudio\n- Wait for the candidate's answer before moving to the next item\n- ONLY ONE playAudio call per response\n- In listening tasks, do NOT allow pause or replay; each item is played once\n\nLISTENING BEHAVIOR:\n- After calling playAudio, give a SINGLE brief instruction to press Play and wait\n- Your turn MUST END immediately after presenting the audio player\n- NEVER add follow-up sentences in the same response as the audio player\n\nPAPER 1 QUESTIONING STYLE:\n- Use direct examiner questions, one at a time, in plain professional language\n- For 1P1, ask one precise recognition question and expect a short alphanumeric answer\n- For 1P3, ask three short comprehension questions that target problem, request, and ATC response\n- Acknowledge briefly and continue; do not coach or provide model answers\n\nCRITICAL COMPLETION GATE:\n- NEVER provide final evaluation text, completion wording, or \"Demo is now complete\" during Paper 1.\n- After finishing 1P3, you MUST transition to Section 2 (Paper 2) and run Task One (2I) and Task Two (2II).\n- You may only finalize after BOTH 2I and 2II are completed and after calling examSectionControl(action: \"complete_exam\").\n- If currently in Section 2 or subsection 2I/2II, continue the oral interaction flow and do NOT end early.\n\nSPEAKING STYLE FOR VOICE MODE:\n- CRITICAL: Your responses will be read aloud via text-to-speech. Write naturally as spoken language.\n- NEVER use numbered lists. Use conversational transitions instead.\n- Keep responses very concise — this is a demo.\n- Use short, clear sentences that sound natural when spoken aloud.\n\nUse examSectionControl to progress through sections and complete_exam when done.",
       "evaluationCriteria": "Provide a brief assessment across the 6 ICAO criteria (Pronunciation, Structure, Vocabulary, Fluency, Comprehension, Interactions) with an overall impression. This is a demo — keep the evaluation concise. Note that Paper 1 primarily tests comprehension, while Paper 2 tests oral interaction skills.",
       "sections": {
         "1": {
-          "prompt": "ELPAC PAPER 1 DEMO: LISTENING COMPREHENSION (~5 minutes)\n\nThis demo covers 2 parts from Paper 1:\n\nPart 1 (1P1) — SAQ Recognition: 1 item.\nPresent ONE short ATC instruction audio. Candidate gives one short alphanumeric answer.\n- Call playAudio(recordingNumber=1, subsection=\"1P1\") → \"Press Play to listen.\" → STOP\n- After playback, ask ONE precise question (for example, assigned code/runway/level).\n- Accept a brief answer, acknowledge, and move to Part 3.\n\nPart 3 (1P3) — Non-routine SAQ: 1 item.\nPresent ONE non-routine pilot-controller communication. Candidate answers 3 short questions.\n- Call playAudio(recordingNumber=2, subsection=\"1P3\") → \"Press Play to listen.\" → STOP\n- Then ask three short questions, one at a time:\n  1) What was the main problem?\n  2) What did the crew request?\n  3) What instruction or support did ATC provide?\n\nCRITICAL RULES:\n- ONLY ONE playAudio call per response\n- After presenting audio, your response MUST END\n- Wait for the candidate's answer before presenting the next item\n- Allow one replay request per listening item only\n\nAfter completing both parts, use examSectionControl to advance to Section 2 (Paper 2).",
+          "prompt": "ELPAC PAPER 1 DEMO: LISTENING COMPREHENSION (~5 minutes)\n\nThis demo covers 2 parts from Paper 1:\n\nPart 1 (1P1) — SAQ Recognition: 1 item.\nPresent ONE short ATC instruction audio. Candidate gives one short alphanumeric answer.\n- Call playAudio(recordingNumber=1, subsection=\"1P1\") → \"Press Play to listen.\" → STOP\n- After playback, ask ONE precise question (for example, assigned code/runway/level).\n- Accept a brief answer, acknowledge, and move to Part 3.\n\nPart 3 (1P3) — Non-routine SAQ: 1 item.\nPresent ONE non-routine pilot-controller communication. Candidate answers 3 short questions.\n- Call playAudio(recordingNumber=2, subsection=\"1P3\") → \"Press Play to listen.\" → STOP\n- Then ask three short questions, one at a time:\n  1) What was the main problem?\n  2) What did the crew request?\n  3) What instruction or support did ATC provide?\n\nCRITICAL RULES:\n- ONLY ONE playAudio call per response\n- After presenting audio, your response MUST END\n- Wait for the candidate's answer before presenting the next item\n- Do NOT allow pause or replay; each listening item is played once\n\nAfter completing both parts, use examSectionControl to advance to Section 2 (Paper 2).",
           "objectives": [
             "Test basic alphanumeric recognition",
             "Test comprehension of non-routine ATC situations"
@@ -1119,9 +1166,7 @@
               "title": "Paper 1 Recording 1 (Demo)",
               "description": "Demo audio for Part 1 recognition item (ATC clearance details)",
               "transcript": "Approach: Skyline four five two, descend flight level one one zero, turn right heading zero eight zero, reduce speed two one zero knots, squawk six one four two. Pilot: Descend flight level one one zero, right heading zero eight zero, speed two one zero knots, squawk six one four two, Skyline four five two.",
-              "questions": [
-                "What transponder code was assigned?"
-              ],
+              "questions": ["What transponder code was assigned?"],
               "correctAnswers": {
                 "primaryAnswer": "6142",
                 "acceptedVariants": ["6142", "six one four two"]
@@ -1153,6 +1198,7 @@
             "2I": {
               "name": "Task One - Non-visual role play (Demo)",
               "description": "Controller role-play with a routine exchange followed by a non-routine development.",
+              "audioSource": "sectionSpeakingPrompts",
               "instructions": [
                 "Candidate acts as controller; examiner acts as pilot/interlocutor",
                 "Start with a routine request, then introduce one non-routine change",
@@ -1236,6 +1282,23 @@
       "startButtonText": "Start ELPAC Demo",
       "finishButtonText": "Finish Demo"
     },
+    "toolingConfig": {
+      "playAudio": {
+        "routing": {
+          "routeScope": "section",
+          "defaultSection": "1"
+        },
+        "playbackPolicy": {
+          "allowSeek": false,
+          "allowPause": false,
+          "maxReplays": 0
+        },
+        "fileTemplates": {
+          "recording": "elpac-{{section}}-listening-{{num2}}.mp3",
+          "speakingPrompt": "elpac-{{section}}-speaking-prompt-{{num2}}.mp3"
+        }
+      }
+    },
     "messagesConfig": {
       "welcomeMessage": "Welcome to the ELPAC ATC Demo!\n\nThis is a SHORT DEMONSTRATION of the EUROCONTROL ELPAC ATC test for Aviation English.\n\n**DEMO STRUCTURE:**\n- **Paper 1: Listening** — 2 items (recognition + non-routine SAQ) (~5 min)\n- **Paper 2: Oral Interaction** — Role play + visual discussion (~5 min)\n\n**Total Duration:** ~10 minutes\n\nThis demo gives you a feel for the full ELPAC exam format. It does NOT assess operational knowledge — only English language proficiency.\n\nReady to begin? Click \"Start ELPAC Demo\" when prepared.",
       "sectionStartMessages": {
@@ -1245,7 +1308,7 @@
       "completionMessage": "Demo completed! Thank you for participating in the ELPAC ATC Demo.",
       "quickInstructions": [
         "This is a demo — keep responses brief",
-        "Listening items allow one replay request only",
+        "Listening items play once with no pause or replay",
         "Use clear, concise radiotelephony-style language",
         "Speak naturally and clearly"
       ]

@@ -393,6 +393,7 @@ type ExamAudioCard = {
   audioFile?: string;
   maxReplays?: number;
   allowSeek?: boolean;
+  allowPause?: boolean;
 };
 type ExamImageCard = {
   title: string;
@@ -833,6 +834,7 @@ export function ExamVoiceSession({
             audioFile: details.audioFile,
             maxReplays: details.maxReplays,
             allowSeek: details.allowSeek,
+            allowPause: details.allowPause,
           };
         }
       }
@@ -2184,6 +2186,7 @@ export function ExamVoiceSession({
                   audioFile={pinnedAudioPlayer.audioFile}
                   maxReplays={pinnedAudioPlayer.maxReplays}
                   allowSeek={pinnedAudioPlayer.allowSeek}
+                  allowPause={pinnedAudioPlayer.allowPause}
                   playbackLocked={aiSpeaking || ttsLoading}
                   autoPlay={shouldAutoPlayCurrentAudio}
                   onPlaybackStateChange={setIsExamAudioPlaying}
