@@ -1,6 +1,12 @@
 import { type Page, expect, test } from '@playwright/test';
 import postgres from 'postgres';
 
+import {
+  assertHumanLikeExamResponse,
+  extractStreamedText,
+  normalizeText,
+} from './helpers/exam-chat-quality';
+
 const TEST_PASSWORD = 'Playwright!12345';
 const EXPECTED_FIRST_EXAMINER_PROMPT =
   "Welcome to the TEA Demo. Let's begin with Section 1. Tell me briefly about your current role in aviation.";
@@ -12,21 +18,6 @@ const EXPECTED_SECOND_EXAMINER_PROMPT =
 function createTestEmail(): string {
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return `tea-demo-e2e-${unique}@playwright.local`;
-}
-
-function extractStreamedText(streamPayload: string): string {
-  return streamPayload
-    .split('\n')
-    .filter((line) => line.startsWith('0:'))
-    .map((line) => {
-      const parsed = JSON.parse(line.slice(2));
-      return typeof parsed === 'string' ? parsed : '';
-    })
-    .join('');
-}
-
-function normalizeText(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
 }
 
 async function installMockAudioSettingsCheck(page: Page) {
@@ -326,6 +317,10 @@ test.describe('TEA Demo E2E', () => {
       extractStreamedText(firstChatPayload),
     );
 
+    assertHumanLikeExamResponse(
+      firstExaminerText,
+      'first examiner prompt in TEA demo',
+    );
     expect(firstExaminerText).toBe(EXPECTED_FIRST_EXAMINER_PROMPT);
 
     await page.getByTestId('exam-transcript-toggle').click();
@@ -382,7 +377,9 @@ test.describe('TEA Demo E2E', () => {
     await page.getByTestId('exam-transcript-toggle').click();
     await expect(page.getByTestId('exam-transcript-panel')).toBeVisible();
 
-    const pttButton = page.getByRole('button', { name: /Push to Talk/i });
+    const pttButton = page.getByRole('button', {
+      name: /(Push to Talk|Release to Send)/i,
+    });
     await expect(pttButton).toBeEnabled();
     await setMockSpeechTranscript(page, CANDIDATE_FIRST_ANSWER);
 
@@ -406,6 +403,10 @@ test.describe('TEA Demo E2E', () => {
     const followUpPayload = await followUpResponse.text();
     const followUpText = normalizeText(extractStreamedText(followUpPayload));
 
+    assertHumanLikeExamResponse(
+      followUpText,
+      'second examiner prompt in TEA demo',
+    );
     expect(followUpText).toBe(EXPECTED_SECOND_EXAMINER_PROMPT);
 
     await expect(page.getByTestId('exam-transcript-speaker-1')).toHaveText(
