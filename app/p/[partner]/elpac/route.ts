@@ -13,7 +13,7 @@ export async function GET(
     return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
   }
 
-  const examId = partner.defaultExamId ?? 'elpac-evaluator';
+  const examId = partner.defaultExamId ?? 'elpac-demo';
   const redirectUrl = new URL(`/?exam=${examId}&autostart=1`, request.url);
 
   const response = NextResponse.redirect(redirectUrl);

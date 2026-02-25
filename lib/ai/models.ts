@@ -35,4 +35,4 @@ export function generateChatModelsFromConfigs(
 
 // Default to the first available exam model
 export const DEFAULT_CHAT_MODEL: string =
-  chatModels.length > 0 ? chatModels[0].id : 'tea-evaluator';
+  chatModels.length > 0 ? chatModels[0].id : 'tea-demo';

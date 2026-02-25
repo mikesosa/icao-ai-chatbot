@@ -1,6 +1,7 @@
 // Import fallback data for server-side rendering
 import examConfigsData from '@/app/(chat)/api/exam-configs/exam-configs.json';
 import type { SerializedCompleteExamConfig } from '@/components/exam-interface/exam';
+import { filterExamConfigs } from '@/lib/exam-configs/filter';
 
 /**
  * Simplified exam config service that works with SWR
@@ -12,21 +13,23 @@ class ExamConfigService {
    * Used for server-side rendering and initial hydration
    */
   getConfigurationsSync(): Record<string, SerializedCompleteExamConfig> {
-    return examConfigsData as Record<string, SerializedCompleteExamConfig>;
+    return filterExamConfigs(
+      examConfigsData as Record<string, SerializedCompleteExamConfig>,
+    );
   }
 
   /**
    * Get list of available exam IDs from fallback data
    */
   getAvailableExamIdsSync(): string[] {
-    return Object.keys(examConfigsData);
+    return Object.keys(this.getConfigurationsSync());
   }
 
   /**
    * Check if an exam ID is valid using fallback data
    */
   isValidExamIdSync(examId: string): boolean {
-    return Object.keys(examConfigsData).includes(examId);
+    return Object.keys(this.getConfigurationsSync()).includes(examId);
   }
 
   /**
@@ -67,7 +70,7 @@ class ExamConfigService {
    * Get fallback model IDs for when no configurations are available
    */
   getFallbackModelIds(): string[] {
-    return ['tea-evaluator', 'elpac-evaluator'];
+    return ['tea-demo', 'elpac-demo'];
   }
 
   /**
@@ -76,16 +79,14 @@ class ExamConfigService {
   getFallbackChatModels() {
     return [
       {
-        id: 'tea-evaluator',
-        name: 'TEA',
-        description:
-          'Test of English for Aviation examination and evaluation system',
+        id: 'tea-demo',
+        name: 'TEA Demo',
+        description: 'Short TEA demonstration exam and evaluation system',
       },
       {
-        id: 'elpac-evaluator',
-        name: 'ELPAC',
-        description:
-          'English Language Proficiency Assessment examination and evaluation system',
+        id: 'elpac-demo',
+        name: 'ELPAC ATC Demo',
+        description: 'Short ELPAC ATC demonstration exam and evaluation system',
       },
     ];
   }

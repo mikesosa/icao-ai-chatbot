@@ -17,7 +17,7 @@ export const PARTNERS: Record<string, PartnerBrand> = {
     subheadline:
       'ELPAC Aviation English assessment tailored for professional training.',
     ctaLabel: 'Start ELPAC assessment',
-    defaultExamId: 'elpac-evaluator',
+    defaultExamId: 'elpac-demo',
   },
 };
 

@@ -1,20 +1,9 @@
 import { NextResponse } from 'next/server';
 
 import type { SerializedCompleteExamConfig } from '@/components/exam-interface/exam';
+import { filterExamConfigs } from '@/lib/exam-configs/filter';
 
 import examConfigsData from './exam-configs.json';
-
-const DEMO_ONLY = true;
-
-const filterExamConfigs = (
-  configs: Record<string, SerializedCompleteExamConfig>,
-): Record<string, SerializedCompleteExamConfig> => {
-  if (!DEMO_ONLY) return configs;
-
-  return Object.fromEntries(
-    Object.entries(configs).filter(([id]) => id.endsWith('-demo')),
-  );
-};
 
 // TODO: Replace this with actual CMS integration
 // For now, we load from JSON file but structure it like a CMS response
