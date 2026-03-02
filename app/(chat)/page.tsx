@@ -1,8 +1,9 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { headers , cookies } from 'next/headers';
 
 import { ChatPageContent } from '@/components/chat-page-content';
+import { LandingPage } from '@/components/landing-page';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import type { Locale } from '@/lib/i18n/landing';
 import { isValidExamModel } from '@/lib/types';
 import { generateUUID } from '@/lib/utils';
 
@@ -12,7 +13,19 @@ export default async function Page() {
   const session = await auth();
 
   if (!session) {
-    redirect('/login?callbackUrl=%2F');
+    const cookieStore = await cookies();
+    const localeCookie = cookieStore.get('locale')?.value;
+
+    let locale: Locale = 'en';
+    if (localeCookie === 'en' || localeCookie === 'es') {
+      locale = localeCookie;
+    } else {
+      const headersList = await headers();
+      const acceptLanguage = headersList.get('accept-language') ?? '';
+      if (/\bes\b/i.test(acceptLanguage)) locale = 'es';
+    }
+
+    return <LandingPage locale={locale} />;
   }
 
   const id = generateUUID();

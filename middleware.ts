@@ -63,8 +63,17 @@ export async function middleware(request: NextRequest) {
     secureCookie: !isDevelopmentEnvironment,
   });
 
+  // Allow public access to landing page and waitlist API
+  if (pathname === '/' || pathname === '/api/waitlist') {
+    return NextResponse.next();
+  }
+
   // Allow access to auth pages for unauthenticated users
+  // NOTE: /register is temporarily disabled — redirect to login until signup is re-enabled
   if (['/login', '/register'].includes(pathname)) {
+    if (pathname === '/register') {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
     // If user is already authenticated (and not a guest), redirect to home
     if (token && !guestRegex.test(token?.email ?? '')) {
       return NextResponse.redirect(new URL('/', request.url));

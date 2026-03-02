@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 
-import { createUser, getUser } from '@/lib/db/queries';
+// import { createUser, getUser } from '@/lib/db/queries'; // re-enable with signup
 
 import { signIn } from './auth';
 
@@ -51,14 +51,17 @@ export interface RegisterActionState {
     | 'invalid_data';
 }
 
+// Signup disabled — restore the body below to re-enable
 export const register = async (
   _: RegisterActionState,
-  formData: FormData,
+  _formData: FormData,
 ): Promise<RegisterActionState> => {
+  return { status: 'failed' };
+  /* re-enable signup:
   try {
     const validatedData = authFormSchema.parse({
-      email: formData.get('email'),
-      password: formData.get('password'),
+      email: _formData.get('email'),
+      password: _formData.get('password'),
     });
 
     const [user] = await getUser(validatedData.email);
@@ -81,4 +84,5 @@ export const register = async (
 
     return { status: 'failed' };
   }
+  */
 };

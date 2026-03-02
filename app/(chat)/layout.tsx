@@ -16,6 +16,12 @@ export default async function Layout({
   children: React.ReactNode;
 }) {
   const [session, cookieStore] = await Promise.all([auth(), cookies()]);
+
+  // Unauthenticated users see the landing page — no sidebar needed
+  if (!session) {
+    return <>{children}</>;
+  }
+
   const isCollapsed = cookieStore.get('sidebar:state')?.value !== 'true';
   const partnerSlug = cookieStore.get('partner')?.value;
   const partner = getPartner(partnerSlug);

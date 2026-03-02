@@ -2,7 +2,6 @@
 
 import { Suspense, useActionState, useEffect, useState } from 'react';
 
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { useSession } from 'next-auth/react';
@@ -68,6 +67,7 @@ function LoginForm() {
         </div>
         <AuthForm action={handleSubmit} defaultEmail={email}>
           <SubmitButton isSuccessful={isSuccessful}>Sign in</SubmitButton>
+          {/* Signup disabled — uncomment to re-enable
           <p className="text-center text-sm text-gray-600 mt-4 dark:text-zinc-400">
             {"Don't have an account? "}
             <Link
@@ -78,6 +78,7 @@ function LoginForm() {
             </Link>
             {' for free.'}
           </p>
+          */}
         </AuthForm>
       </div>
     </div>

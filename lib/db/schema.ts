@@ -185,3 +185,12 @@ export const discountRedemption = pgTable('DiscountRedemption', {
 });
 
 export type DiscountRedemption = InferSelectModel<typeof discountRedemption>;
+
+export const waitlist = pgTable('Waitlist', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  source: varchar('source', { length: 50 }).default('landing'),
+});
+
+export type Waitlist = InferSelectModel<typeof waitlist>;
