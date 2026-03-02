@@ -335,7 +335,7 @@ function ChatWithSearchParams({
           selectedModel={selectedChatModel}
         />
 
-        <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
+        <form className="sticky bottom-0 z-20 mx-auto flex w-full gap-2 border-t border-border/60 bg-background/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur md:max-w-3xl md:px-4 md:pb-6 md:pt-3">
           {!isReadonly && examType && (
             <MultimodalInput
               chatId={id}

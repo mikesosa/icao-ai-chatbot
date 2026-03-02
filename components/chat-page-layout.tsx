@@ -4,14 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
+import { SlidersHorizontal } from 'lucide-react';
 import type { Session } from 'next-auth';
 
 import { Chat } from '@/components/chat';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { ExamSidebar } from '@/components/exam-interface/exam-sidebar';
 import { ExamVoiceSession } from '@/components/exam-voice-session';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useExamConfig } from '@/hooks/use-exam-configs';
 import { useExamContext } from '@/hooks/use-exam-context';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ChatPageLayoutProps {
   session: Session;
@@ -34,6 +38,8 @@ export function ChatPageLayout({
 }: ChatPageLayoutProps) {
   const { examType, examStarted, setExamConfig } = useExamContext();
   const { config: examConfig } = useExamConfig(examType);
+  const isMobile = useIsMobile();
+  const [isExamSidebarOpen, setIsExamSidebarOpen] = useState(false);
 
   // Track the last examConfig id to prevent duplicate setExamConfig calls
   const lastExamConfigId = useRef<string | null>(null);
@@ -106,6 +112,12 @@ export function ChatPageLayout({
     initialMessages.length,
   ]);
 
+  useEffect(() => {
+    if (!isMobile) {
+      setIsExamSidebarOpen(false);
+    }
+  }, [isMobile]);
+
   // ── When exam is started, show the dedicated voice exam screen ──
   if (examStarted && examConfig) {
     return (
@@ -120,8 +132,8 @@ export function ChatPageLayout({
 
   // ── Default: chat UI with optional exam sidebar ──
   return (
-    <div className="flex">
-      <div className="flex-1 flex flex-col">
+    <div className="relative flex h-dvh min-h-0 flex-col md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col">
         <Chat
           key={id}
           id={id}
@@ -137,12 +149,46 @@ export function ChatPageLayout({
         <DataStreamHandler id={id} dataStream={dataStream} />
       </div>
       {examConfig && (
-        <div className="flex flex-col min-w-0 h-dvh bg-sidebar">
-          <ExamSidebar
-            examConfig={examConfig}
-            append={appendReady ? appendRef.current || undefined : undefined}
-          />
-        </div>
+        <>
+          <div className="hidden h-dvh w-[22rem] shrink-0 border-l bg-sidebar md:flex md:flex-col lg:w-96">
+            <ExamSidebar
+              examConfig={examConfig}
+              append={appendReady ? appendRef.current || undefined : undefined}
+            />
+          </div>
+
+          <div className="md:hidden">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 z-40 gap-2 rounded-full shadow-lg"
+              onClick={() => setIsExamSidebarOpen(true)}
+            >
+              <SlidersHorizontal className="size-4" />
+              Exam Controls
+            </Button>
+
+            <Sheet open={isExamSidebarOpen} onOpenChange={setIsExamSidebarOpen}>
+              <SheetContent
+                side="bottom"
+                className="flex h-[82dvh] flex-col rounded-t-2xl p-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+              >
+                <div className="border-b px-4 py-3">
+                  <p className="text-sm font-semibold">Exam Controls</p>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <ExamSidebar
+                    examConfig={examConfig}
+                    append={
+                      appendReady ? appendRef.current || undefined : undefined
+                    }
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        </>
       )}
     </div>
   );

@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Pause, Play, RotateCcw, Volume2 } from 'lucide-react';
+import { Pause, Play, RotateCcw } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { useExamContext } from '@/hooks/use-exam-context';
 import { cn } from '@/lib/utils';
 
@@ -31,14 +30,12 @@ interface AudioPlayerProps {
 export function AudioPlayer({
   src,
   title,
-  description,
   className,
   recordingId,
   isExamRecording = false,
   isCompleted = false,
   onComplete,
   subsection: _subsection,
-  audioFile,
   autoPlay = false,
   onPlaybackStateChange,
   onPlaybackEnded,
@@ -50,7 +47,6 @@ export function AudioPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replayCount, setReplayCount] = useState(0);
@@ -205,15 +201,6 @@ export function AudioPlayer({
     }
   };
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const newVolume = Number.parseFloat(e.target.value);
-    audio.volume = newVolume;
-    setVolume(newVolume);
-  };
-
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
@@ -284,112 +271,77 @@ export function AudioPlayer({
     );
   }
 
+  const replayLimit = maxReplays < 99;
+  const replaysRemaining = replayLimit ? maxReplays - replayCount : null;
+
   return (
     <div
-      className={cn('bg-card/70 border rounded-lg p-3 space-y-3', className)}
+      className={cn('flex flex-col gap-3 w-full', className)}
       data-recording-id={recordingId}
-      data-audio-file={audioFile}
     >
       <audio ref={audioRef} src={src} preload="metadata" />
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="space-y-1">
-          {title && (
-            <h4 className="text-sm font-medium text-foreground">{title}</h4>
-          )}
-          {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
-          )}
-        </div>
-
-        {isLoading && (
-          <span className="text-xs text-muted-foreground">Loading...</span>
-        )}
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={togglePlayPause}
-          disabled={playPauseDisabled}
-          className="rounded-full size-8 p-0"
-        >
-          {isLoading ? (
-            <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-          ) : isPlaying ? (
-            <Pause className="size-3" />
-          ) : (
-            <Play className="size-3 ml-0.5" />
-          )}
-        </Button>
-
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleRestart}
-          disabled={restartDisabled}
-          className="rounded-full size-8 p-0"
-        >
-          <RotateCcw className="size-3" />
-        </Button>
-
-        <div className="flex-1 space-y-1">
-          <input
-            type="range"
-            min="0"
-            max={duration || 0}
-            value={currentTime}
-            onChange={handleSeek}
-            disabled={isLoading || !!error || !allowSeek || playbackLocked}
-            className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer
-                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-3
-                     [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
-                     [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:bg-primary
-                     [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none"
-          />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Volume2 className="size-3 text-muted-foreground" />
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            value={volume}
-            onChange={handleVolumeChange}
-            disabled={isLoading || !!error || playbackLocked}
-            className="w-16 h-1 bg-muted rounded-lg appearance-none cursor-pointer
-                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-2
-                     [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
-                     [&::-moz-range-thumb]:size-2 [&::-moz-range-thumb]:bg-primary
-                     [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none"
-          />
-        </div>
-      </div>
-
-      {isCompleted && (
-        <div className="text-[11px] text-muted-foreground">
-          Playback complete
-        </div>
+      {title && (
+        <p className="text-xs text-muted-foreground text-center">{title}</p>
       )}
 
-      {isExamRecording && (
-        <div className="space-y-1">
-          <div className="text-[11px] text-muted-foreground">
-            Replays: {Math.min(replayCount, maxReplays)} / {maxReplays}
-          </div>
-          {audioFile && (
-            <div className="text-[11px] text-muted-foreground">
-              Source file: {audioFile}
-            </div>
-          )}
+      {/* Scrubber */}
+      <div className="flex flex-col gap-1 px-1">
+        <input
+          type="range"
+          min="0"
+          max={duration || 0}
+          value={currentTime}
+          onChange={handleSeek}
+          disabled={isLoading || !!error || !allowSeek || playbackLocked}
+          className="w-full h-0.5 bg-muted/50 rounded-full appearance-none cursor-pointer
+                   [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-3
+                   [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
+                   [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:bg-foreground
+                   [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none"
+        />
+        <div className="flex justify-between text-[11px] text-muted-foreground/60">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration)}</span>
         </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center justify-center gap-8">
+        <button
+          type="button"
+          onClick={handleRestart}
+          disabled={restartDisabled}
+          className="text-muted-foreground disabled:opacity-20 transition-opacity p-2"
+        >
+          <RotateCcw className="size-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={togglePlayPause}
+          disabled={playPauseDisabled}
+          className="flex items-center justify-center size-12 rounded-full bg-foreground text-background disabled:opacity-30 transition-opacity active:scale-95"
+        >
+          {isLoading ? (
+            <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          ) : isPlaying ? (
+            <Pause className="size-5" />
+          ) : (
+            <Play className="size-5 ml-0.5" />
+          )}
+        </button>
+
+        {/* Spacer to balance the restart button */}
+        <div className="size-8" />
+      </div>
+
+      {replayLimit && replaysRemaining !== null && (
+        <p className="text-[11px] text-muted-foreground/60 text-center">
+          {replaysRemaining > 0
+            ? `${replaysRemaining} replay${replaysRemaining === 1 ? '' : 's'} remaining`
+            : 'No replays remaining'}
+        </p>
       )}
     </div>
   );

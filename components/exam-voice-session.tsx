@@ -27,6 +27,7 @@ import { VoiceSettings } from '@/components/voice-settings';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useExamContext } from '@/hooks/use-exam-context';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useStreamingTTS } from '@/hooks/use-streaming-tts';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTextToSpeech } from '@/hooks/use-text-to-speech';
@@ -361,7 +362,7 @@ function ProgressHeader({
 
   return (
     <div className="space-y-1 text-center">
-      <p className="text-xs text-muted-foreground">
+      <p className="truncate text-xs text-muted-foreground">
         {currentSection
           ? `Section ${currentSection}${currentSubsection ? ` · ${currentSubsection}` : ''} — ${sectionName}`
           : 'Preparing...'}
@@ -657,6 +658,8 @@ export function ExamVoiceSession({
   useEffect(() => {
     if (data) setDataStream(data);
   }, [data]);
+
+  const isMobile = useIsMobile();
 
   // ── Local state ──
   const [showTranscript, setShowTranscript] = useState(false);
@@ -2007,7 +2010,7 @@ export function ExamVoiceSession({
 
   // ── Render ──
   return (
-    <div className="flex h-dvh bg-background">
+    <div className="relative flex h-dvh bg-background">
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* ─── Header ─── */}
@@ -2022,8 +2025,8 @@ export function ExamVoiceSession({
             <ArrowLeft className="size-4" />
           </Button>
 
-          <div className="flex-1 text-center">
-            <p className="text-sm font-medium">{examConfig.name}</p>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="truncate text-sm font-medium">{examConfig.name}</p>
             <ProgressHeader
               examConfig={examConfig}
               currentSection={currentSection}
@@ -2272,7 +2275,7 @@ export function ExamVoiceSession({
         </div>
 
         {/* ─── Bottom toolbar ─── */}
-        <div className="flex items-center justify-center gap-6 px-4 py-3 border-t">
+        <div className="flex items-center justify-center gap-1 sm:gap-6 px-2 sm:px-4 py-3 border-t">
           <Button
             variant="ghost"
             size="sm"
@@ -2338,24 +2341,42 @@ export function ExamVoiceSession({
         </div>
       </div>
 
-      {/* ─── Transcript side panel ─── */}
+      {/* ─── Transcript panel ─── */}
       <AnimatePresence>
-        {showTranscript && (
-          <motion.div
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 320, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <TranscriptPanel
-              turns={transcriptTurns}
-              onClose={() => setShowTranscript(false)}
-              onCopyDebugLog={handleCopyDebugLog}
-              isCopyingDebugLog={isCopyingDebugLog}
-            />
-          </motion.div>
-        )}
+        {showTranscript &&
+          (isMobile ? (
+            /* On mobile: full-screen overlay */
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 z-30 bg-background"
+            >
+              <TranscriptPanel
+                turns={transcriptTurns}
+                onClose={() => setShowTranscript(false)}
+                onCopyDebugLog={handleCopyDebugLog}
+                isCopyingDebugLog={isCopyingDebugLog}
+              />
+            </motion.div>
+          ) : (
+            /* On desktop: side panel */
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 320, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <TranscriptPanel
+                turns={transcriptTurns}
+                onClose={() => setShowTranscript(false)}
+                onCopyDebugLog={handleCopyDebugLog}
+                isCopyingDebugLog={isCopyingDebugLog}
+              />
+            </motion.div>
+          ))}
       </AnimatePresence>
 
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>

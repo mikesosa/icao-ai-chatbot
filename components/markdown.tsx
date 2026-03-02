@@ -11,6 +11,13 @@ const components: Partial<Components> = {
   // @ts-expect-error: CodeBlock component props don't match exact ReactMarkdown component type
   code: CodeBlock,
   pre: ({ children }) => <>{children}</>,
+  p: ({ node: _node, children, ...props }) => {
+    return (
+      <p className="leading-relaxed break-words" {...props}>
+        {children}
+      </p>
+    );
+  },
   ol: ({ node: _node, children, ...props }) => {
     return (
       <ol className="list-decimal list-outside ml-4" {...props}>
@@ -27,7 +34,7 @@ const components: Partial<Components> = {
   },
   ul: ({ node: _node, children, ...props }) => {
     return (
-      <ul className="list-decimal list-outside ml-4" {...props}>
+      <ul className="list-disc list-outside ml-4" {...props}>
         {children}
       </ul>
     );
@@ -54,28 +61,28 @@ const components: Partial<Components> = {
   },
   h1: ({ node: _node, children, ...props }) => {
     return (
-      <h1 className="text-3xl font-semibold mt-6 mb-2" {...props}>
+      <h1 className="mt-6 mb-2 text-2xl font-semibold sm:text-3xl" {...props}>
         {children}
       </h1>
     );
   },
   h2: ({ node: _node, children, ...props }) => {
     return (
-      <h2 className="text-2xl font-semibold mt-6 mb-2" {...props}>
+      <h2 className="mt-6 mb-2 text-xl font-semibold sm:text-2xl" {...props}>
         {children}
       </h2>
     );
   },
   h3: ({ node: _node, children, ...props }) => {
     return (
-      <h3 className="text-xl font-semibold mt-6 mb-2" {...props}>
+      <h3 className="mt-6 mb-2 text-lg font-semibold sm:text-xl" {...props}>
         {children}
       </h3>
     );
   },
   h4: ({ node: _node, children, ...props }) => {
     return (
-      <h4 className="text-lg font-semibold mt-6 mb-2" {...props}>
+      <h4 className="mt-6 mb-2 text-base font-semibold sm:text-lg" {...props}>
         {children}
       </h4>
     );
@@ -92,6 +99,15 @@ const components: Partial<Components> = {
       <h6 className="text-sm font-semibold mt-6 mb-2" {...props}>
         {children}
       </h6>
+    );
+  },
+  table: ({ node: _node, children, ...props }) => {
+    return (
+      <div className="my-3 w-full overflow-x-auto">
+        <table className="w-full min-w-[28rem] text-sm" {...props}>
+          {children}
+        </table>
+      </div>
     );
   },
 };
