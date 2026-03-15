@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { track } from '@vercel/analytics/server';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
@@ -54,10 +55,19 @@ export async function POST(request: Request) {
     }
 
     if (insertedWaitlistEntry) {
-      try {
-        await sendFounderWaitlistAlert(insertedWaitlistEntry);
-      } catch (error) {
-        console.error('Failed to send founder waitlist alert email:', error);
+      const results = await Promise.allSettled([
+        sendFounderWaitlistAlert(insertedWaitlistEntry),
+        track(
+          'Waitlist Signup',
+          { source: insertedWaitlistEntry.source ?? normalizedSource },
+          { request: { headers: request.headers } },
+        ),
+      ]);
+
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          console.error('Waitlist side effect failed:', result.reason);
+        }
       }
     }
 

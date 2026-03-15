@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies } from 'next/headers';
 
+import { Analytics } from '@vercel/analytics/react';
 import type { Metadata } from 'next';
 import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'sonner';
@@ -86,6 +87,7 @@ export default async function RootLayout({
         >
           <Toaster position="top-center" />
           <SessionProvider>{children}</SessionProvider>
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>

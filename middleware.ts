@@ -63,8 +63,12 @@ export async function middleware(request: NextRequest) {
     secureCookie: !isDevelopmentEnvironment,
   });
 
-  // Allow public access to landing page and waitlist API
-  if (pathname === '/' || pathname === '/api/waitlist') {
+  // Allow public access to landing page, waitlist API, and OG image
+  if (
+    pathname === '/' ||
+    pathname === '/api/waitlist' ||
+    pathname === '/opengraph-image'
+  ) {
     return NextResponse.next();
   }
 
