@@ -13,6 +13,7 @@ export async function sendFounderWaitlistAlert(
   const gmailUser = process.env.GMAIL_SMTP_USER;
   const gmailAppPassword = process.env.GMAIL_SMTP_APP_PASSWORD;
   const to = process.env.WAITLIST_ALERT_TO_EMAIL;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
   if (!gmailUser || !gmailAppPassword || !to) {
     console.warn(
@@ -22,11 +23,12 @@ export async function sendFounderWaitlistAlert(
   }
 
   const email = buildFounderWaitlistAlertEmail({
-    from: gmailUser,
+    from: `VectorEnglish.io <${gmailUser}>`,
     to,
     email: signup.email,
     createdAt: signup.createdAt,
     source: signup.source,
+    appUrl,
   });
 
   const transporter = nodemailer.createTransport({
