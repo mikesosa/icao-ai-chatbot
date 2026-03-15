@@ -9,7 +9,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { partner: partnerSlug } = await params;
   const partner = getPartnerConfig(partnerSlug);
-  const title = partner?.displayName ?? 'AeroChat';
+  const title = partner?.displayName ?? 'VectorEnglish';
   const description =
     partner?.headline ??
     'Aviation English assessment and training platform for ICAO proficiency.';

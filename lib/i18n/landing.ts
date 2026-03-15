@@ -2,167 +2,246 @@ export type Locale = 'en' | 'es';
 
 export interface LandingTranslations {
   nav: {
+    brand: string;
     signIn: string;
     toggleLocale: string;
+    joinWaitlist: string;
   };
   hero: {
     badge: string;
     headline: string;
     subheadline: string;
-    ctaPrimary: string;
+    placeholder: string;
+    button: string;
     ctaSecondary: string;
+    signInHint: string;
+    success: string;
+    error: string;
     footnote: string;
+  };
+  proof: {
+    sectionLabel: string;
+    items: [
+      { value: string; label: string },
+      { value: string; label: string },
+      { value: string; label: string },
+    ];
+  };
+  demo: {
+    sectionLabel: string;
+    heading: string;
+    body: string;
+    watchLabel: string;
+    duration: string;
   };
   features: [
     { title: string; description: string },
     { title: string; description: string },
     { title: string; description: string },
   ];
-  howItWorks: {
+  faq: {
     sectionLabel: string;
-    steps: [
-      { title: string; body: string },
-      { title: string; body: string },
-      { title: string; body: string },
+    items: [
+      { question: string; answer: string },
+      { question: string; answer: string },
+      { question: string; answer: string },
     ];
   };
-  waitlist: {
+  finalCta: {
     heading: string;
     description: string;
-    placeholder: string;
     button: string;
-    success: string;
-    error: string;
-    footnote: string;
   };
   footer: {
     brand: string;
+    note: string;
   };
 }
 
 const en: LandingTranslations = {
   nav: {
+    brand: 'VectorEnglish',
     signIn: 'Sign in',
     toggleLocale: 'ES',
+    joinWaitlist: 'Join waitlist',
   },
   hero: {
-    badge: 'ELPAC · ICAO · ATC',
-    headline: 'Practice for real.\nPass with confidence.',
+    badge: 'ELPAC / ICAO / ATC',
+    headline: 'Train for the real radio. Pass with calm confidence.',
     subheadline:
-      "AI-powered exam simulations for aviation English proficiency. Train the way you'll be tested.",
-    ctaPrimary: 'Try free demo',
-    ctaSecondary: 'Join the waitlist',
-    footnote: 'Built for pilots and ATC officers · No credit card required',
+      "Voice-first exam simulations for ATC English proficiency. Practice exactly how you'll be evaluated.",
+    placeholder: 'you@ansp.com',
+    button: 'Request access',
+    ctaSecondary: 'See platform preview',
+    signInHint: 'Already have access?',
+    success: "You are on the list. We'll email you when access opens.",
+    error: 'Something went wrong. Please try again.',
+    footnote: 'No spam. Early-access updates only.',
+  },
+  proof: {
+    sectionLabel: 'Why controllers join early',
+    items: [
+      {
+        value: 'Voice-first',
+        label: 'Speak naturally in realistic ATC radio communication scenarios',
+      },
+      {
+        value: 'ICAO-aware',
+        label: 'Tasks aligned to ELPAC and ICAO English proficiency standards',
+      },
+      {
+        value: 'Fast feedback',
+        label: 'See fluency and communication gaps right after each run',
+      },
+    ],
+  },
+  demo: {
+    sectionLabel: 'Platform preview',
+    heading: 'See the exam experience before launch.',
+    body: 'Review the simulation flow: prompt, speaking response, evaluator feedback, and next-step coaching.',
+    watchLabel: 'Watch walkthrough',
+    duration: '~90 sec preview',
   },
   features: [
     {
       title: 'Voice-first',
       description:
-        'Speak your answers naturally. The AI listens, evaluates pronunciation, fluency, and accuracy in real time.',
+        'Respond by voice in test-style prompts with realistic pacing and pressure.',
     },
     {
-      title: 'ICAO-aligned',
+      title: 'Exam aligned',
       description:
-        'Questions and scenarios drawn from real ELPAC and ICAO language proficiency standards.',
+        'Practice ELPAC and ICAO-style ATC communication with scenario-driven tasks.',
     },
     {
-      title: 'Instant feedback',
+      title: 'Actionable scoring',
       description:
-        'Get a detailed evaluation the moment you finish. No waiting, no guessing where you stand.',
+        'Get immediate feedback on clarity, fluency, phraseology, and confidence.',
     },
   ],
-  howItWorks: {
-    sectionLabel: 'How it works',
-    steps: [
+  faq: {
+    sectionLabel: 'FAQ',
+    items: [
       {
-        title: 'Select your exam',
-        body: 'Choose from ELPAC ATC, ICAO oral, or custom scenarios.',
+        question: 'Who is VectorEnglish for?',
+        answer:
+          'VectorEnglish is built exclusively for Air Traffic Controllers preparing for ELPAC and ICAO English proficiency evaluations.',
       },
       {
-        title: 'Speak with the examiner',
-        body: 'The AI plays the role of examiner. Respond as you would in the real test.',
+        question: 'What does the waitlist give me?',
+        answer:
+          'You get early access invitations, release notes, and onboarding priority as new exam flows roll out.',
       },
       {
-        title: 'Review your score',
-        body: 'Receive structured feedback on pronunciation, vocabulary, fluency, and comprehension.',
+        question: 'Do I need a card to join?',
+        answer:
+          'No. Joining the waitlist only requires an email. Billing starts only if you later activate a plan.',
       },
     ],
   },
-  waitlist: {
-    heading: 'Be the first to know.',
+  finalCta: {
+    heading: 'Get first access to VectorEnglish.',
     description:
-      "Early access is limited. Drop your email and we'll reach out when your spot is ready.",
-    placeholder: 'you@airline.com',
-    button: 'Notify me',
-    success: "You're on the list. We'll be in touch.",
-    error: 'Something went wrong. Try again.',
-    footnote: 'No spam. Just updates.',
+      'Join the queue now and we will notify you as soon as your seat opens.',
+    button: 'Join the waitlist',
   },
   footer: {
-    brand: 'AeroChat',
+    brand: 'VectorEnglish',
+    note: 'Aviation English simulation for Air Traffic Controllers.',
   },
 };
 
 const es: LandingTranslations = {
   nav: {
-    signIn: 'Iniciar sesión',
+    brand: 'VectorEnglish',
+    signIn: 'Iniciar sesion',
     toggleLocale: 'EN',
+    joinWaitlist: 'Unirse a la lista',
   },
   hero: {
-    badge: 'ELPAC · ICAO · ATC',
-    headline: 'Practica de verdad.\nAprueba con confianza.',
+    badge: 'ELPAC / ICAO / ATC',
+    headline: 'Entrena para la radio real. Aprueba con confianza.',
     subheadline:
-      'Simulaciones de examen impulsadas por IA para la competencia en inglés de aviación. Entrena como te examinarán.',
-    ctaPrimary: 'Prueba gratis',
-    ctaSecondary: 'Unirse a la lista',
-    footnote: 'Para pilotos y controladores · Sin tarjeta de crédito',
+      'Simulaciones de examen por voz para competencia en ingles ATC. Practica exactamente como te evaluaran.',
+    placeholder: 'tu@ansp.com',
+    button: 'Solicitar acceso',
+    ctaSecondary: 'Ver vista previa',
+    signInHint: 'Ya tienes acceso?',
+    success: 'Ya estas en la lista. Te escribiremos cuando se abra tu acceso.',
+    error: 'Ocurrio un error. Intentalo de nuevo.',
+    footnote: 'Sin spam. Solo novedades de acceso anticipado.',
+  },
+  proof: {
+    sectionLabel: 'Por que los controladores se unen temprano',
+    items: [
+      {
+        value: 'Primero voz',
+        label: 'Responde de forma natural en escenarios reales de radio ATC',
+      },
+      {
+        value: 'Con enfoque ICAO',
+        label:
+          'Tareas alineadas a estandares ELPAC e ICAO de competencia en ingles',
+      },
+      {
+        value: 'Feedback rapido',
+        label: 'Identifica vacios de fluidez y comunicacion al instante',
+      },
+    ],
+  },
+  demo: {
+    sectionLabel: 'Vista previa',
+    heading: 'Mira la experiencia del examen antes del lanzamiento.',
+    body: 'Revisa el flujo completo: prompt, respuesta hablada, evaluacion y recomendaciones de mejora.',
+    watchLabel: 'Ver recorrido',
+    duration: 'Vista previa de ~90 s',
   },
   features: [
     {
       title: 'Voz primero',
       description:
-        'Responde de forma natural. La IA escucha y evalúa pronunciación, fluidez y precisión en tiempo real.',
+        'Responde por voz en prompts de examen con ritmo y presion realistas.',
     },
     {
-      title: 'Alineado con ICAO',
+      title: 'Alineado al examen',
       description:
-        'Preguntas y escenarios basados en los estándares reales de competencia lingüística ELPAC e ICAO.',
+        'Practica comunicacion estilo ELPAC e ICAO con tareas basadas en escenarios ATC.',
     },
     {
-      title: 'Retroalimentación instantánea',
+      title: 'Puntaje accionable',
       description:
-        'Recibe una evaluación detallada al terminar. Sin esperas, sin dudas sobre tu nivel.',
+        'Obtiene feedback inmediato sobre claridad, fluidez, fraseologia y confianza.',
     },
   ],
-  howItWorks: {
-    sectionLabel: 'Cómo funciona',
-    steps: [
+  faq: {
+    sectionLabel: 'Preguntas frecuentes',
+    items: [
       {
-        title: 'Selecciona tu examen',
-        body: 'Elige entre ELPAC ATC, oral ICAO o escenarios personalizados.',
+        question: 'Para quien es VectorEnglish?',
+        answer:
+          'VectorEnglish esta pensado exclusivamente para controladores de transito aereo (ATC) que preparan evaluaciones ELPAC e ICAO.',
       },
       {
-        title: 'Habla con el examinador',
-        body: 'La IA actúa como examinador. Responde como lo harías en el examen real.',
+        question: 'Que recibo al unirme a la lista?',
+        answer:
+          'Recibiras invitaciones de acceso anticipado, novedades y prioridad de onboarding.',
       },
       {
-        title: 'Revisa tu puntaje',
-        body: 'Recibe retroalimentación estructurada sobre pronunciación, vocabulario, fluidez y comprensión.',
+        question: 'Necesito tarjeta para entrar a la lista?',
+        answer:
+          'No. Solo dejas tu correo para reservar lugar. El cobro solo aplica si activas un plan despues.',
       },
     ],
   },
-  waitlist: {
-    heading: 'Sé el primero en enterarte.',
+  finalCta: {
+    heading: 'Consigue acceso temprano a VectorEnglish.',
     description:
-      'El acceso anticipado es limitado. Déjanos tu correo y te avisamos cuando tu lugar esté listo.',
-    placeholder: 'tu@aerolinea.com',
-    button: 'Notifícame',
-    success: 'Estás en la lista. Estaremos en contacto.',
-    error: 'Algo salió mal. Inténtalo de nuevo.',
-    footnote: 'Sin spam. Solo actualizaciones.',
+      'Unete ahora y te avisaremos en cuanto tu lugar este habilitado.',
+    button: 'Unirme a la lista',
   },
   footer: {
-    brand: 'AeroChat',
+    brand: 'VectorEnglish',
+    note: 'Simulacion de ingles aeronautico para controladores ATC.',
   },
 };
 

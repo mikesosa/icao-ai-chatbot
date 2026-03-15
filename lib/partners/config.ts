@@ -2,7 +2,7 @@ import type { PartnerBrand } from './types';
 
 export const DEFAULT_PARTNER: PartnerBrand = {
   slug: 'default',
-  displayName: 'AeroChat',
+  displayName: 'VectorEnglish',
   headline: 'Aviation English assessment platform',
   subheadline:
     'Practice and evaluate ICAO language proficiency with AI-assisted exams.',

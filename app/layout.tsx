@@ -10,9 +10,10 @@ import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://aerochat.ai'),
-  title: 'AeroChat',
-  description: 'AeroChat is a chatbot for aviation professionals.',
+  metadataBase: new URL('https://vectorenglish.io'),
+  title: 'VectorEnglish',
+  description:
+    'AI-powered English proficiency training for Air Traffic Controllers. Voice-first exam simulations aligned to ICAO and ELPAC standards.',
 };
 
 export const viewport = {

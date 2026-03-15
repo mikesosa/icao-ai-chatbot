@@ -30,7 +30,7 @@ export function AppSidebar({
 }) {
   const router = useRouter();
   const { setOpenMobile, setOpen } = useSidebar();
-  const brandName = brand?.displayName ?? 'AeroChat';
+  const brandName = brand?.displayName ?? 'VectorEnglish';
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">

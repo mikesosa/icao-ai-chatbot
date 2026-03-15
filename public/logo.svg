@@ -1,0 +1,13 @@
+<svg width="560" height="80" viewBox="0 0 560 80" xmlns="http://www.w3.org/2000/svg">
+  <rect width="560" height="80" fill="#090b10"/>
+  <text
+    x="280" y="40"
+    font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif"
+    font-size="30"
+    font-weight="500"
+    letter-spacing="-0.5"
+    text-anchor="middle"
+    dominant-baseline="middle">
+    <tspan fill="#f4c46b">Vector</tspan><tspan fill="#ffffff">English</tspan><tspan fill="rgba(255,255,255,0.22)">.io</tspan>
+  </text>
+</svg>

@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Brand tokens ─────────────────────────────────────────── */
+:root {
+    --brand-amber:       #f4c46b;
+    --brand-amber-hover: #ffd88f;
+    --brand-amber-glow:  rgba(244, 196, 107, 0.30);
+    --brand-cyan:        #7dd7de;
+    --brand-bg:          #090b10;
+    --brand-bg-2:        #0d121c;
+    --brand-bg-3:        #0f1522;
+}
+
 :root {
     --foreground-rgb: 0, 0, 0;
     --background-start-rgb: 214, 219, 220;

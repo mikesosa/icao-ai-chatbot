@@ -3,7 +3,12 @@
     "allow": [
       "Bash(npx tsx:*)",
       "Bash(npx next:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(wait:*)",
+      "WebFetch(domain:work.fife.usercontent.google.com)",
+      "WebFetch(domain:lh3.googleusercontent.com)",
+      "Bash(open:*)",
+      "Bash(find:*)"
     ]
   }
 }
