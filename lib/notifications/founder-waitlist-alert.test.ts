@@ -21,13 +21,13 @@ test('buildFounderWaitlistAlertEmail includes signup details', () => {
   assert.match(email.text, /pilot@example\.com/);
   assert.match(email.text, /Source: landing/);
   assert.match(email.text, /2026-03-15T18:00:00\.000Z/);
-  assert.match(email.text, /Reply to lead: mailto:pilot%40example\.com/);
   assert.match(email.text, /Open app: https:\/\/vectorenglish\.io/);
-  assert.match(email.html, /VectorEnglish\.io/);
-  assert.match(email.html, /Open VectorEnglish\.io/);
-  assert.match(email.html, /Reply to lead/);
-  assert.match(email.html, /Another future user just joined/);
-  assert.match(email.html, /https:\/\/vectorenglish\.io\/logo\.svg/);
+  assert.match(email.html, /Vector/);
+  assert.match(email.html, /English/);
+  assert.match(email.html, /New waitlist signup/);
+  assert.match(email.html, /Open app/);
+  assert.doesNotMatch(email.html, /Reply to lead/);
+  assert.doesNotMatch(email.html, /logo\.svg/);
 });
 
 test('buildFounderWaitlistAlertEmail escapes HTML content', () => {
