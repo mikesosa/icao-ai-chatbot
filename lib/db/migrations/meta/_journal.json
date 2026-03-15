@@ -113,6 +113,13 @@
       "when": 1737420000000,
       "tag": "0015_add_missing_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1742000000000,
+      "tag": "0016_waitlist",
+      "breakpoints": true
     }
   ]
 }

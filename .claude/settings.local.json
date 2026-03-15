@@ -9,7 +9,9 @@
       "WebFetch(domain:lh3.googleusercontent.com)",
       "Bash(open:*)",
       "Bash(find:*)",
-      "Bash(screencapture:*)"
+      "Bash(screencapture:*)",
+      "Bash(grep:*)",
+      "Bash(curl:*)"
     ]
   }
 }
