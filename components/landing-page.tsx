@@ -15,6 +15,7 @@ import {
   Mic,
 } from 'lucide-react';
 
+import { Logo } from '@/components/logo';
 import {
   type LandingTranslations,
   type Locale,
@@ -97,10 +98,7 @@ function Nav({
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/8 bg-[#090b10]/85 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
-        <span className="flex items-center text-sm font-semibold tracking-tight">
-          <span className="text-[#f4c46b]">Vector</span>
-          <span className="text-white">English</span>
-        </span>
+        <Logo />
 
         <div className="flex items-center gap-3 text-sm">
           <button
@@ -503,10 +501,7 @@ function Footer({ t }: { t: LandingTranslations['footer'] }) {
   return (
     <footer className="border-t border-white/8 px-6 py-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 text-xs text-white/35 sm:flex-row sm:items-center sm:justify-between">
-        <span className="flex items-center">
-          <span className="text-[#f4c46b]/60">Vector</span>
-          <span>English</span>
-        </span>
+        <Logo className="opacity-50" />
         <span>{t.note}</span>
         <span>© {new Date().getFullYear()}</span>
       </div>
