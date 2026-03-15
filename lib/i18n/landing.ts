@@ -66,10 +66,10 @@ const en: LandingTranslations = {
     joinWaitlist: 'Join waitlist',
   },
   hero: {
-    badge: 'ELPAC / ICAO / ATC',
-    headline: 'Train for the real radio. Pass with calm confidence.',
+    badge: 'ELPAC Exam Prep · ATC Only',
+    headline: 'Ace your ELPAC. Speak like a pro on the radio.',
     subheadline:
-      "Voice-first exam simulations for ATC English proficiency. Practice exactly how you'll be evaluated.",
+      'Realistic ATC scenarios. Scored like the real exam. Train in 15 minutes.',
     placeholder: 'you@ansp.com',
     button: 'Request access',
     ctaSecondary: 'See platform preview',
@@ -79,75 +79,78 @@ const en: LandingTranslations = {
     footnote: 'No spam. Early-access updates only.',
   },
   proof: {
-    sectionLabel: 'Why controllers join early',
+    sectionLabel: 'Built around the ELPAC, not generic English',
     items: [
       {
-        value: 'Voice-first',
-        label: 'Speak naturally in realistic ATC radio communication scenarios',
+        value: 'ELPAC-accurate',
+        label:
+          'Scenarios built around the exact tasks and criteria used in official ELPAC evaluations',
       },
       {
-        value: 'ICAO-aware',
-        label: 'Tasks aligned to ELPAC and ICAO English proficiency standards',
+        value: 'Speak to pass',
+        label:
+          'Your voice is evaluated in real time — the same dimensions a human examiner scores',
       },
       {
-        value: 'Fast feedback',
-        label: 'See fluency and communication gaps right after each run',
+        value: 'Know your level',
+        label:
+          'Get a structured score after each session so you know where you stand before exam day',
       },
     ],
   },
   demo: {
     sectionLabel: 'Platform preview',
     heading: 'See the exam experience before launch.',
-    body: 'Review the simulation flow: prompt, speaking response, evaluator feedback, and next-step coaching.',
+    body: 'Review the full simulation: ATC scenario prompt, your spoken response, examiner-style feedback, and a breakdown of your score.',
     watchLabel: 'Watch walkthrough',
     duration: '~90 sec preview',
   },
   features: [
     {
-      title: 'Voice-first',
+      title: 'Realistic scenarios',
       description:
-        'Respond by voice in test-style prompts with realistic pacing and pressure.',
+        'Route clearances, weather reports, emergency calls, readbacks — the situations that actually appear in your ELPAC, in English.',
     },
     {
-      title: 'Exam aligned',
+      title: 'Scored like the exam',
       description:
-        'Practice ELPAC and ICAO-style ATC communication with scenario-driven tasks.',
+        'Fluency, vocabulary, pronunciation, and comprehension assessed against ICAO Level 4-6 criteria after every session.',
     },
     {
-      title: 'Actionable scoring',
+      title: 'On-demand practice',
       description:
-        'Get immediate feedback on clarity, fluency, phraseology, and confidence.',
+        'No scheduling. No waiting. Train whenever you have 15 minutes — from your phone or desktop.',
     },
   ],
   faq: {
-    sectionLabel: 'FAQ',
+    sectionLabel: 'Common questions',
     items: [
       {
-        question: 'Who is VectorEnglish for?',
+        question: 'What is the ELPAC?',
         answer:
-          'VectorEnglish is built exclusively for Air Traffic Controllers preparing for ELPAC and ICAO English proficiency evaluations.',
+          'The ELPAC (English Language Proficiency for Aeronautical Communication) is the mandatory English proficiency test for Air Traffic Controllers worldwide. Most controllers must demonstrate Level 4 or higher to maintain active certification.',
       },
       {
-        question: 'What does the waitlist give me?',
+        question: 'What ELPAC level does VectorEnglish target?',
         answer:
-          'You get early access invitations, release notes, and onboarding priority as new exam flows roll out.',
+          'VectorEnglish is designed to help controllers reach and maintain ELPAC Level 4 — the minimum required for active certification — and push toward Level 5 for longer validity periods.',
       },
       {
-        question: 'Do I need a card to join?',
+        question: 'Is this a replacement for official ELPAC materials?',
         answer:
-          'No. Joining the waitlist only requires an email. Billing starts only if you later activate a plan.',
+          'No — it is a complement. VectorEnglish gives you the speaking practice reps that textbooks cannot. The more you speak in realistic scenarios, the more natural your responses become on exam day.',
       },
     ],
   },
   finalCta: {
-    heading: 'Get first access to VectorEnglish.',
+    heading: 'Your ELPAC is too important to wing it.',
     description:
-      'Join the queue now and we will notify you as soon as your seat opens.',
+      'Join the waitlist and be first to access the only ELPAC simulator built specifically for Air Traffic Controllers.',
     button: 'Join the waitlist',
   },
   footer: {
     brand: 'VectorEnglish',
-    note: 'Aviation English simulation for Air Traffic Controllers.',
+    note: 'ELPAC exam preparation for Air Traffic Controllers.',
   },
 };
 
@@ -159,10 +162,10 @@ const es: LandingTranslations = {
     joinWaitlist: 'Unirse a la lista',
   },
   hero: {
-    badge: 'ELPAC / ICAO / ATC',
-    headline: 'Entrena para la radio real. Aprueba con confianza.',
+    badge: 'Preparacion ELPAC · Solo ATC',
+    headline: 'Aprueba el ELPAC. Domina las comunicaciones en inglés.',
     subheadline:
-      'Simulaciones de examen por voz para competencia en ingles ATC. Practica exactamente como te evaluaran.',
+      'Escenarios ATC reales. Puntaje como el examen. Entrena en 15 minutos.',
     placeholder: 'tu@ansp.com',
     button: 'Solicitar acceso',
     ctaSecondary: 'Ver vista previa',
@@ -172,76 +175,78 @@ const es: LandingTranslations = {
     footnote: 'Sin spam. Solo novedades de acceso anticipado.',
   },
   proof: {
-    sectionLabel: 'Por que los controladores se unen temprano',
+    sectionLabel: 'Construido para el ELPAC, no para ingles general',
     items: [
       {
-        value: 'Primero voz',
-        label: 'Responde de forma natural en escenarios reales de radio ATC',
-      },
-      {
-        value: 'Con enfoque ICAO',
+        value: 'Preciso para el ELPAC',
         label:
-          'Tareas alineadas a estandares ELPAC e ICAO de competencia en ingles',
+          'Escenarios basados en las tareas y criterios exactos de las evaluaciones oficiales ELPAC',
       },
       {
-        value: 'Feedback rapido',
-        label: 'Identifica vacios de fluidez y comunicacion al instante',
+        value: 'Hablar para aprobar',
+        label:
+          'Tu voz es evaluada en tiempo real, en las mismas dimensiones que califica un examinador humano',
+      },
+      {
+        value: 'Conoce tu nivel',
+        label:
+          'Recibe un puntaje estructurado despues de cada sesion para saber donde estas antes del examen',
       },
     ],
   },
   demo: {
     sectionLabel: 'Vista previa',
     heading: 'Mira la experiencia del examen antes del lanzamiento.',
-    body: 'Revisa el flujo completo: prompt, respuesta hablada, evaluacion y recomendaciones de mejora.',
+    body: 'Revisa la simulacion completa: escenario ATC, tu respuesta hablada, retroalimentacion estilo examinador y el desglose de tu puntaje.',
     watchLabel: 'Ver recorrido',
     duration: 'Vista previa de ~90 s',
   },
   features: [
     {
-      title: 'Voz primero',
+      title: 'Escenarios reales',
       description:
-        'Responde por voz en prompts de examen con ritmo y presion realistas.',
+        'Autorizaciones de ruta, informes meteorologicos, emergencias, readbacks — las situaciones que aparecen en tu ELPAC, en ingles.',
     },
     {
-      title: 'Alineado al examen',
+      title: 'Puntaje como el examen',
       description:
-        'Practica comunicacion estilo ELPAC e ICAO con tareas basadas en escenarios ATC.',
+        'Fluidez, vocabulario, pronunciacion y comprension evaluados segun los criterios ICAO Nivel 4-6 despues de cada sesion.',
     },
     {
-      title: 'Puntaje accionable',
+      title: 'Practica cuando quieras',
       description:
-        'Obtiene feedback inmediato sobre claridad, fluidez, fraseologia y confianza.',
+        'Sin horarios. Sin esperas. Entrena cuando tengas 15 minutos, desde tu telefono o computadora.',
     },
   ],
   faq: {
     sectionLabel: 'Preguntas frecuentes',
     items: [
       {
-        question: 'Para quien es VectorEnglish?',
+        question: 'Que es el ELPAC?',
         answer:
-          'VectorEnglish esta pensado exclusivamente para controladores de transito aereo (ATC) que preparan evaluaciones ELPAC e ICAO.',
+          'El ELPAC (English Language Proficiency for Aeronautical Communication) es el examen obligatorio de competencia en ingles para controladores de transito aereo en todo el mundo. La mayoria de los controladores debe demostrar Nivel 4 o superior para mantener su certificacion activa.',
       },
       {
-        question: 'Que recibo al unirme a la lista?',
+        question: 'A que nivel ELPAC apunta VectorEnglish?',
         answer:
-          'Recibiras invitaciones de acceso anticipado, novedades y prioridad de onboarding.',
+          'VectorEnglish esta disenado para ayudar a los controladores a alcanzar y mantener el Nivel 4 del ELPAC — el minimo requerido para certificacion activa — y avanzar hacia el Nivel 5 para periodos de validez mas largos.',
       },
       {
-        question: 'Necesito tarjeta para entrar a la lista?',
+        question: 'Reemplaza esto los materiales oficiales del ELPAC?',
         answer:
-          'No. Solo dejas tu correo para reservar lugar. El cobro solo aplica si activas un plan despues.',
+          'No, es un complemento. VectorEnglish te da las repeticiones de practica oral que los libros no pueden darte. Cuanto mas hablas en escenarios reales, mas naturales se vuelven tus respuestas el dia del examen.',
       },
     ],
   },
   finalCta: {
-    heading: 'Consigue acceso temprano a VectorEnglish.',
+    heading: 'Tu ELPAC es demasiado importante para dejarlo al azar.',
     description:
-      'Unete ahora y te avisaremos en cuanto tu lugar este habilitado.',
+      'Unete a la lista y se el primero en acceder al unico simulador ELPAC construido especificamente para controladores ATC.',
     button: 'Unirme a la lista',
   },
   footer: {
     brand: 'VectorEnglish',
-    note: 'Simulacion de ingles aeronautico para controladores ATC.',
+    note: 'Preparacion para el examen ELPAC de controladores ATC.',
   },
 };
 

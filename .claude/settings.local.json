@@ -8,7 +8,8 @@
       "WebFetch(domain:work.fife.usercontent.google.com)",
       "WebFetch(domain:lh3.googleusercontent.com)",
       "Bash(open:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(screencapture:*)"
     ]
   }
 }
