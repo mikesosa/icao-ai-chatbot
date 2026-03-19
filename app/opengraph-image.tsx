@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 export const alt =
-  'VectorEnglish — ELPAC exam prep for Air Traffic Controllers';
+  'VectorEnglish — realistic aviation English prep for ATC professionals';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -50,7 +50,7 @@ export default function OGImage() {
           textTransform: 'uppercase',
         }}
       >
-        ELPAC Exam Prep · ATC Only
+        Independent ELPAC-focused Prep
       </div>
 
       {/* Logo */}
@@ -103,8 +103,8 @@ export default function OGImage() {
           lineHeight: 1.5,
         }}
       >
-        Ace your ELPAC. Train with realistic ATC scenarios, scored like the real
-        exam.
+        Practice realistic ATC speaking scenarios before aviation English
+        proficiency exams.
       </div>
     </div>,
     { ...size },

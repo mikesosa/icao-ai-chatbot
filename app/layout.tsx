@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://vectorenglish.io'),
   title: 'VectorEnglish',
   description:
-    'AI-powered English proficiency training for Air Traffic Controllers. Voice-first exam simulations aligned to ICAO and ELPAC standards.',
+    'Realistic radio-style aviation English practice for ATC professionals and serious candidates preparing for ELPAC and similar proficiency exams.',
 };
 
 export const viewport = {
